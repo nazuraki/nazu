@@ -1,0 +1,48 @@
+# Python
+# Compiled source
+*.pyc
+__pycache__/
+*.class
+
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Distributions and packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.whl
+
+# Specific to editors and tools (examples)
+.vscode/ # VS Code specific files
+.idea/ # PyCharm specific files
+.pytest_cache/ # pytest cache
+.ruff_cache/ # Ruff linter cache
+
+# Environment variables
+.env
+.flaskenv
+
+# Log and temporary files
+*.log
+tmp/
+
+.claude
