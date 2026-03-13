@@ -222,8 +222,17 @@ Key details:
 | `DB_POOL_MAX_SIZE` | Pool max connections |
 
 ### Deferred Decisions
-- Authentication mechanism for Cloudflare Tunnel endpoint
 - Item relationship/linking model
 - Notion import tooling
 - Ollama vs OpenAI for embeddings
 - Docker Compose configuration
+
+### Mobile / Voice Integration (Pixel 10)
+Goal: voice access via Gemini Live using Gemini CLI Extensions. See `docs/gemini-mobile.md` for full architecture.
+
+| Component | Status | Notes |
+|---|---|---|
+| Cloudflare Tunnel (public endpoint) | To do |  |
+| HTTP/SSE transport entry point | To do | `app/mcp/server_http.py`, port 8001 |
+| API key auth middleware | To do | Bearer token on the SSE endpoint; `NAZU_API_KEY` in `.env` |
+| `nazu-extension/` directory | To do | `gemini-extension.json` + `GEMINI.md` |
