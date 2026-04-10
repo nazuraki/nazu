@@ -18,5 +18,9 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
 
+    # Additional API keys (optional, used by embedding eval and future integrations)
+    anthropic_api_key: str = ""
+    gemini_api_key: str = ""
+
 
 settings = Settings()

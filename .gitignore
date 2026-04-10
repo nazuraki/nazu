@@ -1,3 +1,6 @@
+# OS files
+.DS_Store
+
 # Python
 # Compiled source
 *.pyc
@@ -44,5 +47,9 @@ share/python-wheels/
 # Log and temporary files
 *.log
 tmp/
+
+# Embedding eval output (generated, not source)
+# included for now while size is small, for reference, given cost to generate
+# embedding-eval/output/
 
 .claude
