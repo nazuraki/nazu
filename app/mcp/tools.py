@@ -1,269 +1,186 @@
 """MCP tool implementations for nazu.
 
 Each function is registered as an MCP tool in server.py.
-Tools are thin: generate embeddings, call CRUD, format responses.
+Three domains: tasks (Postgres), knowledge graph (Graphiti/FalkorDB), kb_index (Postgres).
 """
 
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from datetime import datetime
+
+from graphiti_core.nodes import EpisodeType
 
 from app.db import models
-from app.db.models import ItemCreate, ItemUpdate
-from app.mcp.embeddings import generate_embedding
-
-
-CONFIDENCE_THRESHOLD = 0.7
+from app.db.models import KbEntryCreate, TaskCreate, TaskUpdate
+from app.mcp.graphiti import get_graphiti
 
 
 # ─── Helpers ──────────────────────────────────────────────────────
 
 
-def _format_item(item: models.Item) -> str:
-    lines = [
-        f"**{item.type.upper()}** `{item.id}`",
-        f"Content: {item.content}",
-    ]
-    if item.metadata:
-        for key, value in item.metadata.items():
-            lines.append(f"  {key}: {value}")
-    lines.append(f"Created: {item.created_at.isoformat()}")
-    lines.append(f"Updated: {item.updated_at.isoformat()}")
-    return "\n".join(lines)
-
-
-def _format_search_result(result: models.SearchResult, rank: int) -> str:
+def _format_task(task: models.Task) -> str:
+    due = f"  due: {task.due_date}" if task.due_date else ""
     return (
-        f"{rank}. [distance: {result.distance:.4f}]\n"
-        f"{_format_item(result.item)}"
+        f"[{task.status.upper()}] `{task.id}`\n"
+        f"  {task.description}{due}\n"
+        f"  created: {task.created_at.date()}"
     )
 
 
-# ─── Tools ────────────────────────────────────────────────────────
-
-
-async def add_item(
-    type: str,
-    content: str,
-    topics: list[str],
-    classification_confidence: float | None = None,
-    metadata: dict[str, Any] | None = None,
-) -> str:
-    """Create a new item with an auto-generated embedding.
-
-    Args:
-        type: Item type (note, task, url, transcript).
-        content: The text content of the item.
-        topics: Semantic domain topics in kebab-case (e.g. ["home-automation", "finance"]).
-            Provide your best classification. Pass [] if genuinely unclassifiable.
-        classification_confidence: Confidence in topic classification (0.0–1.0).
-            Items with confidence below 0.7 or empty topics are auto-flagged for review.
-        metadata: Optional metadata dict (tags, status, due_date, etc.).
-    """
-    meta = metadata or {}
-    meta["topics"] = topics
-    if classification_confidence is not None:
-        meta["classification_confidence"] = classification_confidence
-
-    needs_review = (not topics) or (
-        classification_confidence is not None
-        and classification_confidence < CONFIDENCE_THRESHOLD
+def _format_kb_entry(entry: models.KbEntry) -> str:
+    return (
+        f"[{entry.type}] `{entry.id}`\n"
+        f"  {entry.summary}\n"
+        f"  added: {entry.created_at.date()}"
     )
-    if needs_review:
-        meta["needs_review"] = True
-
-    embedding = await generate_embedding(content)
-    item_data = ItemCreate(type=type, content=content, metadata=meta)
-    item = await models.create_item(item_data, embedding=embedding)
-    return f"Created item:\n{_format_item(item)}"
 
 
-async def search(
-    query: str,
-    limit: int = 10,
-    type: str | None = None,
-    tag: str | None = None,
-    topic: str | None = None,
-    needs_review: bool | None = None,
-) -> str:
-    """Search items by semantic similarity.
-
-    Args:
-        query: Natural language search query.
-        limit: Maximum results to return (default 10).
-        type: Filter by item type.
-        tag: Filter by tag.
-        topic: Filter by semantic topic (e.g. "home-automation", "finance").
-        needs_review: If True, restrict to items flagged for review.
-    """
-    query_embedding = await generate_embedding(query)
-    results = await models.search_items(
-        query_embedding=query_embedding,
-        limit=limit,
-        type=type,
-        tag=tag,
-        topic=topic,
-        needs_review=needs_review,
-    )
-    if not results:
-        return "No matching items found."
-    parts = [f"Found {len(results)} result(s):\n"]
-    for i, result in enumerate(results, 1):
-        parts.append(_format_search_result(result, i))
-    return "\n\n".join(parts)
-
-
-async def get_item(id: str) -> str:
-    """Fetch a single item by its UUID.
-
-    Args:
-        id: The item's UUID.
-    """
-    item = await models.get_item(uuid.UUID(id))
-    if item is None:
-        return f"Item not found: {id}"
-    return _format_item(item)
-
-
-async def list_items(
-    type: str | None = None,
-    tag: str | None = None,
-    status: str | None = None,
-    topic: str | None = None,
-    needs_review: bool | None = None,
-    limit: int = 50,
-    offset: int = 0,
-) -> str:
-    """List items with optional filters.
-
-    Args:
-        type: Filter by item type (note, task, url, transcript).
-        tag: Filter by tag.
-        status: Filter by metadata status (e.g. pending, done).
-        topic: Filter by semantic topic (e.g. "home-automation", "finance").
-        needs_review: If True, restrict to items flagged for classification review.
-        limit: Maximum items to return (default 50).
-        offset: Pagination offset (default 0).
-    """
-    items = await models.list_items(
-        type=type,
-        tag=tag,
-        status=status,
-        topic=topic,
-        needs_review=needs_review,
-        limit=limit,
-        offset=offset,
-    )
-    if not items:
-        return "No items found."
-    parts = [f"Showing {len(items)} item(s):\n"]
-    for item in items:
-        parts.append(_format_item(item))
-    return "\n\n".join(parts)
-
-
-async def update_item(
-    id: str,
-    content: str | None = None,
-    metadata: dict[str, Any] | None = None,
-) -> str:
-    """Update an existing item's content and/or metadata.
-
-    Regenerates the embedding if content changes.
-
-    Args:
-        id: The item's UUID.
-        content: New content text (triggers embedding regeneration).
-        metadata: New metadata dict (replaces existing metadata entirely).
-    """
-    embedding = None
-    if content is not None:
-        embedding = await generate_embedding(content)
-    update_data = ItemUpdate(content=content, metadata=metadata)
-    item = await models.update_item(uuid.UUID(id), update_data, embedding=embedding)
-    if item is None:
-        return f"Item not found: {id}"
-    return f"Updated item:\n{_format_item(item)}"
+# ─── Task Tools ───────────────────────────────────────────────────
 
 
 async def add_task(
-    content: str,
-    topics: list[str],
+    description: str,
     due_date: str | None = None,
-    tags: list[str] | None = None,
-    classification_confidence: float | None = None,
 ) -> str:
-    """Shortcut to create a task item.
+    """Create a new task.
 
     Args:
-        content: Task description.
-        topics: Semantic domain topics in kebab-case (e.g. ["home-automation"]).
-            Pass [] if genuinely unclassifiable — item will be flagged for review.
-        due_date: Optional due date (ISO format, e.g. 2025-12-31).
-        tags: Optional list of tags.
-        classification_confidence: Confidence in topic classification (0.0–1.0).
+        description: What needs to be done.
+        due_date: Optional due date in ISO format (e.g. 2025-12-31).
     """
-    metadata: dict[str, Any] = {"status": "pending"}
-    if due_date is not None:
-        metadata["due_date"] = due_date
-    if tags is not None:
-        metadata["tags"] = tags
-    return await add_item(
-        type="task",
-        content=content,
-        topics=topics,
-        classification_confidence=classification_confidence,
-        metadata=metadata,
+    from datetime import date
+
+    parsed_due = date.fromisoformat(due_date) if due_date else None
+    task = await models.create_task(
+        TaskCreate(description=description, due_date=parsed_due)
     )
-
-
-async def review_items(limit: int = 20) -> str:
-    """List items flagged as needing classification review.
-
-    These are items stored with low classification confidence. For each,
-    inspect the assigned topics, correct them if needed via update_item,
-    then clear the flag by setting needs_review to False in metadata.
-
-    Args:
-        limit: Maximum items to return (default 20).
-    """
-    items = await models.list_items(needs_review=True, limit=limit)
-    if not items:
-        return "No items pending review."
-    parts = [f"{len(items)} item(s) need review:\n"]
-    for item in items:
-        parts.append(_format_item(item))
-    return "\n\n".join(parts)
-
-
-async def delete_item(id: str) -> str:
-    """Permanently delete an item by its UUID.
-
-    Args:
-        id: The item's UUID.
-    """
-    deleted = await models.delete_item(uuid.UUID(id))
-    if not deleted:
-        return f"Item not found: {id}"
-    return f"Deleted item: {id}"
+    return f"Task created:\n{_format_task(task)}"
 
 
 async def complete_task(id: str) -> str:
     """Mark a task as done.
 
     Args:
-        id: The task item's UUID.
+        id: The task's UUID.
     """
-    item_id = uuid.UUID(id)
-    existing = await models.get_item(item_id)
-    if existing is None:
+    task = await models.update_task(uuid.UUID(id), TaskUpdate(status="done"))
+    if task is None:
         return f"Task not found: {id}"
-    if existing.type != "task":
-        return f"Item {id} is a {existing.type}, not a task."
-    updated_metadata = {**existing.metadata, "status": "done"}
-    update_data = ItemUpdate(metadata=updated_metadata)
-    item = await models.update_item(item_id, update_data)
-    if item is None:
-        return f"Failed to update task: {id}"
-    return f"Task completed:\n{_format_item(item)}"
+    return f"Task completed:\n{_format_task(task)}"
+
+
+async def list_tasks(status: str | None = None) -> str:
+    """List tasks, optionally filtered by status.
+
+    Args:
+        status: Filter by status — 'pending' or 'done'. Omit for all tasks.
+    """
+    tasks = await models.list_tasks(status=status)
+    if not tasks:
+        return "No tasks found."
+    parts = [f"{len(tasks)} task(s):\n"]
+    parts.extend(_format_task(t) for t in tasks)
+    return "\n\n".join(parts)
+
+
+async def delete_task(id: str) -> str:
+    """Permanently delete a task.
+
+    Args:
+        id: The task's UUID.
+    """
+    deleted = await models.delete_task(uuid.UUID(id))
+    if not deleted:
+        return f"Task not found: {id}"
+    return f"Deleted task: {id}"
+
+
+# ─── Knowledge Graph Tools ────────────────────────────────────────
+
+
+async def remember(
+    content: str,
+    source_description: str,
+    name: str | None = None,
+) -> str:
+    """Store a piece of knowledge in the graph.
+
+    Use this to capture facts, observations, conversations, or any information
+    worth preserving in long-term memory.
+
+    Args:
+        content: The knowledge to store.
+        source_description: Where this came from (e.g. "user conversation", "web research").
+        name: Optional short label for this episode.
+    """
+    g = get_graphiti()
+    episode_name = name or f"episode_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    await g.add_episode(
+        name=episode_name,
+        episode_body=content,
+        source=EpisodeType.text,
+        source_description=source_description,
+        reference_time=datetime.now(),
+    )
+    return f"Stored in knowledge graph: {episode_name}"
+
+
+async def recall(query: str, limit: int = 10) -> str:
+    """Search the knowledge graph for relevant facts.
+
+    Args:
+        query: Natural language query.
+        limit: Maximum results to return (default 10).
+    """
+    g = get_graphiti()
+    results = await g.search(query=query, num_results=limit)
+    if not results:
+        return "Nothing found in the knowledge graph."
+    parts = [f"Found {len(results)} result(s):\n"]
+    for i, edge in enumerate(results, 1):
+        parts.append(f"{i}. {edge.fact}")
+    return "\n\n".join(parts)
+
+
+# ─── KB Index Tools ───────────────────────────────────────────────
+
+
+async def add_index_entry(type: str, summary: str) -> str:
+    """Add a curated entry to the knowledge base index.
+
+    The index is selective — add entries for concepts, people, projects, or topics
+    worth surfacing quickly. Not every graph node needs an entry here.
+
+    Args:
+        type: Entry type (e.g. concept, person, project, place, event).
+        summary: One or two sentence description of what this entry represents.
+    """
+    entry = await models.create_kb_entry(KbEntryCreate(type=type, summary=summary))
+    return f"Index entry added:\n{_format_kb_entry(entry)}"
+
+
+async def list_index(type: str | None = None) -> str:
+    """List knowledge base index entries.
+
+    Args:
+        type: Filter by entry type. Omit for all entries.
+    """
+    entries = await models.list_kb_entries(type=type)
+    if not entries:
+        return "No index entries found."
+    parts = [f"{len(entries)} index entry/entries:\n"]
+    parts.extend(_format_kb_entry(e) for e in entries)
+    return "\n\n".join(parts)
+
+
+async def delete_index_entry(id: str) -> str:
+    """Remove an entry from the knowledge base index.
+
+    Args:
+        id: The entry's UUID.
+    """
+    deleted = await models.delete_kb_entry(uuid.UUID(id))
+    if not deleted:
+        return f"Index entry not found: {id}"
+    return f"Deleted index entry: {id}"

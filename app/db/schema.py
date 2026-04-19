@@ -6,36 +6,36 @@ apply_schema() executes them in order against a connection.
 
 from __future__ import annotations
 
-ENABLE_PGVECTOR = "CREATE EXTENSION IF NOT EXISTS vector;"
-
-CREATE_ITEMS_TABLE = """
-CREATE TABLE IF NOT EXISTS items (
+CREATE_TASKS_TABLE = """
+CREATE TABLE IF NOT EXISTS tasks (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    type        VARCHAR(50) NOT NULL,
-    content     TEXT NOT NULL,
-    metadata    JSONB NOT NULL DEFAULT '{}',
-    embedding   vector(1536),
+    description TEXT NOT NULL,
+    status      VARCHAR(20) NOT NULL DEFAULT 'pending',
+    due_date    DATE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 """
 
-CREATE_TYPE_INDEX = """
-CREATE INDEX IF NOT EXISTS idx_items_type ON items (type);
+CREATE_KB_INDEX_TABLE = """
+CREATE TABLE IF NOT EXISTS kb_index (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type        VARCHAR(50) NOT NULL,
+    summary     TEXT NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 """
 
-CREATE_METADATA_GIN_INDEX = """
-CREATE INDEX IF NOT EXISTS idx_items_metadata ON items USING gin (metadata);
+CREATE_TASKS_STATUS_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks (status);
 """
 
-CREATE_EMBEDDING_HNSW_INDEX = """
-CREATE INDEX IF NOT EXISTS idx_items_embedding ON items
-USING hnsw (embedding vector_cosine_ops)
-WITH (m = 16, ef_construction = 64);
+CREATE_TASKS_CREATED_AT_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks (created_at DESC);
 """
 
-CREATE_CREATED_AT_INDEX = """
-CREATE INDEX IF NOT EXISTS idx_items_created_at ON items (created_at DESC);
+CREATE_KB_INDEX_TYPE_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_kb_index_type ON kb_index (type);
 """
 
 CREATE_UPDATED_AT_FUNCTION = """
@@ -48,23 +48,22 @@ END;
 $$ LANGUAGE plpgsql;
 """
 
-CREATE_UPDATED_AT_TRIGGER = """
-DROP TRIGGER IF EXISTS trigger_items_updated_at ON items;
-CREATE TRIGGER trigger_items_updated_at
-    BEFORE UPDATE ON items
+CREATE_TASKS_UPDATED_AT_TRIGGER = """
+DROP TRIGGER IF EXISTS trigger_tasks_updated_at ON tasks;
+CREATE TRIGGER trigger_tasks_updated_at
+    BEFORE UPDATE ON tasks
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 """
 
 ALL_STATEMENTS = [
-    ENABLE_PGVECTOR,
-    CREATE_ITEMS_TABLE,
-    CREATE_TYPE_INDEX,
-    CREATE_METADATA_GIN_INDEX,
-    CREATE_EMBEDDING_HNSW_INDEX,
-    CREATE_CREATED_AT_INDEX,
+    CREATE_TASKS_TABLE,
+    CREATE_KB_INDEX_TABLE,
+    CREATE_TASKS_STATUS_INDEX,
+    CREATE_TASKS_CREATED_AT_INDEX,
+    CREATE_KB_INDEX_TYPE_INDEX,
     CREATE_UPDATED_AT_FUNCTION,
-    CREATE_UPDATED_AT_TRIGGER,
+    CREATE_TASKS_UPDATED_AT_TRIGGER,
 ]
 
 

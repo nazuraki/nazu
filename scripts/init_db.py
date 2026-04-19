@@ -11,7 +11,6 @@ import asyncio
 import sys
 
 import asyncpg
-from pgvector.asyncpg import register_vector
 
 sys.path.insert(0, ".")
 
@@ -30,27 +29,23 @@ async def main() -> None:
         sys.exit(1)
 
     try:
-        await register_vector(conn)
         await apply_schema(conn)
         print("Schema applied successfully.")
 
-        count = await conn.fetchval(
-            "SELECT count(*) FROM information_schema.tables "
-            "WHERE table_schema = 'public' AND table_name = 'items'"
-        )
-        print(f"items table: {'exists' if count == 1 else 'MISSING'}")
+        for table in ("tasks", "kb_index"):
+            count = await conn.fetchval(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = $1",
+                table,
+            )
+            print(f"{table}: {'exists' if count == 1 else 'MISSING'}")
 
         indexes = await conn.fetch(
-            "SELECT indexname FROM pg_indexes WHERE tablename = 'items'"
+            "SELECT tablename, indexname FROM pg_indexes "
+            "WHERE tablename IN ('tasks', 'kb_index') ORDER BY tablename, indexname"
         )
-        print(f"Indexes: {[r['indexname'] for r in indexes]}")
-    except asyncpg.exceptions.UndefinedObjectError:
-        print(
-            "ERROR: pgvector extension not found.\n"
-            "Install it: sudo apt install postgresql-17-pgvector\n"
-            "Then restart PostgreSQL and re-run this script."
-        )
-        sys.exit(1)
+        for row in indexes:
+            print(f"  {row['tablename']}: {row['indexname']}")
     finally:
         await conn.close()
 

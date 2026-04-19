@@ -1,150 +1,181 @@
-"""Data models and CRUD operations for the items table.
+"""Data models and CRUD operations for tasks and kb_index tables.
 
 All database operations use raw SQL via asyncpg.
-Embedding generation is handled upstream (MCP tools layer).
 """
 
 from __future__ import annotations
 
-import json
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
-import asyncpg
-import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.db import get_pool
 
 
-# ─── Models ───────────────────────────────────────────────────────
+# ─── Task Models ──────────────────────────────────────────────────
 
 
-class ItemCreate(BaseModel):
-    type: str
-    content: str
-    metadata: dict[str, Any] = Field(default_factory=dict)
+class TaskCreate(BaseModel):
+    description: str
+    due_date: date | None = None
 
 
-class ItemUpdate(BaseModel):
-    content: str | None = None
-    metadata: dict[str, Any] | None = None
+class TaskUpdate(BaseModel):
+    description: str | None = None
+    status: str | None = None
+    due_date: date | None = None
 
 
-class Item(BaseModel):
+class Task(BaseModel):
     id: uuid.UUID
-    type: str
-    content: str
-    metadata: dict[str, Any]
-    embedding: list[float] | None = None
+    description: str
+    status: str
+    due_date: date | None
     created_at: datetime
     updated_at: datetime
 
 
-class SearchResult(BaseModel):
-    item: Item
-    distance: float
+# ─── KbEntry Models ───────────────────────────────────────────────
 
 
-# ─── Helpers ──────────────────────────────────────────────────────
+class KbEntryCreate(BaseModel):
+    type: str
+    summary: str
 
 
-def _record_to_item(record: asyncpg.Record) -> Item:
-    data = dict(record)
-    if data.get("embedding") is not None:
-        data["embedding"] = data["embedding"].tolist()
-    if isinstance(data.get("metadata"), str):
-        data["metadata"] = json.loads(data["metadata"])
-    return Item(**data)
+class KbEntry(BaseModel):
+    id: uuid.UUID
+    type: str
+    summary: str
+    created_at: datetime
 
 
-# ─── CRUD ─────────────────────────────────────────────────────────
+# ─── Task CRUD ────────────────────────────────────────────────────
 
 
-async def create_item(
-    item: ItemCreate,
-    embedding: np.ndarray | None = None,
-) -> Item:
+async def create_task(task: TaskCreate) -> Task:
     pool = get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO items (type, content, metadata, embedding)
-            VALUES ($1, $2, $3::jsonb, $4)
+            INSERT INTO tasks (description, due_date)
+            VALUES ($1, $2)
             RETURNING *
             """,
-            item.type,
-            item.content,
-            json.dumps(item.metadata),
-            embedding,
+            task.description,
+            task.due_date,
         )
-    return _record_to_item(row)
+    return Task(**dict(row))
 
 
-async def get_item(item_id: uuid.UUID) -> Item | None:
+async def get_task(task_id: uuid.UUID) -> Task | None:
     pool = get_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM items WHERE id = $1", item_id)
-    if row is None:
-        return None
-    return _record_to_item(row)
+        row = await conn.fetchrow("SELECT * FROM tasks WHERE id = $1", task_id)
+    return Task(**dict(row)) if row else None
 
 
-async def update_item(
-    item_id: uuid.UUID,
-    update: ItemUpdate,
-    embedding: np.ndarray | None = None,
-) -> Item | None:
+async def update_task(task_id: uuid.UUID, update: TaskUpdate) -> Task | None:
     pool = get_pool()
     set_parts: list[str] = []
     params: list[Any] = []
     idx = 1
 
-    if update.content is not None:
-        set_parts.append(f"content = ${idx}")
-        params.append(update.content)
+    if update.description is not None:
+        set_parts.append(f"description = ${idx}")
+        params.append(update.description)
         idx += 1
 
-    if update.metadata is not None:
-        set_parts.append(f"metadata = ${idx}::jsonb")
-        params.append(json.dumps(update.metadata))
+    if update.status is not None:
+        set_parts.append(f"status = ${idx}")
+        params.append(update.status)
         idx += 1
 
-    if embedding is not None:
-        set_parts.append(f"embedding = ${idx}")
-        params.append(embedding)
+    if update.due_date is not None:
+        set_parts.append(f"due_date = ${idx}")
+        params.append(update.due_date)
         idx += 1
 
     if not set_parts:
-        return await get_item(item_id)
+        return await get_task(task_id)
 
-    params.append(item_id)
-    query = f"UPDATE items SET {', '.join(set_parts)} WHERE id = ${idx} RETURNING *"
+    params.append(task_id)
+    query = f"UPDATE tasks SET {', '.join(set_parts)} WHERE id = ${idx} RETURNING *"
 
     async with pool.acquire() as conn:
         row = await conn.fetchrow(query, *params)
-    if row is None:
-        return None
-    return _record_to_item(row)
+    return Task(**dict(row)) if row else None
 
 
-async def delete_item(item_id: uuid.UUID) -> bool:
+async def delete_task(task_id: uuid.UUID) -> bool:
     pool = get_pool()
     async with pool.acquire() as conn:
-        result = await conn.execute("DELETE FROM items WHERE id = $1", item_id)
+        result = await conn.execute("DELETE FROM tasks WHERE id = $1", task_id)
     return result == "DELETE 1"
 
 
-async def list_items(
-    type: str | None = None,
-    tag: str | None = None,
+async def list_tasks(
     status: str | None = None,
-    topic: str | None = None,
-    needs_review: bool | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> list[Item]:
+) -> list[Task]:
+    pool = get_pool()
+    conditions: list[str] = []
+    params: list[Any] = []
+    idx = 1
+
+    if status is not None:
+        conditions.append(f"status = ${idx}")
+        params.append(status)
+        idx += 1
+
+    where = "WHERE " + " AND ".join(conditions) if conditions else ""
+    params.extend([limit, offset])
+
+    query = f"""
+        SELECT * FROM tasks
+        {where}
+        ORDER BY created_at DESC
+        LIMIT ${idx} OFFSET ${idx + 1}
+    """
+
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query, *params)
+    return [Task(**dict(row)) for row in rows]
+
+
+# ─── KbEntry CRUD ─────────────────────────────────────────────────
+
+
+async def create_kb_entry(entry: KbEntryCreate) -> KbEntry:
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO kb_index (type, summary)
+            VALUES ($1, $2)
+            RETURNING *
+            """,
+            entry.type,
+            entry.summary,
+        )
+    return KbEntry(**dict(row))
+
+
+async def delete_kb_entry(entry_id: uuid.UUID) -> bool:
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute("DELETE FROM kb_index WHERE id = $1", entry_id)
+    return result == "DELETE 1"
+
+
+async def list_kb_entries(
+    type: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[KbEntry]:
     pool = get_pool()
     conditions: list[str] = []
     params: list[Any] = []
@@ -155,31 +186,11 @@ async def list_items(
         params.append(type)
         idx += 1
 
-    if tag is not None:
-        conditions.append(f"metadata->'tags' ? ${idx}")
-        params.append(tag)
-        idx += 1
-
-    if status is not None:
-        conditions.append(f"metadata->>'status' = ${idx}")
-        params.append(status)
-        idx += 1
-
-    if topic is not None:
-        conditions.append(f"metadata->'topics' ? ${idx}")
-        params.append(topic)
-        idx += 1
-
-    if needs_review is not None:
-        conditions.append(f"metadata @> ${idx}::jsonb")
-        params.append(json.dumps({"needs_review": needs_review}))
-        idx += 1
-
     where = "WHERE " + " AND ".join(conditions) if conditions else ""
     params.extend([limit, offset])
 
     query = f"""
-        SELECT * FROM items
+        SELECT * FROM kb_index
         {where}
         ORDER BY created_at DESC
         LIMIT ${idx} OFFSET ${idx + 1}
@@ -187,63 +198,4 @@ async def list_items(
 
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, *params)
-    return [_record_to_item(row) for row in rows]
-
-
-async def search_items(
-    query_embedding: np.ndarray,
-    limit: int = 10,
-    type: str | None = None,
-    tag: str | None = None,
-    topic: str | None = None,
-    needs_review: bool | None = None,
-) -> list[SearchResult]:
-    pool = get_pool()
-    conditions: list[str] = ["embedding IS NOT NULL"]
-    params: list[Any] = [query_embedding]
-    idx = 2
-
-    if type is not None:
-        conditions.append(f"type = ${idx}")
-        params.append(type)
-        idx += 1
-
-    if tag is not None:
-        conditions.append(f"metadata->'tags' ? ${idx}")
-        params.append(tag)
-        idx += 1
-
-    if topic is not None:
-        conditions.append(f"metadata->'topics' ? ${idx}")
-        params.append(topic)
-        idx += 1
-
-    if needs_review is not None:
-        conditions.append(f"metadata @> ${idx}::jsonb")
-        params.append(json.dumps({"needs_review": needs_review}))
-        idx += 1
-
-    where = "WHERE " + " AND ".join(conditions)
-    params.append(limit)
-
-    query = f"""
-        SELECT *, embedding <=> $1 AS distance
-        FROM items
-        {where}
-        ORDER BY embedding <=> $1
-        LIMIT ${idx}
-    """
-
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(query, *params)
-
-    results = []
-    for row in rows:
-        data = dict(row)
-        distance = data.pop("distance")
-        if data.get("embedding") is not None:
-            data["embedding"] = data["embedding"].tolist()
-        if isinstance(data.get("metadata"), str):
-            data["metadata"] = json.loads(data["metadata"])
-        results.append(SearchResult(item=Item(**data), distance=distance))
-    return results
+    return [KbEntry(**dict(row)) for row in rows]
