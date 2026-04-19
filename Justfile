@@ -1,5 +1,5 @@
 # nazu — personal knowledge MCP server
-# Requires: just, python3.14 (homebrew), docker, ruff
+# Requires: just, python3, docker, ruff
 
 default:
     @just --list
@@ -8,6 +8,9 @@ default:
 install:
     python3 -m venv .venv
     .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+
+build:
+    echo "Nothing to build"
 
 # Run the MCP server (stdio transport)
 run:
@@ -19,6 +22,9 @@ check: lint
 # Lint
 lint:
     .venv/bin/ruff check .
+
+test:
+    echo "Not implemented"
 
 # Fix lint and formatting issues
 fix:
