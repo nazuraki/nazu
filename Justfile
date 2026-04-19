@@ -6,7 +6,7 @@ default:
 
 # Create .venv and install dependencies
 install:
-    /opt/homebrew/bin/python3.14 -m venv .venv
+    python3 -m venv .venv
     .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 
 # Run the MCP server (stdio transport)
