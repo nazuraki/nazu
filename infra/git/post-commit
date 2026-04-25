@@ -1,0 +1,18 @@
+#!/bin/sh
+# Re-index the GitNexus knowledge graph after each commit.
+# Runs detached so the commit returns immediately.
+# Preserves embeddings if any exist; skips CLAUDE.md/AGENTS.md updates
+# to avoid dirtying the working tree.
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+META="$REPO_ROOT/.gitnexus/meta.json"
+
+EMBED_FLAG=""
+if [ -f "$META" ] && command -v jq >/dev/null 2>&1; then
+    COUNT=$(jq -r '.stats.embeddings // 0' "$META" 2>/dev/null)
+    if [ "$COUNT" != "0" ] && [ -n "$COUNT" ]; then
+        EMBED_FLAG="--embeddings"
+    fi
+fi
+
+(cd "$REPO_ROOT" && nohup npx gitnexus analyze --skip-agents-md $EMBED_FLAG >/dev/null 2>&1 &) </dev/null >/dev/null 2>&1

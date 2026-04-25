@@ -66,6 +66,12 @@ down:
 
 # ─── Repo-wide ────────────────────────────────────────────────────
 
+# Install local git hooks (post-commit GitNexus re-indexer)
+init:
+    mkdir -p .git/hooks
+    install -m 0755 infra/git/post-commit .git/hooks/post-commit
+    @echo "Installed: .git/hooks/post-commit"
+
 # Remove caches and venvs
 clean:
     rm -rf apps/mcp/.venv
