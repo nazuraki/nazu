@@ -33,6 +33,16 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Sync SvelteKit types
         run: pnpm --filter @nazu/web run sync
+      - name: Debug sync output
+        run: |
+          echo "=== .svelte-kit contents ==="
+          ls -la apps/web/.svelte-kit/ || echo "MISSING"
+          echo "=== generated tsconfig ==="
+          cat apps/web/.svelte-kit/tsconfig.json || echo "MISSING"
+          echo "=== root tsconfig ==="
+          cat apps/web/tsconfig.json
+          echo "=== src/lib contents ==="
+          ls apps/web/src/lib/ || echo "MISSING"
       - name: Lint
         run: pnpm --filter @nazu/web run lint
       - name: Type-check
