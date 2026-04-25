@@ -2,8 +2,6 @@
 
 > **Purpose:** Complete code reference so Claude doesn't have to re-read source files.
 
-> **Status:** Monorepo structure established. MCP server in `apps/mcp/`. SvelteKit web app scaffolded in `apps/web/` (step 2 done; route migration steps 3–5 pending).
-
 ## Project Structure
 
 ```
@@ -30,10 +28,10 @@ nazu/
 │       │   │   ├── config/
 │       │   │   │   └── services.ts    # Nav service list
 │       │   │   ├── dashboard/
-│       │   │   │   └── api.ts     # Typed fetch client for /dashboard/api/* endpoints
+│       │   │   │   └── api.ts     # Typed fetch client for /api/* dashboard endpoints
 │       │   │   ├── librarian/
 │       │   │   │   ├── types.ts       # Entry, EntryDetail, Tag, SearchResponse interfaces
-│       │   │   │   ├── api.ts         # Client fetch wrapper (BASE = /librarian/api)
+│       │   │   │   ├── api.ts         # Client fetch wrapper (BASE = /api)
 │       │   │   │   └── stores.ts      # searchCache, entryCache (svelte/store writable)
 │       │   │   └── server/
 │       │   │       ├── db.ts          # postgres singleton (DATABASE_URL)
@@ -47,32 +45,31 @@ nazu/
 │       │   └── routes/
 │       │       ├── +layout.svelte         # Shell: header nav + content area
 │       │       ├── (home)/+page.svelte    # / — home dashboard
-│       │       ├── nazu/+page.svelte      # /nazu
+│       │       ├── api/                   # Consolidated server routes (no auth — Cloudflare Tunnel)
+│       │       │   ├── repos/+server.ts
+│       │       │   ├── repos/activity/+server.ts
+│       │       │   ├── repos/compliance/+server.ts
+│       │       │   ├── steward/stats/+server.ts       # graceful if steward_runs missing
+│       │       │   ├── nazu/projects/+server.ts
+│       │       │   ├── docker/+server.ts              # Docker Engine socket API, filtered by DOCKER_CONTAINERS env var
+│       │       │   ├── containers/[id]/logs/+server.ts
+│       │       │   ├── search/+server.ts              # Librarian search
+│       │       │   ├── entries/[id]/+server.ts
+│       │       │   ├── tags/+server.ts
+│       │       │   └── recent/+server.ts
 │       │       ├── dashboard/             # /dashboard — repo/Steward/task wall display
 │       │       │   ├── +page.svelte           # Full-height grid: Code (3fr) + Stats (1fr)
-│       │       │   ├── sections/Code.svelte   # Repo cards panel (polls /dashboard/api/repos)
+│       │       │   ├── sections/Code.svelte   # Repo cards panel (polls /api/repos)
 │       │       │   ├── sections/Stats.svelte  # Steward gauges + nazu tasks
 │       │       │   ├── components/RepoCard.svelte
 │       │       │   ├── components/Gauge.svelte
-│       │       │   ├── components/LineChart.svelte
-│       │       │   └── api/               # Server routes (no auth — Cloudflare Tunnel)
-│       │       │       ├── repos/+server.ts
-│       │       │       ├── repos/activity/+server.ts
-│       │       │       ├── repos/compliance/+server.ts
-│       │       │       ├── steward/stats/+server.ts   # graceful if steward_runs missing
-│       │       │       ├── nazu/projects/+server.ts
-│       │       │       └── docker/+server.ts          # Docker Engine socket API, filtered by DOCKER_CONTAINERS env var
+│       │       │   └── components/LineChart.svelte
 │       │       └── librarian/             # /librarian — graph search + document viewer
 │       │           ├── +layout.svelte         # Sidebar layout (full-height with nav)
 │       │           ├── +page.svelte           # Home: search prompt + tag atlas + recent
 │       │           ├── search/+page.svelte    # Search results (paginated)
 │       │           ├── entry/[id]/+page.svelte # Entry detail + metadata sidebar
-│       │           ├── components/            # TagBadge, ResultCard, Sidebar
-│       │           └── api/                   # Server routes (no auth)
-│       │               ├── search/+server.ts
-│       │               ├── entries/[id]/+server.ts
-│       │               ├── tags/+server.ts
-│       │               └── recent/+server.ts
+│       │           └── components/            # TagBadge, ResultCard, Sidebar
 │       ├── repos.json         # Per-repo workflow config (statusWorkflow, pagesWorkflow)
 │       ├── svelte.config.js   # adapter-node
 │       ├── vite.config.ts     # sveltekit() from @sveltejs/kit/vite
@@ -122,7 +119,7 @@ apps/mcp/server/server.py  ──→  apps/mcp/server/tools.py
 ## Architecture
 
 ### Hosting Model
-- Self-hosted on repurposed Windows machine running Ubuntu Server 24.04 LTS
+- Self-hosted on Ubuntu Server 24.04 LTS
 - Remote access via Cloudflare Tunnel (outbound-only daemon, no inbound ports)
 - Cloudflare edge = public HTTPS endpoint, no VPS needed
 
@@ -312,31 +309,5 @@ Plain SQL DDL run on first container boot (mounted at `/docker-entrypoint-initdb
 | `GEMINI_API_KEY` | Optional |
 | `DOCKER_CONTAINERS` | Comma-separated container names to show in dashboard (empty = show all) |
 
-### Deferred Decisions
-- `apps/graphiti-api/` — separate Python/FastAPI service wrapping Graphiti (currently called directly from MCP server)
-- Cloudflare Tunnel setup
-- HTTP/SSE transport entry point for MCP
-- API key auth middleware
-- Gemini CLI Extension (`nazu-extension/`)
-- Notion import tooling
-
 ### Mobile / Voice Integration (Pixel 10)
 Goal: voice access via Gemini Live using Gemini CLI Extensions. See `docs/gemini-mobile.md` for full architecture.
-
-| Component | Status | Notes |
-|---|---|---|
-| Cloudflare Tunnel (public endpoint) | To do |  |
-| HTTP/SSE transport entry point | To do | `apps/mcp/server/server_http.py`, port 8001 |
-| API key auth middleware | To do | Bearer token on the SSE endpoint; `NAZU_API_KEY` in `.env` |
-| `nazu-extension/` directory | To do | `gemini-extension.json` + `GEMINI.md` |
-
-### Monorepo Migration (GH Issue #1)
-| Step | Status |
-|---|---|
-| 1. Restructure + pnpm workspaces | Done |
-| 2. Scaffold `apps/web` + wire compose | Done |
-| 3. Migrate butterfly → `/` | To do |
-| 4. Migrate sysctl → `/dashboard` | Done |
-| 5. Migrate librarian → `/librarian` | Done |
-| 6. Build `/nazu` UI | To do |
-| 7. PWA manifest + service worker | To do |
