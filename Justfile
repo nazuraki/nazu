@@ -1,52 +1,42 @@
-# nazu — personal knowledge MCP server
-# Requires: just, python3, docker, ruff
+# nazu — monorepo
+# Requires: just, python3, docker, pnpm, ruff
 
 default:
     @just --list
 
-# Create .venv and install dependencies
-install:
-    python3 -m venv .venv
-    .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+# ─── MCP server ──────────────────────────────────────────────────
 
-build:
-    echo "Nothing to build"
+# Create .venv and install dependencies for the MCP server
+mcp-install:
+    cd apps/mcp && /opt/homebrew/bin/python3.14 -m venv .venv
+    apps/mcp/.venv/bin/pip install -r apps/mcp/requirements.txt -r apps/mcp/requirements-dev.txt
 
 # Run the MCP server (stdio transport)
-run:
-    .venv/bin/python -m app.mcp.server
+mcp-run:
+    cd apps/mcp && .venv/bin/python -m server.server
 
-# Run all checks
-check: lint
+# Lint the MCP server
+mcp-lint:
+    cd apps/mcp && ../.venv/bin/ruff check .
 
-# Lint
-lint:
-    .venv/bin/ruff check .
+# Fix lint and formatting for the MCP server
+mcp-fix:
+    apps/mcp/.venv/bin/ruff check apps/mcp --fix
+    apps/mcp/.venv/bin/ruff format apps/mcp
 
-test:
-    echo "Not implemented"
+# ─── Infrastructure ───────────────────────────────────────────────
 
-# Fix lint and formatting issues
-fix:
-    .venv/bin/ruff check . --fix
-    .venv/bin/ruff format .
-
-# Initialize the Postgres schema
-db-init:
-    .venv/bin/python -m scripts.init_db
-
-# Start FalkorDB in the background
+# Start FalkorDB
 up:
     docker compose up -d falkordb
 
-# Stop FalkorDB
+# Stop all services
 down:
     docker compose down
 
-# Remove venv and caches
-clean:
-    rm -rf .venv
-    find . -name '__pycache__' -type d | xargs rm -rf
+# ─── Repo-wide ────────────────────────────────────────────────────
 
-# Reinstall from scratch
-fresh: clean install
+# Remove caches and venvs
+clean:
+    rm -rf apps/mcp/.venv
+    find . -name '__pycache__' -type d | xargs rm -rf

@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from app.db import get_pool
+from db import get_pool
 
 
 # ─── Task Models ──────────────────────────────────────────────────

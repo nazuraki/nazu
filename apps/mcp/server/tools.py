@@ -11,9 +11,9 @@ from datetime import datetime
 
 from graphiti_core.nodes import EpisodeType
 
-from app.db import models
-from app.db.models import KbEntryCreate, TaskCreate, TaskUpdate
-from app.mcp.graphiti import get_graphiti
+from db import models
+from db.models import KbEntryCreate, TaskCreate, TaskUpdate
+from server.graphiti import get_graphiti
 
 
 # ─── Helpers ──────────────────────────────────────────────────────

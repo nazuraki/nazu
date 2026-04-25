@@ -1,6 +1,6 @@
 """MCP server entry point for nazu.
 
-Run with: python -m app.mcp.server
+Run with: python -m server.server
 """
 
 from __future__ import annotations
@@ -10,9 +10,9 @@ from contextlib import asynccontextmanager
 
 from mcp.server.fastmcp import FastMCP
 
-from app.db import close_pool, init_pool
-from app.mcp import tools
-from app.mcp.graphiti import close_graphiti, init_graphiti
+from db import close_pool, init_pool
+from server import tools
+from server.graphiti import close_graphiti, init_graphiti
 
 
 @asynccontextmanager
