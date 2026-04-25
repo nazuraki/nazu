@@ -1,5 +1,8 @@
 {
   "name": "nazu",
   "private": true,
-  "packageManager": "pnpm@latest"
+  "packageManager": "pnpm@latest",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
 }

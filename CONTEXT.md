@@ -2,7 +2,7 @@
 
 > **Purpose:** Complete code reference so Claude doesn't have to re-read source files.
 
-> **Status:** Monorepo structure established. MCP server in `apps/mcp/`. SvelteKit web app (`apps/web/`) not yet scaffolded.
+> **Status:** Monorepo structure established. MCP server in `apps/mcp/`. SvelteKit web app scaffolded in `apps/web/` (step 2 done; route migration steps 3–5 pending).
 
 ## Project Structure
 
@@ -11,12 +11,33 @@ nazu/
 ├── CLAUDE.md              # Claude coding instructions
 ├── CONTEXT.md             # This file — full code reference
 ├── Justfile               # Repo-wide task runner
-├── package.json           # pnpm workspace root
+├── package.json           # pnpm workspace root (pnpm.onlyBuiltDependencies: esbuild)
 ├── pnpm-workspace.yaml    # Workspace config (apps/*, packages/*)
-├── docker-compose.yml     # FalkorDB service
+├── docker-compose.yml     # web + postgres + falkordb services
 ├── .env                   # Environment variables (DB creds, API keys)
 ├── apps/
-│   └── mcp/               # Python MCP server
+│   ├── mcp/               # Python MCP server
+│   └── web/               # SvelteKit app (Svelte 5, adapter-node, port 3000)
+│       ├── src/
+│       │   ├── app.html
+│       │   ├── app.d.ts       # App.Locals: user (from $lib/auth)
+│       │   ├── app.css        # Global styles, imports @nazu/ui/tokens.css
+│       │   ├── hooks.server.ts # Populates locals.user
+│       │   ├── lib/
+│       │   │   └── auth.ts    # Placeholder: getUserFromRequest() → null
+│       │   └── routes/
+│       │       ├── +layout.svelte         # Shell: sidebar nav + content area
+│       │       ├── (home)/+page.svelte    # / — home dashboard
+│       │       ├── nazu/+page.svelte      # /nazu
+│       │       ├── sysctl/+page.svelte    # /sysctl
+│       │       └── librarian/+page.svelte # /librarian
+│       ├── svelte.config.js   # adapter-node
+│       ├── vite.config.ts     # sveltekit() from @sveltejs/kit/vite
+│       ├── tsconfig.json
+│       └── Dockerfile         # Multi-stage Node 22; build context = repo root
+├── packages/
+│   └── ui/                # Shared design tokens (@nazu/ui)
+│       └── src/tokens.css # CSS custom properties (brand palette + scale)
 │       ├── config.py      # Pydantic settings from .env
 │       ├── db/
 │       │   ├── __init__.py    # Connection pool: init_pool, get_pool, close_pool
@@ -31,8 +52,10 @@ nazu/
 │       ├── requirements-dev.txt
 │       └── Dockerfile
 ├── infra/
-│   └── postgres/
-│       └── init.sql       # DDL — mounted into postgres container on first boot
+│   ├── postgres/
+│   │   └── init.sql       # DDL — mounted into postgres container on first boot
+│   └── cloudflare/
+│       └── tunnel-config.example.yml  # Copy to ~/.cloudflared/config.yml on host
 └── docs/
     ├── PURPOSE.md
     ├── gemini-mobile.md
@@ -267,7 +290,7 @@ Goal: voice access via Gemini Live using Gemini CLI Extensions. See `docs/gemini
 | Step | Status |
 |---|---|
 | 1. Restructure + pnpm workspaces | Done |
-| 2. Scaffold `apps/web` + wire compose | To do |
+| 2. Scaffold `apps/web` + wire compose | Done |
 | 3. Migrate butterfly → `/` | To do |
 | 4. Migrate sysctl → `/sysctl` | To do |
 | 5. Migrate librarian → `/librarian` | To do |

@@ -1,0 +1,38 @@
+@import '@nazu/ui/tokens.css';
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-body);
+  font-size: 16px;
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+h1 { font-size: var(--text-h1); }
+h2 { font-size: var(--text-h2); }
+h3 { font-size: var(--text-h3); }
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
