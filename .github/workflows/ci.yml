@@ -31,7 +31,9 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Sync SvelteKit types
+        run: pnpm --filter @nazu/web exec svelte-kit sync
       - name: Lint
         run: pnpm --filter @nazu/web lint
       - name: Type-check
-        run: pnpm --filter @nazu/web check
+        run: pnpm --filter @nazu/web exec svelte-check --tsconfig tsconfig.json
