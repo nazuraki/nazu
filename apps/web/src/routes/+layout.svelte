@@ -1,80 +1,32 @@
 <script lang="ts">
 	import '../app.css';
+	import { page } from '$app/state';
 
 	const { children } = $props();
 
-	const nav = [
-		{ href: '/',          label: 'Home' },
-		{ href: '/nazu',       label: 'Nazu' },
-		{ href: '/dashboard',  label: 'Dashboard' },
-		{ href: '/librarian', label: 'Librarian' },
-	];
+	const pageName = $derived.by(() => {
+		const seg = page.url.pathname.split('/').filter(Boolean)[0];
+		return seg ?? 'home';
+	});
 </script>
 
-<div class="shell">
-	<nav class="sidebar">
-		<span class="wordmark">nazu</span>
-		<ul>
-			{#each nav as { href, label } (href)}
-				<li><a {href}>{label}</a></li>
-			{/each}
-		</ul>
-	</nav>
+<div class="min-h-screen bg-surface-lowest text-on-surface font-inter">
+	<header class="bg-surface px-8 h-12 flex items-center justify-between">
+		<div class="flex items-baseline gap-3">
+			<a href="/" class="font-grotesk font-bold text-primary tracking-tight hover:text-primary-dim transition-colors">
+				nazu
+			</a>
+			<span class="w-px h-3 bg-outline opacity-30"></span>
+			<span class="font-grotesk text-xs text-on-surface-dim tracking-[0.1em] uppercase">
+				{pageName}
+			</span>
+		</div>
+		<div class="flex items-center gap-4">
+			<!-- Right slot: auth/login goes here once implemented -->
+		</div>
+	</header>
 
-	<main class="content">
+	<main>
 		{@render children()}
 	</main>
 </div>
-
-<style>
-	.shell {
-		display: flex;
-		min-height: 100dvh;
-	}
-
-	.sidebar {
-		width: 200px;
-		flex-shrink: 0;
-		background: var(--color-surface-container);
-		padding: var(--space-6) var(--space-4);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-6);
-	}
-
-	.wordmark {
-		font-family: var(--font-display);
-		font-weight: 700;
-		font-size: var(--text-h3);
-		color: var(--color-primary);
-		letter-spacing: -0.02em;
-	}
-
-	ul {
-		list-style: none;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	a {
-		display: block;
-		padding: var(--space-2) var(--space-3);
-		border-radius: var(--radius-md);
-		font-family: var(--font-display);
-		font-size: var(--text-sm);
-		color: var(--color-on-surface-variant);
-		transition: background var(--transition-fast), color var(--transition-fast);
-	}
-
-	a:hover {
-		background: var(--color-primary-container);
-		color: var(--color-primary);
-		text-decoration: none;
-	}
-
-	.content {
-		flex: 1;
-		padding: var(--space-8);
-	}
-</style>
