@@ -78,7 +78,7 @@
 
 	{#if !results && !error}
 		<div class="flex flex-col gap-3">
-			{#each Array(4) as _}
+			{#each Array(4) as _, i (i)}
 				<div class="bg-surface-low rounded-[4px] h-28 animate-pulse"></div>
 			{/each}
 		</div>
@@ -88,7 +88,7 @@
 		<div class="label-sm text-on-surface-faint">NO ENTRIES FOUND</div>
 	{:else if results}
 		<div class="flex flex-col gap-3">
-			{#each results.entries as entry}
+			{#each results.entries as entry (entry.id)}
 				<ResultCard {entry} query={query} />
 			{/each}
 		</div>

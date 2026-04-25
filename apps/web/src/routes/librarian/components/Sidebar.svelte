@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { searchCache } from '$lib/librarian/stores';
-	import { get } from 'svelte/store';
 
 	const navItems = [
 		{ label: 'Recent', href: '/librarian' },
@@ -32,7 +31,7 @@
 			>← BACK</a>
 		</div>
 		<div class="flex-1 overflow-y-auto">
-			{#each cache.results.entries as r}
+			{#each cache.results.entries as r (r.id)}
 				<a
 					href="/librarian/entry/{r.id}"
 					class="flex flex-col px-4 py-3 border-b border-outline/30 transition-colors {r.id === entryId ? 'bg-surface-low' : 'hover:bg-surface-low'}"
@@ -44,7 +43,7 @@
 		</div>
 	{:else}
 		<nav class="flex-1 px-2">
-			{#each navItems as item}
+			{#each navItems as item (item.href)}
 				<a
 					href={item.href}
 					class="relative flex items-center gap-3 px-3 py-2.5 mb-1 rounded-[4px] transition-colors label-sm

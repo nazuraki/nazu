@@ -24,11 +24,13 @@
 		</div>
 
 		<h2 class="font-grotesk text-lg font-semibold text-on-surface mb-2 leading-snug group-hover:text-primary transition-colors">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			{@html highlight(entry.title, query)}
 		</h2>
 
 		{#if entry.excerpt}
 			<p class="text-sm text-on-surface-dim leading-relaxed line-clamp-2">
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html highlight(entry.excerpt, query)}
 			</p>
 		{/if}

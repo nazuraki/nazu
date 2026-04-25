@@ -59,7 +59,7 @@
 				<div class="label-sm text-on-surface-faint animate-pulse">LOADING...</div>
 			{:then tagList}
 				<div class="flex flex-wrap gap-2">
-					{#each tagList.slice(0, 16) as tag}
+					{#each tagList.slice(0, 16) as tag (tag.name)}
 						<a href="/librarian/search?q={encodeURIComponent(tag.name)}">
 							<TagBadge label={tag.name} />
 						</a>
@@ -74,13 +74,13 @@
 			<div class="label-md text-on-surface mb-4">Recent Entries</div>
 			{#await recent}
 				<div class="flex flex-col gap-3">
-					{#each Array(4) as _}
+					{#each Array(4) as _, i (i)}
 						<div class="bg-surface-low rounded-[4px] h-20 animate-pulse"></div>
 					{/each}
 				</div>
 			{:then entries}
 				<div class="flex flex-col gap-3">
-					{#each entries as entry}
+					{#each entries as entry (entry.id)}
 						<ResultCard {entry} />
 					{/each}
 				</div>

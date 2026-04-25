@@ -52,7 +52,7 @@
 		<div class="flex-1 px-8 py-10">
 			<div class="h-16 w-2/3 bg-surface-low rounded-[4px] animate-pulse mb-6"></div>
 			<div class="space-y-3">
-				{#each Array(8) as _}
+				{#each Array(8) as _, i (i)}
 					<div class="h-4 bg-surface-low rounded-[4px] animate-pulse"></div>
 				{/each}
 			</div>
@@ -64,7 +64,7 @@
 		<article class="flex-1 px-8 py-10 max-w-2xl">
 			<div class="flex gap-2 mb-6">
 				<TagBadge label={entry.type} variant="type" />
-				{#each entry.tags as tag}
+				{#each entry.tags as tag (tag)}
 					<TagBadge label={tag} />
 				{/each}
 			</div>
@@ -72,7 +72,7 @@
 			<h1 class="display-lg text-on-surface mb-8 leading-tight">{entry.title}</h1>
 
 			<div class="prose prose-invert prose-sm max-w-none text-on-surface-dim leading-relaxed space-y-4">
-				{#each (entry.content ?? '').split('\n') as paragraph}
+				{#each (entry.content ?? '').split('\n') as paragraph, i (i)}
 					{#if paragraph.trim()}
 						<p>{paragraph}</p>
 					{/if}
@@ -107,7 +107,7 @@
 				<div>
 					<div class="label-md text-on-surface mb-4">SEARCH CONTEXT</div>
 					<div class="flex flex-col gap-3">
-						{#each entry.related as rel}
+						{#each entry.related as rel (rel.id)}
 							<a
 								href="/librarian/entry/{rel.id}"
 								class="group flex gap-3 p-3 bg-surface-low hover:bg-surface-container rounded-[4px] transition-colors"
