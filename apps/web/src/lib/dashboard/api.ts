@@ -103,10 +103,18 @@ export interface NazuTopic {
 	tasks: NazuTask[];
 }
 
+export interface DockerContainer {
+	id: string;
+	name: string;
+	state: string;
+	status: string;
+}
+
 export const api = {
 	repos: () => get<Repo[]>("/repos"),
 	activity: () => get<RepoActivity[]>("/repos/activity"),
 	compliance: () => get<RepoCompliance[]>("/repos/compliance"),
 	stewardStats: () => get<StewardStats>("/steward/stats"),
 	nazuProjects: () => get<NazuTopic[]>("/nazu/projects"),
+	docker: () => get<DockerContainer[]>("/docker"),
 };

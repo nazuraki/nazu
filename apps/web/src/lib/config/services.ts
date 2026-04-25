@@ -15,9 +15,4 @@ export const services: Service[] = [
 		href: '/librarian',
 		description: 'Search and browse the library',
 	},
-	{
-		name: 'Nazu',
-		href: '/nazu',
-		description: 'Second brain — knowledge graph and tasks',
-	},
 ];

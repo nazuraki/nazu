@@ -27,6 +27,8 @@ nazu/
 │       │   │   ├── auth.ts        # Placeholder: getUserFromRequest() → null
 │       │   │   ├── priority.ts    # Issue sort scoring (label weight, PR linkage, age)
 │       │   │   ├── time.ts        # timeAgo() helper
+│       │   │   ├── config/
+│       │   │   │   └── services.ts    # Nav service list
 │       │   │   ├── dashboard/
 │       │   │   │   └── api.ts     # Typed fetch client for /dashboard/api/* endpoints
 │       │   │   ├── librarian/
@@ -58,7 +60,8 @@ nazu/
 │       │       │       ├── repos/activity/+server.ts
 │       │       │       ├── repos/compliance/+server.ts
 │       │       │       ├── steward/stats/+server.ts   # graceful if steward_runs missing
-│       │       │       └── nazu/projects/+server.ts
+│       │       │       ├── nazu/projects/+server.ts
+│       │       │       └── docker/+server.ts          # Docker Engine socket API, filtered by DOCKER_CONTAINERS env var
 │       │       └── librarian/             # /librarian — graph search + document viewer
 │       │           ├── +layout.svelte         # Sidebar layout (full-height with nav)
 │       │           ├── +page.svelte           # Home: search prompt + tag atlas + recent
@@ -307,6 +310,7 @@ Plain SQL DDL run on first container boot (mounted at `/docker-entrypoint-initdb
 | `OPENAI_API_KEY` | Used by Graphiti for entity extraction |
 | `ANTHROPIC_API_KEY` | Optional |
 | `GEMINI_API_KEY` | Optional |
+| `DOCKER_CONTAINERS` | Comma-separated container names to show in dashboard (empty = show all) |
 
 ### Deferred Decisions
 - `apps/graphiti-api/` — separate Python/FastAPI service wrapping Graphiti (currently called directly from MCP server)
