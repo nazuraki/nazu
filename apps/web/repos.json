@@ -1,0 +1,11 @@
+{
+	"repos": {
+		"lorearc/Loreweave": { "statusWorkflow": "ci.yml" },
+		"nazuraki/librarian": { "statusWorkflow": "ci.yml" },
+		"nazuraki/nazuraki.github.io": { "pagesWorkflow": "deploy.yml" },
+		"nazuraki/nazu": { "statusWorkflow": "ci.yml" },
+		"nazuraki/steward": { "statusWorkflow": "ci.yml" },
+		"nazuraki/vigil": { "statusWorkflow": "ci.yml" },
+		"nazuraki/weft": { "statusWorkflow": "ci.yml", "pagesWorkflow": "pages.yml" }
+	}
+}
