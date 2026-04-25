@@ -1,11 +1,12 @@
 <script lang="ts">
 import RepoCard from '../components/RepoCard.svelte';
 import { type Repo, type RepoActivity, type RepoCompliance, api } from '$lib/dashboard/api.js';
+import { SvelteMap } from 'svelte/reactivity';
 
 let repos = $state<Repo[]>([]);
-let activity = $state<Map<string, RepoActivity>>(new Map());
-let compliance = $state<Map<string, RepoCompliance>>(new Map());
-let changedAt = $state<Map<string, number>>(new Map());
+let activity = new SvelteMap<string, RepoActivity>();
+let compliance = new SvelteMap<string, RepoCompliance>();
+let changedAt = new SvelteMap<string, number>();
 let error = $state<string | null>(null);
 let loading = $state(true);
 
@@ -20,12 +21,13 @@ function fingerprint(repo: Repo, act?: RepoActivity): string {
 	].join("|");
 }
 
-const prevFingerprints = new Map<string, string>();
+const prevFingerprints = new SvelteMap<string, string>();
 
 async function loadCompliance() {
 	try {
 		const list = await api.compliance();
-		compliance = new Map(list.map((c) => [c.full_name, c]));
+		compliance.clear();
+		for (const c of list) compliance.set(c.full_name, c);
 	} catch {
 		// non-critical — card renders fine without it
 	}
@@ -34,27 +36,26 @@ async function loadCompliance() {
 async function load() {
 	try {
 		const [repoList, activityList] = await Promise.all([api.repos(), api.activity()]);
-		const actMap = new Map(activityList.map((a) => [a.full_name, a]));
 
 		if (!loading) {
 			const now = Date.now();
-			const next = new Map(changedAt);
 			for (const repo of repoList) {
-				const fp = fingerprint(repo, actMap.get(repo.full_name));
+				const fp = fingerprint(repo, activityList.find((a) => a.full_name === repo.full_name));
 				const prev = prevFingerprints.get(repo.full_name);
 				if (prev !== undefined && prev !== fp) {
-					next.set(repo.full_name, now);
+					changedAt.set(repo.full_name, now);
 				}
 			}
-			changedAt = next;
 		}
 
 		for (const repo of repoList) {
-			prevFingerprints.set(repo.full_name, fingerprint(repo, actMap.get(repo.full_name)));
+			prevFingerprints.set(repo.full_name, fingerprint(repo, activityList.find((a) => a.full_name === repo.full_name)));
 		}
 
+		activity.clear();
+		for (const a of activityList) activity.set(a.full_name, a);
+
 		repos = repoList;
-		activity = actMap;
 		error = null;
 	} catch (e) {
 		error = e instanceof Error ? e.message : "Failed to load";

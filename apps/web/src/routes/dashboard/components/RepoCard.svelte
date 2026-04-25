@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Issue, PullRequest, Repo, RepoActivity, RepoCompliance } from '$lib/dashboard/api.js';
+import type { Repo, RepoActivity, RepoCompliance } from '$lib/dashboard/api.js';
 import { isLinked, sortIssues } from '$lib/priority.js';
 import { timeAgo } from '$lib/time.js';
 
@@ -154,7 +154,7 @@ function abbreviateLabel(name: string): string {
               {#if issue.comments > 0}
                 <span class="comment-count" title="{issue.comments} comment{issue.comments === 1 ? '' : 's'}"><i class="nf nf-cod-comment"></i> {issue.comments}</span>
               {/if}
-              {#each issue.labels.slice(0, 2) as label}
+              {#each issue.labels.slice(0, 2) as label (label.name)}
                 <span class="label-chip" style="background: #{label.color}22; color: #{label.color}">{abbreviateLabel(label.name)}</span>
               {/each}
             </div>
