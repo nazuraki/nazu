@@ -1,4 +1,4 @@
-const BASE = "/dashboard/api";
+const BASE = "/api";
 
 async function get<T>(path: string): Promise<T> {
 	const res = await fetch(`${BASE}${path}`);

@@ -1,6 +1,6 @@
 import type { Entry, EntryDetail, SearchResponse, Tag } from './types';
 
-const BASE = '/librarian/api';
+const BASE = '/api';
 
 async function get<T>(path: string): Promise<T> {
 	const res = await fetch(BASE + path);
