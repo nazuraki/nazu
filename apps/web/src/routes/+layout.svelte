@@ -5,15 +5,15 @@
 
 	const nav = [
 		{ href: '/',          label: 'Home' },
-		{ href: '/nazu',      label: 'Nazu' },
-		{ href: '/sysctl',    label: 'Sysctl' },
+		{ href: '/nazu',       label: 'Nazu' },
+		{ href: '/dashboard',  label: 'Dashboard' },
 		{ href: '/librarian', label: 'Librarian' },
 	];
 </script>
 
 <div class="shell">
 	<nav class="sidebar">
-		<span class="wordmark">nazuraki</span>
+		<span class="wordmark">nazu</span>
 		<ul>
 			{#each nav as { href, label } (href)}
 				<li><a {href}>{label}</a></li>
