@@ -1,2 +1,8 @@
-<h1>Dashboard</h1>
-<p>Dashboard — coming soon.</p>
+<svelte:head>
+	<title>dashboard — nazuraki.dev</title>
+</svelte:head>
+
+<div class="px-8 py-10 max-w-7xl mx-auto">
+	<h1 class="font-grotesk text-2xl font-bold text-primary mb-2">Dashboard</h1>
+	<p class="font-inter text-sm text-on-surface-dim">System metrics and monitoring — coming soon.</p>
+</div>
