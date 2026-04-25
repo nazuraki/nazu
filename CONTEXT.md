@@ -24,13 +24,38 @@ nazu/
 │       │   ├── app.css        # Global styles, imports @nazu/ui/tokens.css
 │       │   ├── hooks.server.ts # Populates locals.user
 │       │   ├── lib/
-│       │   │   └── auth.ts    # Placeholder: getUserFromRequest() → null
+│       │   │   ├── auth.ts        # Placeholder: getUserFromRequest() → null
+│       │   │   ├── priority.ts    # Issue sort scoring (label weight, PR linkage, age)
+│       │   │   ├── time.ts        # timeAgo() helper
+│       │   │   ├── dashboard/
+│       │   │   │   └── api.ts     # Typed fetch client for /dashboard/api/* endpoints
+│       │   │   └── server/
+│       │   │       ├── db.ts          # postgres singleton (DATABASE_URL)
+│       │   │       ├── repoconfig.ts  # repos.json loader (getStatusWorkflow, getPagesWorkflow)
+│       │   │       └── github/
+│       │   │           ├── client.ts  # GitHubClient (multi-owner PAT, paginate)
+│       │   │           ├── types.ts   # Repo, Issue, PR, WorkflowRun interfaces
+│       │   │           ├── queries.ts # fetchUserRepos, fetchOpenIssues, fetchRecentRuns, etc.
+│       │   │           └── index.ts   # Singleton github client + owners from env
 │       │   └── routes/
-│       │       ├── +layout.svelte         # Shell: sidebar nav + content area
+│       │       ├── +layout.svelte         # Shell: header nav + content area
 │       │       ├── (home)/+page.svelte    # / — home dashboard
 │       │       ├── nazu/+page.svelte      # /nazu
-│       │       ├── sysctl/+page.svelte    # /sysctl
+│       │       ├── dashboard/             # /dashboard — repo/Steward/task wall display
+│       │       │   ├── +page.svelte           # Full-height grid: Code (3fr) + Stats (1fr)
+│       │       │   ├── sections/Code.svelte   # Repo cards panel (polls /dashboard/api/repos)
+│       │       │   ├── sections/Stats.svelte  # Steward gauges + nazu tasks
+│       │       │   ├── components/RepoCard.svelte
+│       │       │   ├── components/Gauge.svelte
+│       │       │   ├── components/LineChart.svelte
+│       │       │   └── api/               # Server routes (no auth — Cloudflare Tunnel)
+│       │       │       ├── repos/+server.ts
+│       │       │       ├── repos/activity/+server.ts
+│       │       │       ├── repos/compliance/+server.ts
+│       │       │       ├── steward/stats/+server.ts   # graceful if steward_runs missing
+│       │       │       └── nazu/projects/+server.ts
 │       │       └── librarian/+page.svelte # /librarian
+│       ├── repos.json         # Per-repo workflow config (statusWorkflow, pagesWorkflow)
 │       ├── svelte.config.js   # adapter-node
 │       ├── vite.config.ts     # sveltekit() from @sveltejs/kit/vite
 │       ├── tsconfig.json
@@ -292,7 +317,7 @@ Goal: voice access via Gemini Live using Gemini CLI Extensions. See `docs/gemini
 | 1. Restructure + pnpm workspaces | Done |
 | 2. Scaffold `apps/web` + wire compose | Done |
 | 3. Migrate butterfly → `/` | To do |
-| 4. Migrate sysctl → `/sysctl` | To do |
+| 4. Migrate sysctl → `/dashboard` | Done |
 | 5. Migrate librarian → `/librarian` | To do |
 | 6. Build `/nazu` UI | To do |
 | 7. PWA manifest + service worker | To do |

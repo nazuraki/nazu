@@ -41,6 +41,7 @@ share/python-wheels/
 
 # Environment variables
 .env
+.env.local
 .flaskenv
 
 # Log and temporary files
