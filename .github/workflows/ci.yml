@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  lint-mcp:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -17,3 +17,21 @@ jobs:
         run: pip install -r apps/mcp/requirements-dev.txt
       - name: Lint
         run: ruff check apps/mcp
+
+  lint-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm --filter @nazu/web lint
+      - name: Type-check
+        run: pnpm --filter @nazu/web check

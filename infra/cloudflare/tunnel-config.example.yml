@@ -1,0 +1,13 @@
+# Cloudflare Tunnel config example — copy to ~/.cloudflared/config.yml on the host.
+# Replace <TUNNEL_ID> and <YOUR_DOMAIN> with your actual values.
+#
+# Route: HTTPS traffic on your domain → web container on port 3000.
+# The tunnel daemon runs on the host; Docker Compose exposes port 3000.
+
+tunnel: <TUNNEL_ID>
+credentials-file: /home/<USER>/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: <YOUR_DOMAIN>
+    service: http://localhost:3000
+  - service: http_status:404

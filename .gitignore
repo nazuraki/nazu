@@ -54,3 +54,6 @@ tmp/
 
 .claude/settings.local.json
 .gitnexus
+
+# pnpm workspace
+node_modules/

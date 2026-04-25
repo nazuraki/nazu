@@ -24,11 +24,41 @@ mcp-fix:
     apps/mcp/.venv/bin/ruff check apps/mcp --fix
     apps/mcp/.venv/bin/ruff format apps/mcp
 
+# ─── Web app ──────────────────────────────────────────────────────
+
+# Install all workspace dependencies
+web-install:
+    pnpm install
+
+# Run the web app in dev mode
+web-dev:
+    pnpm --filter @nazu/web dev
+
+# Build the web app
+web-build:
+    pnpm --filter @nazu/web build
+
+# Type-check the web app
+web-check:
+    pnpm --filter @nazu/web check
+
+# Lint the web app
+web-lint:
+    pnpm --filter @nazu/web lint
+
+# Lint and auto-fix the web app
+web-fix:
+    pnpm --filter @nazu/web lint:fix
+
 # ─── Infrastructure ───────────────────────────────────────────────
 
-# Start FalkorDB
+# Start all services (web + postgres + falkordb)
 up:
-    docker compose up -d falkordb
+    docker compose up -d
+
+# Start only backing services (no web container)
+up-deps:
+    docker compose up -d postgres falkordb
 
 # Stop all services
 down:
