@@ -29,8 +29,13 @@ nazu/
 │       │   │   ├── time.ts        # timeAgo() helper
 │       │   │   ├── dashboard/
 │       │   │   │   └── api.ts     # Typed fetch client for /dashboard/api/* endpoints
+│       │   │   ├── librarian/
+│       │   │   │   ├── types.ts       # Entry, EntryDetail, Tag, SearchResponse interfaces
+│       │   │   │   ├── api.ts         # Client fetch wrapper (BASE = /librarian/api)
+│       │   │   │   └── stores.ts      # searchCache, entryCache (svelte/store writable)
 │       │   │   └── server/
 │       │   │       ├── db.ts          # postgres singleton (DATABASE_URL)
+│       │   │       ├── falkordb.ts    # FalkorDB client via ioredis (FALKORDB_ADDR, FALKORDB_GRAPH)
 │       │   │       ├── repoconfig.ts  # repos.json loader (getStatusWorkflow, getPagesWorkflow)
 │       │   │       └── github/
 │       │   │           ├── client.ts  # GitHubClient (multi-owner PAT, paginate)
@@ -54,7 +59,17 @@ nazu/
 │       │       │       ├── repos/compliance/+server.ts
 │       │       │       ├── steward/stats/+server.ts   # graceful if steward_runs missing
 │       │       │       └── nazu/projects/+server.ts
-│       │       └── librarian/+page.svelte # /librarian
+│       │       └── librarian/             # /librarian — graph search + document viewer
+│       │           ├── +layout.svelte         # Sidebar layout (full-height with nav)
+│       │           ├── +page.svelte           # Home: search prompt + tag atlas + recent
+│       │           ├── search/+page.svelte    # Search results (paginated)
+│       │           ├── entry/[id]/+page.svelte # Entry detail + metadata sidebar
+│       │           ├── components/            # TagBadge, ResultCard, Sidebar
+│       │           └── api/                   # Server routes (no auth)
+│       │               ├── search/+server.ts
+│       │               ├── entries/[id]/+server.ts
+│       │               ├── tags/+server.ts
+│       │               └── recent/+server.ts
 │       ├── repos.json         # Per-repo workflow config (statusWorkflow, pagesWorkflow)
 │       ├── svelte.config.js   # adapter-node
 │       ├── vite.config.ts     # sveltekit() from @sveltejs/kit/vite
@@ -318,6 +333,6 @@ Goal: voice access via Gemini Live using Gemini CLI Extensions. See `docs/gemini
 | 2. Scaffold `apps/web` + wire compose | Done |
 | 3. Migrate butterfly → `/` | To do |
 | 4. Migrate sysctl → `/dashboard` | Done |
-| 5. Migrate librarian → `/librarian` | To do |
+| 5. Migrate librarian → `/librarian` | Done |
 | 6. Build `/nazu` UI | To do |
 | 7. PWA manifest + service worker | To do |

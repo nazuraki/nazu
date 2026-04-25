@@ -1,3 +1,55 @@
 @import 'tailwindcss';
 @import '@nazu/ui/tokens.css';
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+/* Librarian typography scale */
+.display-lg {
+  font-family: var(--font-grotesk);
+  font-size: 3.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.display-md {
+  font-family: var(--font-grotesk);
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.display-sm {
+  font-family: var(--font-grotesk);
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.label-sm {
+  font-family: var(--font-grotesk);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.label-md {
+  font-family: var(--font-grotesk);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Editorial left-edge strip indicator */
+.editorial-strip-left {
+  position: relative;
+}
+.editorial-strip-left::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--color-primary);
+  border-radius: 0 2px 2px 0;
+}
