@@ -2,7 +2,7 @@
 
 > **Purpose:** Complete code reference so Claude doesn't have to re-read source files.
 
-> **Status:** DB layer, MCP server, and Graphiti integration fully implemented. API layer is empty scaffolding.
+> **Status:** Monorepo structure established. MCP server in `apps/mcp/`. SvelteKit web app (`apps/web/`) not yet scaffolded.
 
 ## Project Structure
 
@@ -10,40 +10,47 @@
 nazu/
 ├── CLAUDE.md              # Claude coding instructions
 ├── CONTEXT.md             # This file — full code reference
-├── .env                   # Environment variables (DB creds, API keys)
+├── Justfile               # Repo-wide task runner
+├── package.json           # pnpm workspace root
+├── pnpm-workspace.yaml    # Workspace config (apps/*, packages/*)
 ├── docker-compose.yml     # FalkorDB service
-├── requirements.txt       # Python dependencies
-├── scripts/
-│   └── init_db.py         # Database initialization script (Postgres only)
-└── app/
-    ├── __init__.py         # Package root (empty)
-    ├── config.py           # Pydantic settings from .env
-    ├── api/
-    │   ├── __init__.py     # (empty)
-    │   └── routes.py       # HTTP API route definitions (empty)
-    ├── mcp/
-    │   ├── __init__.py     # Package docstring
-    │   ├── graphiti.py     # Graphiti singleton: init, get, close
-    │   ├── server.py       # FastMCP entry point + lifespan
-    │   └── tools.py        # 9 MCP tool implementations
-    └── db/
-        ├── __init__.py     # Connection pool: init_pool, get_pool, close_pool
-        ├── models.py       # Pydantic models + CRUD (tasks, kb_index)
-        └── schema.py       # SQL DDL statements + apply_schema()
+├── .env                   # Environment variables (DB creds, API keys)
+├── apps/
+│   └── mcp/               # Python MCP server
+│       ├── config.py      # Pydantic settings from .env
+│       ├── db/
+│       │   ├── __init__.py    # Connection pool: init_pool, get_pool, close_pool
+│       │   ├── models.py      # Pydantic models + CRUD (tasks, kb_index)
+│       │   └── schema.py      # SQL DDL statements + apply_schema()
+│       ├── server/
+│       │   ├── __init__.py    # Package docstring
+│       │   ├── graphiti.py    # Graphiti singleton: init, get, close
+│       │   ├── server.py      # FastMCP entry point + lifespan
+│       │   └── tools.py       # 9 MCP tool implementations
+│       ├── requirements.txt
+│       ├── requirements-dev.txt
+│       └── Dockerfile
+├── infra/
+│   └── postgres/
+│       └── init.sql       # DDL — mounted into postgres container on first boot
+└── docs/
+    ├── PURPOSE.md
+    ├── gemini-mobile.md
+    └── nazu-claude-integration.md
 ```
 
 ## Dependency Graph
 
 ```
-app/mcp/tools.py  ──→  app/db/models.py  ──→  app/db/__init__.py (pool)
-      │                                              │
-      ▼                                              ▼
-app/mcp/graphiti.py                           app/config.py
-      │                                              │
-      ▼                                              ▼
-FalkorDB (Graphiti)                        PostgreSQL (tasks, kb_index)
+apps/mcp/server/tools.py  ──→  apps/mcp/db/models.py  ──→  apps/mcp/db/__init__.py (pool)
+      │                                                             │
+      ▼                                                             ▼
+apps/mcp/server/graphiti.py                               apps/mcp/config.py
+      │                                                             │
+      ▼                                                             ▼
+FalkorDB (Graphiti)                                    PostgreSQL (tasks, kb_index)
 
-app/mcp/server.py  ──→  app/mcp/tools.py
+apps/mcp/server/server.py  ──→  apps/mcp/server/tools.py
 ```
 
 ## Architecture
@@ -58,9 +65,8 @@ app/mcp/server.py  ──→  app/mcp/tools.py
 |---|---|
 | OS | Ubuntu Server 24.04 LTS |
 | Graph DB | FalkorDB (Docker Compose), accessed via Graphiti |
-| Relational DB | PostgreSQL (on host, not containerized) |
+| Relational DB | PostgreSQL (Docker Compose) |
 | DB driver | asyncpg (raw SQL, async) |
-| App server | Python (containerized via Docker Compose) |
 | MCP server | Python / FastMCP |
 | Knowledge graph | graphiti-core (temporal graph, entity extraction) |
 | Entity extraction LLM | OpenAI (used by Graphiti internally) |
@@ -73,16 +79,16 @@ Two separate concerns:
 - **PostgreSQL** — structured, well-typed records (tasks, index). Agents query these for fast lookups, then use keywords to fan out to Graphiti for deeper context.
 - **`kb_index`** is a curated index, not a mirror of the graph — like an encyclopedia index. Agents explicitly add entries for concepts/people/projects worth surfacing.
 
-## Config — `app/config.py`
+## Config — `apps/mcp/config.py`
 
 Pydantic `BaseSettings` singleton loaded from `.env`:
 
 | Field | Type | Default |
 |---|---|---|
-| `database_url` | str | `postgresql://nazu:password@localhost:5432/nazu` |
+| `database_url` | str | `postgresql://nazu:nazu@postgres:5432/nazu` |
 | `db_pool_min_size` | int | 2 |
 | `db_pool_max_size` | int | 10 |
-| `falkordb_uri` | str | `bolt://localhost:7687` |
+| `falkordb_uri` | str | `bolt://falkordb:7687` |
 | `falkordb_user` | str | `""` |
 | `falkordb_password` | str | `""` |
 | `openai_api_key` | str | `""` |
@@ -95,10 +101,11 @@ Single service: `falkordb` (image: `falkordb/falkordb:latest`).
 - Port 6379: Redis protocol
 - Port 7687: Bolt protocol (used by Graphiti via neo4j driver)
 - Volume: `falkordb_data:/data`
+- Memory capped at 512mb, AOF persistence enabled
 
-## Database Layer — `app/db/`
+## Database Layer — `apps/mcp/db/`
 
-### Schema — `app/db/schema.py`
+### Schema — `apps/mcp/db/schema.py`
 
 | Statement | Purpose |
 |---|---|
@@ -136,7 +143,7 @@ CREATE TABLE kb_index (
 
 `kb_index.type` is free-form — typical values: `concept`, `person`, `project`, `place`, `event`.
 
-### Connection Pool — `app/db/__init__.py`
+### Connection Pool — `apps/mcp/db/__init__.py`
 
 | Function | Signature | Purpose |
 |---|---|---|
@@ -144,9 +151,7 @@ CREATE TABLE kb_index (
 | `get_pool()` | `-> asyncpg.Pool` | Return pool (raises if not initialized) |
 | `close_pool()` | `async -> None` | Close pool and reset |
 
-No custom connection init needed (no pgvector, no JSONB columns).
-
-### Models + CRUD — `app/db/models.py`
+### Models + CRUD — `apps/mcp/db/models.py`
 
 **Task models:**
 
@@ -176,7 +181,7 @@ No custom connection init needed (no pgvector, no JSONB columns).
 | `delete_kb_entry` | `(UUID) -> bool` |
 | `list_kb_entries` | `(type?, limit, offset) -> list[KbEntry]` |
 
-## Graphiti Layer — `app/mcp/graphiti.py`
+## Graphiti Layer — `apps/mcp/server/graphiti.py`
 
 Thin singleton wrapper around `graphiti_core.Graphiti`.
 
@@ -188,13 +193,13 @@ Thin singleton wrapper around `graphiti_core.Graphiti`.
 
 Graphiti uses OpenAI internally for entity/relation extraction when episodes are added.
 
-## MCP Layer — `app/mcp/`
+## MCP Layer — `apps/mcp/server/`
 
-### Server — `app/mcp/server.py`
+### Server — `apps/mcp/server/server.py`
 - `app_lifespan`: `init_pool()` + `init_graphiti()` on startup; `close_graphiti()` + `close_pool()` on shutdown.
-- Run: `python -m app.mcp.server` (stdio transport)
+- Run: `python -m server.server` (from `apps/mcp/`, stdio transport)
 
-### Tools — `app/mcp/tools.py`
+### Tools — `apps/mcp/server/tools.py`
 
 **Task tools:**
 
@@ -222,13 +227,10 @@ Graphiti uses OpenAI internally for entity/relation extraction when episodes are
 
 All tools return human-readable text strings.
 
-## Scripts
+## Infra — `infra/`
 
-### `scripts/init_db.py`
-- Run: `python -m scripts.init_db`
-- Direct connection (no pool), calls `apply_schema(conn)`
-- Verifies both tables exist and lists their indexes
-- Idempotent (all DDL uses `IF NOT EXISTS`)
+### `infra/postgres/init.sql`
+Plain SQL DDL run on first container boot (mounted at `/docker-entrypoint-initdb.d/`). Idempotent (`IF NOT EXISTS`). Creates `tasks`, `kb_index`, indexes, and `updated_at` trigger.
 
 ## Cross-Cutting Concerns
 
@@ -244,9 +246,9 @@ All tools return human-readable text strings.
 | `GEMINI_API_KEY` | Optional |
 
 ### Deferred Decisions
-- Docker Compose app service definition
+- `apps/graphiti-api/` — separate Python/FastAPI service wrapping Graphiti (currently called directly from MCP server)
 - Cloudflare Tunnel setup
-- HTTP/SSE transport entry point (`app/mcp/server_http.py`)
+- HTTP/SSE transport entry point for MCP
 - API key auth middleware
 - Gemini CLI Extension (`nazu-extension/`)
 - Notion import tooling
@@ -257,6 +259,17 @@ Goal: voice access via Gemini Live using Gemini CLI Extensions. See `docs/gemini
 | Component | Status | Notes |
 |---|---|---|
 | Cloudflare Tunnel (public endpoint) | To do |  |
-| HTTP/SSE transport entry point | To do | `app/mcp/server_http.py`, port 8001 |
+| HTTP/SSE transport entry point | To do | `apps/mcp/server/server_http.py`, port 8001 |
 | API key auth middleware | To do | Bearer token on the SSE endpoint; `NAZU_API_KEY` in `.env` |
 | `nazu-extension/` directory | To do | `gemini-extension.json` + `GEMINI.md` |
+
+### Monorepo Migration (GH Issue #1)
+| Step | Status |
+|---|---|
+| 1. Restructure + pnpm workspaces | Done |
+| 2. Scaffold `apps/web` + wire compose | To do |
+| 3. Migrate butterfly → `/` | To do |
+| 4. Migrate sysctl → `/sysctl` | To do |
+| 5. Migrate librarian → `/librarian` | To do |
+| 6. Build `/nazu` UI | To do |
+| 7. PWA manifest + service worker | To do |

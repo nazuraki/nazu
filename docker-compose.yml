@@ -1,4 +1,17 @@
 services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: nazu
+      POSTGRES_PASSWORD: nazu
+      POSTGRES_DB: nazu
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
   falkordb:
     image: falkordb/falkordb:latest
     ports:
@@ -6,7 +19,15 @@ services:
       - "7687:7687"
     volumes:
       - falkordb_data:/data
+    command:
+      - "--maxmemory"
+      - "512mb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+      - "--appendonly"
+      - "yes"
     restart: unless-stopped
 
 volumes:
+  postgres_data:
   falkordb_data:

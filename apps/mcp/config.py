@@ -9,12 +9,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     # PostgreSQL
-    database_url: str = "postgresql://nazu:password@localhost:5432/nazu"
+    database_url: str = "postgresql://nazu:nazu@postgres:5432/nazu"
     db_pool_min_size: int = 2
     db_pool_max_size: int = 10
 
     # FalkorDB (Graphiti backend)
-    falkordb_uri: str = "bolt://localhost:7687"
+    falkordb_uri: str = "bolt://falkordb:7687"
     falkordb_user: str = ""
     falkordb_password: str = ""
 

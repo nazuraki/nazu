@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncpg
 
-from app.config import settings
+from config import settings
 
 _pool: asyncpg.Pool | None = None
 

@@ -14,6 +14,6 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install dev dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install -r apps/mcp/requirements-dev.txt
       - name: Lint
-        run: ruff check .
+        run: ruff check apps/mcp

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from graphiti_core import Graphiti
 
-from app.config import settings
+from config import settings
 
 _graphiti: Graphiti | None = None
 

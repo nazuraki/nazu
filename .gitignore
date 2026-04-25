@@ -52,4 +52,5 @@ tmp/
 # included for now while size is small, for reference, given cost to generate
 # embedding-eval/output/
 
-.claude
+.claude/settings.local.json
+.gitnexus
