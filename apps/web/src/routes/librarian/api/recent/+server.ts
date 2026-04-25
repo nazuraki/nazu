@@ -1,0 +1,12 @@
+import { json, error } from '@sveltejs/kit';
+import { getRecent } from '$lib/server/falkordb';
+
+export async function GET({ url }) {
+	const limit = parseInt(url.searchParams.get('limit') ?? '10', 10);
+	try {
+		return json(await getRecent(limit));
+	} catch (e) {
+		console.error('librarian recent error', e);
+		return error(500, 'failed to fetch recent entries');
+	}
+}

@@ -17,6 +17,7 @@
   "dependencies": {
     "@nazu/ui": "workspace:*",
     "dockerode": "^4.0.5",
+    "ioredis": "^5.6.1",
     "postgres": "^3.4.8"
   },
   "devDependencies": {
@@ -25,6 +26,7 @@
     "@sveltejs/kit": "^2.20.7",
     "@tailwindcss/vite": "^4.1.4",
     "@types/dockerode": "^3.3.38",
+    "@types/node": "^25.6.0",
     "eslint": "^10.2.1",
     "eslint-plugin-svelte": "^3.17.1",
     "globals": "^17.5.0",
