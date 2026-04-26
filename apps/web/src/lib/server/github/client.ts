@@ -1,4 +1,4 @@
-const GITHUB_API = "https://api.github.com";
+const GITHUB_API = process.env.GITHUB_API_BASE_URL ?? "https://api.github.com";
 const GITHUB_HEADERS = {
 	Accept: "application/vnd.github+json",
 	"X-GitHub-Api-Version": "2022-11-28",

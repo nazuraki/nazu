@@ -72,6 +72,20 @@ up-deps:
 down:
     docker compose down
 
+# ─── Tests ────────────────────────────────────────────────────────
+
+# Run functional tests (spins up an isolated stack, runs vitest, tears down)
+test-functional:
+    pnpm --filter @nazu/tests-functional test
+
+# Bring the test stack up without running tests (debugging)
+test-up:
+    docker compose -p nazu-test -f docker-compose.yml -f docker-compose.test.override.yml up -d --build --wait
+
+# Tear down the test stack
+test-down:
+    docker compose -p nazu-test -f docker-compose.yml -f docker-compose.test.override.yml down -v --remove-orphans
+
 # ─── Repo-wide ────────────────────────────────────────────────────
 
 # Install local git hooks (post-commit GitNexus re-indexer)

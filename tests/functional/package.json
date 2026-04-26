@@ -1,0 +1,18 @@
+{
+  "name": "@nazu/tests-functional",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --config vitest.config.functional.ts",
+    "test:watch": "vitest --config vitest.config.functional.ts"
+  },
+  "dependencies": {
+    "postgres": "^3.4.8"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.8"
+  }
+}
