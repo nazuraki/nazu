@@ -14,13 +14,14 @@ COPY apps/web/ apps/web/
 COPY packages/ui/ packages/ui/
 
 RUN pnpm --filter @nazu/web build
+RUN pnpm --filter @nazu/web deploy --prod /app/deploy
 
 # ── Runtime ──────────────────────────────────────────────────────────────────
 FROM node:24-alpine AS runtime
 WORKDIR /app
 
+COPY --from=build /app/deploy .
 COPY --from=build /app/apps/web/build ./build
-COPY --from=build /app/apps/web/package.json ./package.json
 
 ENV NODE_ENV=production
 ENV PORT=3000
