@@ -23,14 +23,14 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "5432:5432"
+      - "5433:5432"
     restart: unless-stopped
 
   falkordb:
     image: falkordb/falkordb:latest
     ports:
-      - "6379:6379"
-      - "7687:7687"
+      - "6380:6379"
+      - "7688:7687"
     volumes:
       - falkordb_data:/data
     command:
