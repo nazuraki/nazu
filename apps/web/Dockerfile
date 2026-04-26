@@ -14,19 +14,26 @@ COPY apps/web/ apps/web/
 COPY packages/ui/ packages/ui/
 
 RUN pnpm --filter @nazu/web build
-RUN pnpm --filter @nazu/web deploy --prod /app/deploy
 
 # ── Runtime ──────────────────────────────────────────────────────────────────
 FROM node:24-alpine AS runtime
 WORKDIR /app
 
-COPY --from=build /app/deploy .
-COPY --from=build /app/apps/web/build ./build
+RUN corepack enable pnpm
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/web/package.json apps/web/
+COPY packages/ui/ packages/ui/
+
+RUN pnpm install --prod --frozen-lockfile
+
+COPY --from=build /app/apps/web/build apps/web/build
 
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
+WORKDIR /app/apps/web
 EXPOSE 3000
 
 CMD ["node", "build"]
