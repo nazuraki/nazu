@@ -52,6 +52,14 @@ web-fix:
 
 # ─── Infrastructure ───────────────────────────────────────────────
 
+# Build Docker image for the web app (use --no-cache to force full rebuild)
+docker-build *flags:
+    docker compose build {{flags}} web
+
+# Build Docker image, bypassing layer cache
+docker-rebuild:
+    docker compose build --no-cache web
+
 # Start all services (web + postgres + falkordb)
 up:
     docker compose up -d
