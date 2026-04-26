@@ -6,15 +6,15 @@
 
 ## Project Overview
 
-Personal knowledge management system / second brain with an MCP interface. Monorepo: Python MCP server in `apps/mcp/`, SvelteKit web app in `apps/web/` (in progress). PostgreSQL + FalkorDB (via Graphiti) for structured and graph storage. All services run via Docker Compose.
+Personal knowledge management system and home dashboard. Monorepo: SvelteKit web app in `apps/web/`. PostgreSQL + FalkorDB (via Graphiti) for structured and graph storage. All services run via Docker Compose.
 
 ## Coding Conventions
 
 | Area | Convention |
 |---|---|
-| Language | Python 3.12+ (`apps/mcp/`), TypeScript (`apps/web/`) |
-| File naming | `snake_case.py` (Python), `kebab-case.ts` (TS) |
-| Package structure | `apps/mcp/server/` (MCP layer), `apps/mcp/db/` (data layer) |
+| Language | TypeScript (`apps/web/`), Python 3.12+ (`apps/mcp/`, dormant) |
+| File naming | `kebab-case.ts` (TS), `snake_case.py` (Python) |
+| Package structure | `apps/web/src/lib/server/` (server logic), `apps/web/src/routes/` (SvelteKit routes) |
 | Imports | Standard lib → third-party → local, separated by blank lines |
 | Type hints | Use everywhere — function signatures, return types, class attributes |
 | Docstrings | Google style, only for public functions/classes |

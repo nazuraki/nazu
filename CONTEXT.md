@@ -102,20 +102,6 @@ nazu/
     └── nazu-claude-integration.md
 ```
 
-## Dependency Graph
-
-```
-apps/mcp/server/tools.py  ──→  apps/mcp/db/models.py  ──→  apps/mcp/db/__init__.py (pool)
-      │                                                             │
-      ▼                                                             ▼
-apps/mcp/server/graphiti.py                               apps/mcp/config.py
-      │                                                             │
-      ▼                                                             ▼
-FalkorDB (Graphiti)                                    PostgreSQL (tasks, kb_index)
-
-apps/mcp/server/server.py  ──→  apps/mcp/server/tools.py
-```
-
 ## Architecture
 
 ### Hosting Model
@@ -127,187 +113,72 @@ apps/mcp/server/server.py  ──→  apps/mcp/server/tools.py
 | Layer | Technology |
 |---|---|
 | OS | Ubuntu Server 24.04 LTS |
+| Web app | SvelteKit 5 (adapter-node, port 3000) |
 | Graph DB | FalkorDB (Docker Compose), accessed via Graphiti |
 | Relational DB | PostgreSQL (Docker Compose) |
-| DB driver | asyncpg (raw SQL, async) |
-| MCP server | Python / FastMCP |
 | Knowledge graph | graphiti-core (temporal graph, entity extraction) |
 | Entity extraction LLM | OpenAI (used by Graphiti internally) |
-| AI layer | Claude API (external, client-side) |
 | Tunnel | Cloudflare Tunnel |
 
 ### Data Architecture
-Two separate concerns:
+Two separate storage concerns:
 - **FalkorDB/Graphiti** — unstructured knowledge, temporal graph, semantic search. Full content lives here.
-- **PostgreSQL** — structured, well-typed records (tasks, index). Agents query these for fast lookups, then use keywords to fan out to Graphiti for deeper context.
-- **`kb_index`** is a curated index, not a mirror of the graph — like an encyclopedia index. Agents explicitly add entries for concepts/people/projects worth surfacing.
-
-## Config — `apps/mcp/config.py`
-
-Pydantic `BaseSettings` singleton loaded from `.env`:
-
-| Field | Type | Default |
-|---|---|---|
-| `database_url` | str | `postgresql://nazu:nazu@postgres:5432/nazu` |
-| `db_pool_min_size` | int | 2 |
-| `db_pool_max_size` | int | 10 |
-| `falkordb_uri` | str | `bolt://falkordb:7687` |
-| `falkordb_user` | str | `""` |
-| `falkordb_password` | str | `""` |
-| `openai_api_key` | str | `""` |
-| `anthropic_api_key` | str | `""` |
-| `gemini_api_key` | str | `""` |
+- **PostgreSQL** — structured records (kb_index). Fast lookups without graph traversal.
+- **`kb_index`** is a curated index, not a mirror of the graph — like an encyclopedia index.
 
 ## Docker Compose — `docker-compose.yml`
 
-Single service: `falkordb` (image: `falkordb/falkordb:latest`).
-- Port 6379: Redis protocol
-- Port 7687: Bolt protocol (used by Graphiti via neo4j driver)
-- Volume: `falkordb_data:/data`
-- Memory capped at 512mb, AOF persistence enabled
+Three services:
 
-## Database Layer — `apps/mcp/db/`
-
-### Schema — `apps/mcp/db/schema.py`
-
-| Statement | Purpose |
-|---|---|
-| `CREATE_TASKS_TABLE` | Tasks with description, status, due_date |
-| `CREATE_KB_INDEX_TABLE` | Curated knowledge index with type + summary |
-| `CREATE_TASKS_STATUS_INDEX` | B-tree on `tasks.status` |
-| `CREATE_TASKS_CREATED_AT_INDEX` | B-tree DESC on `tasks.created_at` |
-| `CREATE_KB_INDEX_TYPE_INDEX` | B-tree on `kb_index.type` |
-| `CREATE_UPDATED_AT_FUNCTION` | PL/pgSQL trigger function |
-| `CREATE_TASKS_UPDATED_AT_TRIGGER` | Auto-updates `tasks.updated_at` on row update |
-
-### Tasks Table
-
-```sql
-CREATE TABLE tasks (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    description TEXT NOT NULL,
-    status      VARCHAR(20) NOT NULL DEFAULT 'pending',
-    due_date    DATE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-### KB Index Table
-
-```sql
-CREATE TABLE kb_index (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    type        VARCHAR(50) NOT NULL,
-    summary     TEXT NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-`kb_index.type` is free-form — typical values: `concept`, `person`, `project`, `place`, `event`.
-
-### Connection Pool — `apps/mcp/db/__init__.py`
-
-| Function | Signature | Purpose |
+| Service | Image | Ports (host:container) |
 |---|---|---|
-| `init_pool()` | `async -> asyncpg.Pool` | Create global pool |
-| `get_pool()` | `-> asyncpg.Pool` | Return pool (raises if not initialized) |
-| `close_pool()` | `async -> None` | Close pool and reset |
+| `web` | built from `apps/web/Dockerfile` | 3000:3000 |
+| `postgres` | postgres:16 | 5433:5432 |
+| `falkordb` | falkordb/falkordb:latest | 6380:6379, 7688:7687 |
 
-### Models + CRUD — `apps/mcp/db/models.py`
+Non-default host ports (`5433`, `6380`, `7688`) avoid conflicts with any local instances.
 
-**Task models:**
+## Web Server Layer — `apps/web/src/lib/server/`
 
-| Model | Fields |
+| File | Purpose |
 |---|---|
-| `TaskCreate` | `description`, `due_date?` |
-| `TaskUpdate` | `description?`, `status?`, `due_date?` |
-| `Task` | `id`, `description`, `status`, `due_date?`, `created_at`, `updated_at` |
+| `db.ts` | postgres singleton (DATABASE_URL) |
+| `falkordb.ts` | FalkorDB client via ioredis (FALKORDB_ADDR, FALKORDB_GRAPH) |
+| `repoconfig.ts` | repos.json loader (getStatusWorkflow, getPagesWorkflow) |
+| `github/client.ts` | GitHubClient (multi-owner PAT, paginate) |
+| `github/queries.ts` | fetchUserRepos, fetchOpenIssues, fetchRecentRuns, etc. |
 
-**KbEntry models:**
+## API Routes — `apps/web/src/routes/api/`
 
-| Model | Fields |
+No auth — protected by Cloudflare Tunnel access control.
+
+| Route | Purpose |
 |---|---|
-| `KbEntryCreate` | `type`, `summary` |
-| `KbEntry` | `id`, `type`, `summary`, `created_at` |
-
-**CRUD functions:**
-
-| Function | Signature |
-|---|---|
-| `create_task` | `(TaskCreate) -> Task` |
-| `get_task` | `(UUID) -> Task \| None` |
-| `update_task` | `(UUID, TaskUpdate) -> Task \| None` |
-| `delete_task` | `(UUID) -> bool` |
-| `list_tasks` | `(status?, limit, offset) -> list[Task]` |
-| `create_kb_entry` | `(KbEntryCreate) -> KbEntry` |
-| `delete_kb_entry` | `(UUID) -> bool` |
-| `list_kb_entries` | `(type?, limit, offset) -> list[KbEntry]` |
-
-## Graphiti Layer — `apps/mcp/server/graphiti.py`
-
-Thin singleton wrapper around `graphiti_core.Graphiti`.
-
-| Function | Purpose |
-|---|---|
-| `init_graphiti()` | Connect to FalkorDB, call `build_indices_and_constraints()` |
-| `get_graphiti()` | Return singleton (raises if not initialized) |
-| `close_graphiti()` | Close driver and reset |
-
-Graphiti uses OpenAI internally for entity/relation extraction when episodes are added.
-
-## MCP Layer — `apps/mcp/server/`
-
-### Server — `apps/mcp/server/server.py`
-- `app_lifespan`: `init_pool()` + `init_graphiti()` on startup; `close_graphiti()` + `close_pool()` on shutdown.
-- Run: `python -m server.server` (from `apps/mcp/`, stdio transport)
-
-### Tools — `apps/mcp/server/tools.py`
-
-**Task tools:**
-
-| Tool | CRUD Called | Parameters |
-|---|---|---|
-| `add_task` | `create_task` | `description`, `due_date?` |
-| `complete_task` | `update_task` | `id` |
-| `list_tasks` | `list_tasks` | `status?` |
-| `delete_task` | `delete_task` | `id` |
-
-**Knowledge graph tools:**
-
-| Tool | Graphiti Call | Parameters |
-|---|---|---|
-| `remember` | `add_episode` | `content`, `source_description`, `name?` |
-| `recall` | `search` | `query`, `limit?` |
-
-**KB index tools:**
-
-| Tool | CRUD Called | Parameters |
-|---|---|---|
-| `add_index_entry` | `create_kb_entry` | `type`, `summary` |
-| `list_index` | `list_kb_entries` | `type?` |
-| `delete_index_entry` | `delete_kb_entry` | `id` |
-
-All tools return human-readable text strings.
+| `repos/` | Repo list with issue/PR counts |
+| `repos/activity/` | Recent commit activity |
+| `repos/compliance/` | Branch protection / CI compliance |
+| `steward/stats/` | Steward run history gauges |
+| `nazu/projects/` | nazu project records |
+| `docker/` | Docker Engine socket API, filtered by DOCKER_CONTAINERS |
+| `containers/[id]/logs/` | Container log streaming |
+| `search/` | Librarian full-text search |
+| `entries/[id]/` | Librarian entry detail |
+| `tags/` | Tag list |
+| `recent/` | Recently added entries |
 
 ## Infra — `infra/`
 
-### `infra/postgres/init.sql`
-Plain SQL DDL run on first container boot (mounted at `/docker-entrypoint-initdb.d/`). Idempotent (`IF NOT EXISTS`). Creates `tasks`, `kb_index`, indexes, and `updated_at` trigger.
+- `infra/postgres/init.sql` — DDL run on first container boot. Idempotent (`IF NOT EXISTS`). Creates `kb_index`, indexes, and `updated_at` trigger.
+- `infra/cloudflare/tunnel-config.example.yml` — copy to `~/.cloudflared/config.yml` on host.
 
-## Cross-Cutting Concerns
+## Environment Variables (`.env`)
 
-### Environment Variables (`.env`)
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `FALKORDB_URI` | FalkorDB bolt URI (default: `bolt://localhost:7687`) |
-| `FALKORDB_USER` | FalkorDB user (default: empty) |
-| `FALKORDB_PASSWORD` | FalkorDB password (default: empty) |
+| `FALKORDB_ADDR` | FalkorDB host:port (Redis protocol) |
+| `FALKORDB_GRAPH` | Graph name |
 | `OPENAI_API_KEY` | Used by Graphiti for entity extraction |
-| `ANTHROPIC_API_KEY` | Optional |
-| `GEMINI_API_KEY` | Optional |
-| `DOCKER_CONTAINERS` | Comma-separated container names to show in dashboard (empty = show all) |
-
-### Mobile / Voice Integration (Pixel 10)
-Goal: voice access via Gemini Live using Gemini CLI Extensions. See `docs/gemini-mobile.md` for full architecture.
+| `GITHUB_TOKEN` | GitHub PAT for dashboard API calls |
+| `GITHUB_OWNERS` | Comma-separated GitHub orgs/users to display |
+| `DOCKER_CONTAINERS` | Comma-separated container names to show (empty = all) |
