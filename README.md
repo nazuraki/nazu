@@ -7,7 +7,9 @@ Personal knowledge management and home dashboard — self-hosted, Cloudflare Tun
 nazu is a personal second-brain and home control panel. It consists of:
 
 - **Dashboard** — live view of GitHub repos, open issues/PRs, CI status, and running Docker containers
-- **Librarian** — knowledge base: full-text search, tag browser, and entry viewer backed by PostgreSQL and FalkorDB
+- **Tasks** — personal task list with subtasks, status tracking, and due dates
+- **Search** — knowledge base: full-text search, tag browser, and entry viewer backed by PostgreSQL + MinIO
+- **Ingest** — paste markdown or plain text to add documents to the knowledge base; excerpts generated automatically via Claude
 
 ## Stack
 
@@ -15,6 +17,7 @@ nazu is a personal second-brain and home control panel. It consists of:
 |---|---|
 | Web app | SvelteKit 5 (adapter-node, port 3000) |
 | Database | PostgreSQL 16 |
+| Object storage | MinIO (S3-compatible, documents + attachments) |
 | Graph DB | FalkorDB (via Graphiti for temporal graph) |
 | Tunnel | Cloudflare Tunnel (outbound-only, no open ports) |
 | Runtime | Docker Compose |
@@ -32,13 +35,13 @@ nazu is a personal second-brain and home control panel. It consists of:
 just up
 ```
 
-This starts `web`, `postgres`, and `falkordb`. The app is available at `http://localhost:3000`.
+This starts `web`, `postgres`, `falkordb`, and `minio`. The app is available at `http://localhost:3000`.
 
 ### Development
 
 ```sh
 just web-install   # install pnpm workspace deps
-just up-deps       # start postgres + falkordb only
+just up-deps       # start postgres + falkordb + minio only
 just web-dev       # run SvelteKit dev server (hot reload)
 ```
 
@@ -72,8 +75,13 @@ openssl rand -hex 32
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `FALKORDB_URI` | FalkorDB bolt URI |
-| `FALKORDB_USER` / `FALKORDB_PASSWORD` | FalkorDB credentials |
+| `MINIO_ENDPOINT` | MinIO API endpoint (default: `http://minio:9000`) |
+| `MINIO_ACCESS_KEY` | MinIO root user (default: `minioadmin`) |
+| `MINIO_SECRET_KEY` | MinIO root password (default: `minioadmin`) |
+| `MINIO_BUCKET` | Bucket for documents (default: `nazu-documents`) |
+| `ANTHROPIC_API_KEY` | Used to generate excerpts on document ingest (claude-haiku-4-5) |
+| `FALKORDB_ADDR` | FalkorDB host:port (Redis protocol) |
+| `FALKORDB_GRAPH` | Graph name |
 | `OPENAI_API_KEY` | Used by Graphiti for entity extraction |
 | `GITHUB_TOKEN` | GitHub PAT for dashboard API calls |
 | `GITHUB_OWNERS` | Comma-separated GitHub orgs/users to display |

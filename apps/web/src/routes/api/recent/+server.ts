@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { getRecent } from '$lib/server/falkordb';
+import { getRecent } from '$lib/server/librarian';
 
 export async function GET({ url }) {
 	const limit = parseInt(url.searchParams.get('limit') ?? '10', 10);

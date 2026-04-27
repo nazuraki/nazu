@@ -11,7 +11,7 @@ nazu/
 ├── Justfile               # Repo-wide task runner
 ├── package.json           # pnpm workspace root (pnpm.onlyBuiltDependencies: esbuild)
 ├── pnpm-workspace.yaml    # Workspace config (apps/*, packages/*)
-├── docker-compose.yml     # web + postgres + falkordb services
+├── docker-compose.yml     # web + postgres + falkordb + minio services
 ├── .env                   # Environment variables (DB creds, API keys)
 ├── apps/
 │   ├── mcp/               # Python MCP server
@@ -30,13 +30,15 @@ nazu/
 │       │   │   │   └── services.ts    # Nav service list
 │       │   │   ├── dashboard/
 │       │   │   │   └── api.ts     # Typed fetch client for /api/* dashboard endpoints
-│       │   │   ├── librarian/
+│       │   │   ├── search/
 │       │   │   │   ├── types.ts       # Entry, EntryDetail, Tag, SearchResponse interfaces
 │       │   │   │   ├── api.ts         # Client fetch wrapper (BASE = /api)
 │       │   │   │   └── stores.ts      # searchCache, entryCache (svelte/store writable)
 │       │   │   └── server/
 │       │   │       ├── db.ts          # postgres singleton (DATABASE_URL)
 │       │   │       ├── falkordb.ts    # FalkorDB client via ioredis (FALKORDB_ADDR, FALKORDB_GRAPH)
+│       │   │       ├── storage.ts     # MinIO/S3 client (uploadDocument, getDocumentText, getPresignedUrl)
+│       │   │       ├── librarian.ts   # Postgres-backed Librarian queries (search, getEntry, getTags, getRecent)
 │       │   │       ├── repoconfig.ts  # repos.json loader (getStatusWorkflow, getPagesWorkflow)
 │       │   │       └── github/
 │       │   │           ├── client.ts  # GitHubClient (multi-owner PAT, paginate)
@@ -55,8 +57,9 @@ nazu/
 │       │       │   ├── nazu/projects/+server.ts
 │       │       │   ├── docker/+server.ts              # Docker Engine socket API, filtered by DOCKER_CONTAINERS env var
 │       │       │   ├── containers/[id]/logs/+server.ts
-│       │       │   ├── search/+server.ts              # Librarian search
-│       │       │   ├── entries/[id]/+server.ts
+│       │       │   ├── ingest/+server.ts              # POST — ingest document to MinIO + kb_index
+│       │       │   ├── search/+server.ts              # Librarian search (Postgres kb_index)
+│       │       │   ├── entries/[id]/+server.ts        # Entry detail (kb_index + MinIO content)
 │       │       │   ├── tags/+server.ts
 │       │       │   └── recent/+server.ts
 │       │       ├── dashboard/             # /dashboard — repo/Steward/task wall display
@@ -66,10 +69,11 @@ nazu/
 │       │       │   ├── components/RepoCard.svelte
 │       │       │   ├── components/Gauge.svelte
 │       │       │   └── components/LineChart.svelte
-│       │       └── librarian/             # /librarian — graph search + document viewer
+│       │       ├── ingest/                # /ingest — document ingest form
+│       │       └── search/                # /search — knowledge base search + document viewer
 │       │           ├── +layout.svelte         # Sidebar layout (full-height with nav)
 │       │           ├── +page.svelte           # Home: search prompt + tag atlas + recent
-│       │           ├── search/+page.svelte    # Search results (paginated)
+│       │           ├── results/+page.svelte   # Search results (paginated)
 │       │           ├── entry/[id]/+page.svelte # Entry detail + metadata sidebar
 │       │           └── components/            # TagBadge, ResultCard, Sidebar
 │       ├── repos.json         # Per-repo workflow config (statusWorkflow, pagesWorkflow)
@@ -125,14 +129,13 @@ nazu/
 | Tunnel | Cloudflare Tunnel |
 
 ### Data Architecture
-Two separate storage concerns:
-- **FalkorDB/Graphiti** — unstructured knowledge, temporal graph, semantic search. Full content lives here.
-- **PostgreSQL** — structured records (kb_index). Fast lookups without graph traversal.
-- **`kb_index`** is a curated index, not a mirror of the graph — like an encyclopedia index.
+Three storage concerns:
+- **MinIO** — original source documents (text, markdown, future: PDFs, images). S3-compatible object store. Preserves original formatting and allows re-ingestion.
+- **PostgreSQL** — structured records. `documents` table tracks MinIO metadata; `kb_index` is the agent-readable index (one entry per document). Fast lookups, FTS via `to_tsvector`.
+- **FalkorDB/Graphiti** — unstructured knowledge, temporal graph, semantic search (future agent use).
+- **`kb_index`** is a curated index re-buildable from the graph at any time — analogous to the index at the back of an encyclopedia.
 
 ## Docker Compose — `docker-compose.yml`
-
-Three services:
 
 | Service | Image | Ports (host:container) |
 |---|---|---|
@@ -140,6 +143,7 @@ Three services:
 | `web` | built from `apps/web/Dockerfile` | 3000:3000 |
 | `postgres` | postgres:16 | 5433:5432 |
 | `falkordb` | falkordb/falkordb:latest | 6380:6379, 7688:7687 |
+| `minio` | minio/minio:latest | 9000:9000 (API), 9001:9001 (console) |
 
 Non-default host ports (`5433`, `6380`, `7688`) avoid conflicts with any local instances.
 
@@ -148,6 +152,8 @@ Non-default host ports (`5433`, `6380`, `7688`) avoid conflicts with any local i
 | File | Purpose |
 |---|---|
 | `db.ts` | postgres singleton (DATABASE_URL) |
+| `storage.ts` | MinIO/S3 client — `uploadDocument`, `getDocumentText`, `getPresignedUrl` |
+| `librarian.ts` | Postgres-backed search queries — `search`, `getEntry`, `getTags`, `getRecent` |
 | `falkordb.ts` | FalkorDB client via ioredis (FALKORDB_ADDR, FALKORDB_GRAPH) |
 | `repoconfig.ts` | repos.json loader (getStatusWorkflow, getPagesWorkflow) |
 | `github/client.ts` | GitHubClient (multi-owner PAT, paginate) |
@@ -166,14 +172,20 @@ No auth — protected by Cloudflare Tunnel access control.
 | `nazu/projects/` | nazu project records |
 | `docker/` | Docker Engine socket API, filtered by DOCKER_CONTAINERS |
 | `containers/[id]/logs/` | Container log streaming |
-| `search/` | Librarian full-text search |
-| `entries/[id]/` | Librarian entry detail |
-| `tags/` | Tag list |
+| `ingest/` | POST — ingest document (upload to MinIO, generate excerpt via Claude, insert documents + kb_index) |
+| `search/` | Full-text search (Postgres kb_index, plainto_tsquery) |
+| `entries/[id]/` | Entry detail (kb_index metadata + full content from MinIO) |
+| `tags/` | Tag list (aggregated from kb_index) |
 | `recent/` | Recently added entries |
 
 ## Infra — `infra/`
 
 - `infra/postgres/migrations/NNN_*.sql` — numbered, forward-only migrations. Applied at web app startup by `apps/web/src/lib/server/migrate.ts` (tracked in `schema_migrations` table, each file runs in its own transaction). To add a migration, create the next-numbered file. The web container has `MIGRATIONS_DIR=/app/migrations` baked in via the Dockerfile.
+  - `001_init.sql` — tasks table, stub kb_index (superseded by 005)
+  - `002_task_sort_order.sql` — sort_order column on tasks
+  - `003_subtasks_and_notes.sql` — parent_id, completion_date, status enum
+  - `004_documents.sql` — documents table (MinIO metadata: storage_key, content_type, filename, source_url, author)
+  - `005_kb_index.sql` — drops stub kb_index, creates full kb_index (document_id FK, title, excerpt, type, tags[], word_count) with GIN indexes for tags and FTS
 - `infra/cloudflare/tunnel-config.example.yml` — copy to `~/.cloudflared/config.yml` on host.
 
 ## Environment Variables (`.env`)
@@ -193,3 +205,8 @@ No auth — protected by Cloudflare Tunnel access control.
 | `CF_ACCESS_TEAM_DOMAIN` | CF Access team domain, e.g. `yourteam.cloudflareaccess.com` |
 | `CF_ACCESS_AUD` | CF Access Application Audience tag (from CF dashboard) |
 | `CF_TUNNEL_TOKEN` | Tunnel token from CF dashboard "Install connector" page |
+| `MINIO_ENDPOINT` | MinIO API endpoint (default: `http://minio:9000`) |
+| `MINIO_ACCESS_KEY` | MinIO root user (default: `minioadmin`) |
+| `MINIO_SECRET_KEY` | MinIO root password (default: `minioadmin`) |
+| `MINIO_BUCKET` | Bucket for documents (default: `nazu-documents`) |
+| `ANTHROPIC_API_KEY` | Used to generate excerpts on document ingest (claude-haiku-4-5) |

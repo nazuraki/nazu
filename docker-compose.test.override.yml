@@ -8,10 +8,17 @@ services:
       LOREARC_GITHUB_TOKEN: test-org-token
       GITHUB_USER: testuser
       GITHUB_ORG: testorg
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: nazu-documents-test
+      ANTHROPIC_API_KEY: test-key
     ports: !override
       - "3001:3000"
     depends_on:
       postgres:
+        condition: service_healthy
+      minio:
         condition: service_healthy
       mocks:
         condition: service_healthy
@@ -28,6 +35,17 @@ services:
   caddy:
     ports: !override
       - "8443:443"
+
+  minio:
+    ports: !override
+      - "9002:9000"
+      - "9003:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
 
   falkordb:
     ports: !override

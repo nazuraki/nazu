@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { search } from '$lib/server/falkordb';
+import { search } from '$lib/server/librarian';
 
 export async function GET({ url }) {
 	const q = url.searchParams.get('q')?.trim();
