@@ -6,7 +6,5 @@ export const load: PageServerLoad = async (event) => {
 	if (event.locals.user) redirect(302, '/');
 };
 
-export const actions: Actions = {
-	github: (event) => signIn('github', event, { redirectTo: '/' }),
-	google: (event) => signIn('google', event, { redirectTo: '/' }),
-};
+// signIn reads `providerId` and `redirectTo` from the POST form body
+export const actions: Actions = { default: signIn };
