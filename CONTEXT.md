@@ -73,8 +73,10 @@ nazu/
 │       │           ├── entry/[id]/+page.svelte # Entry detail + metadata sidebar
 │       │           └── components/            # TagBadge, ResultCard, Sidebar
 │       ├── repos.json         # Per-repo workflow config (statusWorkflow, pagesWorkflow)
+│       ├── static/
+│       │   └── icons/         # PWA icons (192x192, 512x512, apple-touch-icon) — drop PNGs here
 │       ├── svelte.config.js   # adapter-node
-│       ├── vite.config.ts     # sveltekit() from @sveltejs/kit/vite
+│       ├── vite.config.ts     # sveltekit() + @vite-pwa/sveltekit (Workbox, manifest, autoUpdate)
 │       ├── tsconfig.json
 │       └── Dockerfile         # Multi-stage Node 22; build context = repo root
 ├── packages/
