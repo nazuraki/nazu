@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { searchCache } from '$lib/librarian/stores';
+	import { searchCache } from '$lib/search/stores';
 
 	const navItems = [
-		{ label: 'Recent', href: '/librarian' },
-		{ label: 'Tag Atlas', href: '/librarian/tags' }
+		{ label: 'Recent', href: '/search' },
+		{ label: 'Tag Atlas', href: '/search/tags' }
 	];
 
 	function isActive(href: string) {
-		if (href === '/librarian') return page.url.pathname === '/librarian';
+		if (href === '/search') return page.url.pathname === '/search';
 		return page.url.pathname.startsWith(href);
 	}
 
@@ -26,14 +26,14 @@
 		<div class="px-2 pb-2 flex items-center justify-between">
 			<span class="label-sm text-on-surface-faint px-1">RESULTS</span>
 			<a
-				href="/librarian/search?q={encodeURIComponent(cache.query)}&page={cache.page}"
+				href="/search/results?q={encodeURIComponent(cache.query)}&page={cache.page}"
 				class="label-sm text-primary hover:text-primary/70 transition-colors px-1"
 			>← BACK</a>
 		</div>
 		<div class="flex-1 overflow-y-auto">
 			{#each cache.results.entries as r (r.id)}
 				<a
-					href="/librarian/entry/{r.id}"
+					href="/search/entry/{r.id}"
 					class="flex flex-col px-4 py-3 border-b border-outline/30 transition-colors {r.id === entryId ? 'bg-surface-low' : 'hover:bg-surface-low'}"
 				>
 					<span class="label-sm mb-0.5 {r.id === entryId ? 'text-primary' : 'text-on-surface-faint'}">{r.type}</span>

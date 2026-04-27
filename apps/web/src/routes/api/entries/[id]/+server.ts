@@ -7,7 +7,7 @@ export async function GET({ params }) {
 		if (!entry) return error(404, 'entry not found');
 		return json(entry);
 	} catch (e) {
-		console.error('librarian entry error', e);
+		console.error('search entry error', e);
 		return error(500, 'failed to fetch entry');
 	}
 }

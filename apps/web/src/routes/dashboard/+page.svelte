@@ -40,10 +40,7 @@ import Stats from './sections/Stats.svelte';
     --font-body:      'Inter', system-ui, sans-serif;
 
     display: grid;
-    grid-template-columns: 3fr 1fr;
-    /* fill viewport minus the 3rem nazu header */
-    height: calc(100vh - 3rem);
-    overflow: hidden;
+    grid-template-columns: 1fr;
     background: var(--bg);
     color: var(--on-surface);
     font-family: var(--font-body);
@@ -52,11 +49,23 @@ import Stats from './sections/Stats.svelte';
 
   .code {
     background: var(--bg);
-    overflow: hidden;
   }
 
   .stats {
     background: var(--surface-2);
-    overflow-y: auto;
+  }
+
+  @media (min-width: 768px) {
+    .dashboard {
+      grid-template-columns: 3fr 1fr;
+      height: calc(100vh - 3rem);
+      overflow: hidden;
+    }
+    .code {
+      overflow: hidden;
+    }
+    .stats {
+      overflow-y: auto;
+    }
   }
 </style>

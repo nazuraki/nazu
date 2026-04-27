@@ -11,8 +11,8 @@ export const services: Service[] = [
 		description: 'System metrics and monitoring',
 	},
 	{
-		name: 'Librarian',
-		href: '/librarian',
+		name: 'Search',
+		href: '/search',
 		description: 'Search and browse the library',
 	},
 ];
