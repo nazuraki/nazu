@@ -51,7 +51,7 @@
 				name="type"
 				class="rounded border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
 			>
-				{#each TYPES as t}
+				{#each TYPES as t (t)}
 					<option value={t} selected={form?.values?.type === t || t === 'note'}>{t}</option>
 				{/each}
 			</select>
