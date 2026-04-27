@@ -4,6 +4,7 @@ export interface Repo {
 	full_name: string;
 	description: string | null;
 	private: boolean;
+	archived: boolean;
 	html_url: string;
 	pushed_at: string | null;
 	open_issues_count: number;

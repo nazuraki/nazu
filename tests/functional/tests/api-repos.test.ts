@@ -41,6 +41,33 @@ describe("/api/repos", () => {
 		expect(paths).toEqual(["/orgs/testorg/repos", "/user/repos"]);
 	});
 
+	it("excludes archived repos from both user and org results", async () => {
+		await setFixture("github", {
+			method: "GET",
+			path: "/user/repos",
+			status: 200,
+			body: [
+				{ id: 1, name: "alpha", full_name: `${USER}/alpha`, archived: false },
+				{ id: 2, name: "old", full_name: `${USER}/old`, archived: true },
+			],
+		});
+		await setFixture("github", {
+			method: "GET",
+			path: `/orgs/${ORG}/repos`,
+			status: 200,
+			body: [
+				{ id: 3, name: "beta", full_name: `${ORG}/beta`, archived: false },
+				{ id: 4, name: "legacy", full_name: `${ORG}/legacy`, archived: true },
+			],
+		});
+
+		const res = await apiGet("/api/repos");
+		expect(res.status).toBe(200);
+
+		const body = (await res.json()) as { full_name: string }[];
+		expect(body.map((r) => r.full_name)).toEqual([`${ORG}/beta`, `${USER}/alpha`]);
+	});
+
 	it("returns 500 when a GitHub call fails", async () => {
 		await setFixture("github", {
 			method: "GET",

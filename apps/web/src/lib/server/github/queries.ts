@@ -2,11 +2,13 @@ import type { GitHubClient } from './client.js';
 import type { Issue, PullRequest, Repo, WorkflowRun } from './types.js';
 
 export async function fetchUserRepos(client: GitHubClient, user: string): Promise<Repo[]> {
-	return client.paginate<Repo>(user, "/user/repos", { affiliation: "owner", sort: "pushed" });
+	const repos = await client.paginate<Repo>(user, "/user/repos", { affiliation: "owner", sort: "pushed" });
+	return repos.filter((r) => !r.archived);
 }
 
 export async function fetchOrgRepos(client: GitHubClient, org: string): Promise<Repo[]> {
-	return client.paginate<Repo>(org, `/orgs/${org}/repos`, { type: "all", sort: "pushed" });
+	const repos = await client.paginate<Repo>(org, `/orgs/${org}/repos`, { type: "all", sort: "pushed" });
+	return repos.filter((r) => !r.archived);
 }
 
 export async function fetchOpenIssues(
