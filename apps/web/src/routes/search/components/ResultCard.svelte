@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Entry } from '$lib/librarian/types';
+	import type { Entry } from '$lib/search/types';
 	import TagBadge from './TagBadge.svelte';
 
 	let { entry, query = '' }: { entry: Entry; query?: string } = $props();
@@ -12,7 +12,7 @@
 </script>
 
 <a
-	href="/librarian/entry/{entry.id}"
+	href="/search/entry/{entry.id}"
 	class="group flex gap-5 bg-surface-low hover:bg-surface-container transition-colors rounded-[4px] p-5"
 >
 	<div class="flex-1 min-w-0">

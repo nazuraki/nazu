@@ -6,7 +6,7 @@ export async function GET({ url }) {
 	try {
 		return json(await getRecent(limit));
 	} catch (e) {
-		console.error('librarian recent error', e);
+		console.error('search recent error', e);
 		return error(500, 'failed to fetch recent entries');
 	}
 }

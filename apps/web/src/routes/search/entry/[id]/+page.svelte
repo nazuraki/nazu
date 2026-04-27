@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
-	import { api } from '$lib/librarian/api';
-	import { entryCache } from '$lib/librarian/stores';
+	import { api } from '$lib/search/api';
+	import { entryCache } from '$lib/search/stores';
 	import TagBadge from '../../components/TagBadge.svelte';
-	import type { EntryDetail } from '$lib/librarian/types';
+	import type { EntryDetail } from '$lib/search/types';
 
 	let id = $derived(page.params.id ?? '');
 	let entry = $state<EntryDetail | null>(null);
@@ -33,23 +33,24 @@
 </script>
 
 <svelte:head>
-	<title>{entry?.title ?? 'Entry'} — Librarian</title>
+	<title>{entry?.title ?? 'Entry'} — Search</title>
 </svelte:head>
 
-<header class="flex items-center gap-4 px-8 py-3 bg-surface border-b border-outline">
-	<a href="/librarian" class="label-sm text-primary">ARCHIVE_V01</a>
-	<span class="label-sm text-on-surface-faint">/</span>
+<header class="flex items-center gap-4 px-4 md:px-8 py-3 bg-surface border-b border-outline">
+	<a href="/search" class="label-sm text-primary md:hidden" aria-label="Back to search">←</a>
+	<a href="/search" class="label-sm text-primary hidden md:inline">ARCHIVE_V01</a>
+	<span class="label-sm text-on-surface-faint hidden md:inline">/</span>
 	{#if entry}
-		<span class="label-sm text-on-surface-faint">FILE REFERENCE: {entry.id}</span>
-		<span class="label-sm text-on-surface-faint ml-auto">LAST MODIFIED: {entry.updated_at}</span>
+		<span class="label-sm text-on-surface-faint hidden md:inline">FILE REFERENCE: {entry.id}</span>
+		<span class="label-sm text-on-surface-faint ml-auto truncate">LAST MODIFIED: {entry.updated_at}</span>
 	{/if}
 </header>
 
 {#if error}
 	<div class="px-8 py-10 label-sm text-secondary">ENTRY NOT FOUND</div>
 {:else if !entry}
-	<div class="flex gap-0">
-		<div class="flex-1 px-8 py-10">
+	<div class="flex flex-col md:flex-row gap-0">
+		<div class="flex-1 px-4 md:px-8 py-6 md:py-10">
 			<div class="h-16 w-2/3 bg-surface-low rounded-[4px] animate-pulse mb-6"></div>
 			<div class="space-y-3">
 				{#each Array(8) as _, i (i)}
@@ -57,11 +58,11 @@
 				{/each}
 			</div>
 		</div>
-		<div class="w-72 bg-surface h-screen border-l border-outline"></div>
+		<div class="hidden md:block w-72 bg-surface h-screen border-l border-outline"></div>
 	</div>
 {:else}
-	<div class="flex min-h-screen">
-		<article class="flex-1 px-8 py-10 max-w-2xl">
+	<div class="flex flex-col md:flex-row md:min-h-screen">
+		<article class="flex-1 px-4 md:px-8 py-6 md:py-10 max-w-2xl">
 			<div class="flex gap-2 mb-6">
 				<TagBadge label={entry.type} variant="type" />
 				{#each entry.tags as tag (tag)}
@@ -89,7 +90,7 @@
 			{/if}
 		</article>
 
-		<aside class="w-72 flex-shrink-0 px-6 py-10 border-l border-outline bg-surface h-screen sticky top-0 overflow-y-auto">
+		<aside class="w-full md:w-72 flex-shrink-0 px-4 md:px-6 py-8 md:py-10 border-t md:border-t-0 md:border-l border-outline bg-surface md:h-screen md:sticky md:top-0 md:overflow-y-auto">
 			<div class="label-md text-on-surface mb-6">ARCHIVIST METADATA</div>
 
 			<div class="grid grid-cols-2 gap-4 mb-8">
@@ -109,7 +110,7 @@
 					<div class="flex flex-col gap-3">
 						{#each entry.related as rel (rel.id)}
 							<a
-								href="/librarian/entry/{rel.id}"
+								href="/search/entry/{rel.id}"
 								class="group flex gap-3 p-3 bg-surface-low hover:bg-surface-container rounded-[4px] transition-colors"
 							>
 								<div class="w-8 h-8 flex-shrink-0 rounded-[4px] bg-surface-high"></div>

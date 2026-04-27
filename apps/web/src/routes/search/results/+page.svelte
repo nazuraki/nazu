@@ -2,10 +2,10 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
-	import { api } from '$lib/librarian/api';
-	import { searchCache } from '$lib/librarian/stores';
+	import { api } from '$lib/search/api';
+	import { searchCache } from '$lib/search/stores';
 	import ResultCard from '../components/ResultCard.svelte';
-	import type { SearchResponse } from '$lib/librarian/types';
+	import type { SearchResponse } from '$lib/search/types';
 
 	let query = $derived(page.url.searchParams.get('q') ?? '');
 	let currentPage = $derived(Number(page.url.searchParams.get('page') ?? '1'));
@@ -36,15 +36,15 @@
 	function handleSearch(e: Event) {
 		e.preventDefault();
 		const q = inputQuery.trim();
-		if (q) goto(`/librarian/search?q=${encodeURIComponent(q)}`);
+		if (q) goto(`/search/results?q=${encodeURIComponent(q)}`);
 	}
 
 	function goPage(p: number) {
-		goto(`/librarian/search?q=${encodeURIComponent(query)}&page=${p}`);
+		goto(`/search/results?q=${encodeURIComponent(query)}&page=${p}`);
 	}
 </script>
 
-<svelte:head><title>"{query}" — Librarian</title></svelte:head>
+<svelte:head><title>"{query}" — Search</title></svelte:head>
 
 <header class="flex items-center gap-6 px-8 py-4 bg-surface border-b border-outline">
 	<span class="label-md text-primary">ARCHIVE_V01</span>

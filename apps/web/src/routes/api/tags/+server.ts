@@ -5,7 +5,7 @@ export async function GET() {
 	try {
 		return json(await getTags());
 	} catch (e) {
-		console.error('librarian tags error', e);
+		console.error('search tags error', e);
 		return error(500, 'failed to fetch tags');
 	}
 }

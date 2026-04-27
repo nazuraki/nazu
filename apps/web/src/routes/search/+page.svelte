@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { api } from '$lib/librarian/api';
+	import { api } from '$lib/search/api';
 	import TagBadge from './components/TagBadge.svelte';
 	import ResultCard from './components/ResultCard.svelte';
 
@@ -9,21 +9,21 @@
 	function handleSearch(e: Event) {
 		e.preventDefault();
 		const q = query.trim();
-		if (q) goto(`/librarian/search?q=${encodeURIComponent(q)}`);
+		if (q) goto(`/search/results?q=${encodeURIComponent(q)}`);
 	}
 
 	const recent = api.getRecent(6);
 	const tags = api.getTags();
 </script>
 
-<svelte:head><title>Librarian — Second Brain</title></svelte:head>
+<svelte:head><title>Search — Second Brain</title></svelte:head>
 
 <header class="flex items-center justify-between px-8 py-4 bg-surface border-b border-outline">
 	<span class="label-md text-primary">ARCHIVE_V01</span>
 	<span class="label-sm text-on-surface-faint">⚙</span>
 </header>
 
-<main class="px-8 py-10 max-w-5xl">
+<main class="px-4 md:px-8 py-6 md:py-10 max-w-5xl">
 	<div class="mb-16">
 		<div class="label-sm text-on-surface-faint mb-4">INITIAL_QUERY</div>
 		<form onsubmit={handleSearch}>
@@ -45,7 +45,7 @@
 		</form>
 	</div>
 
-	<div class="grid grid-cols-[1fr_1.5fr] gap-12">
+	<div class="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-8 md:gap-12">
 		<div>
 			<div class="flex items-center justify-between mb-4">
 				<span class="label-md text-on-surface">Tag Atlas</span>
@@ -60,7 +60,7 @@
 			{:then tagList}
 				<div class="flex flex-wrap gap-2">
 					{#each tagList.slice(0, 16) as tag (tag.name)}
-						<a href="/librarian/search?q={encodeURIComponent(tag.name)}">
+						<a href="/search/results?q={encodeURIComponent(tag.name)}">
 							<TagBadge label={tag.name} />
 						</a>
 					{/each}

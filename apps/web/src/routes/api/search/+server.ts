@@ -9,7 +9,7 @@ export async function GET({ url }) {
 	try {
 		return json(await search(q, page, pageSize));
 	} catch (e) {
-		console.error('librarian search error', e);
+		console.error('search error', e);
 		return error(500, 'search failed');
 	}
 }
