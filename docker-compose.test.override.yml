@@ -25,6 +25,10 @@ services:
       timeout: 3s
       retries: 20
 
+  caddy:
+    ports: !override
+      - "8443:443"
+
   falkordb:
     ports: !override
       - "6381:6379"
