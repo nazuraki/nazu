@@ -44,6 +44,10 @@ docker-rebuild:
 up:
     docker compose up -d
 
+# Start all services, rebuilding web
+reup:
+    docker compose up -d --build
+
 # Start only backing services (no web container)
 up-deps:
     docker compose up -d postgres falkordb
@@ -51,6 +55,9 @@ up-deps:
 # Stop all services
 down:
     docker compose down
+
+# Restart all services
+restart: down reup
 
 # ─── Tests ────────────────────────────────────────────────────────
 
