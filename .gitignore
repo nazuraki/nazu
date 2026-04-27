@@ -57,3 +57,6 @@ tmp/
 
 # pnpm workspace
 node_modules/
+
+# mkcert-generated certs (generated locally, not committed)
+infra/certs/*.pem

@@ -1,0 +1,4 @@
+butterfly {
+	tls /certs/butterfly.pem /certs/butterfly-key.pem
+	reverse_proxy web:3000
+}
