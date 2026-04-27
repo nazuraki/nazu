@@ -15,4 +15,9 @@ export const services: Service[] = [
 		href: '/search',
 		description: 'Search and browse the library',
 	},
+	{
+		name: 'Tasks',
+		href: '/tasks',
+		description: 'Edit the task list',
+	},
 ];

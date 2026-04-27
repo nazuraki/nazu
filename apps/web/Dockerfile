@@ -28,10 +28,12 @@ COPY packages/ui/ packages/ui/
 RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=build /app/apps/web/build apps/web/build
+COPY infra/postgres/migrations /app/migrations
 
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
+ENV MIGRATIONS_DIR=/app/migrations
 
 WORKDIR /app/apps/web
 EXPOSE 3000

@@ -11,3 +11,15 @@ export async function apiJson<T = unknown>(path: string, init?: RequestInit): Pr
 	}
 	return (await res.json()) as T;
 }
+
+export async function apiSend(
+	method: "POST" | "PATCH" | "DELETE",
+	path: string,
+	body?: unknown,
+): Promise<Response> {
+	return fetch(`${WEB_URL}${path}`, {
+		method,
+		headers: body !== undefined ? { "content-type": "application/json" } : undefined,
+		body: body !== undefined ? JSON.stringify(body) : undefined,
+	});
+}

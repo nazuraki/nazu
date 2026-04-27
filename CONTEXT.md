@@ -168,7 +168,7 @@ No auth — protected by Cloudflare Tunnel access control.
 
 ## Infra — `infra/`
 
-- `infra/postgres/init.sql` — DDL run on first container boot. Idempotent (`IF NOT EXISTS`). Creates `kb_index`, indexes, and `updated_at` trigger.
+- `infra/postgres/migrations/NNN_*.sql` — numbered, forward-only migrations. Applied at web app startup by `apps/web/src/lib/server/migrate.ts` (tracked in `schema_migrations` table, each file runs in its own transaction). To add a migration, create the next-numbered file. The web container has `MIGRATIONS_DIR=/app/migrations` baked in via the Dockerfile.
 - `infra/cloudflare/tunnel-config.example.yml` — copy to `~/.cloudflared/config.yml` on host.
 
 ## Environment Variables (`.env`)
