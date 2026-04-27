@@ -18,8 +18,10 @@ dev:
 build:
     pnpm --filter @nazu/web build
 
+check: typecheck lint
+
 # Type-check the web app
-check:
+typecheck:
     pnpm --filter @nazu/web check
 
 # Lint the web app
