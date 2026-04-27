@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { getTags } from '$lib/server/falkordb';
+import { getTags } from '$lib/server/librarian';
 
 export async function GET() {
 	try {

@@ -50,7 +50,7 @@ reup:
 
 # Start only backing services (no web container)
 up-deps:
-    docker compose up -d postgres falkordb caddy
+    docker compose up -d postgres falkordb caddy minio
 
 # Stop all services
 down:

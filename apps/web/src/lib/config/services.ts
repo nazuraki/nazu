@@ -20,4 +20,9 @@ export const services: Service[] = [
 		href: '/tasks',
 		description: 'Edit the task list',
 	},
+	{
+		name: 'Ingest',
+		href: '/ingest',
+		description: 'Add a document to the knowledge base',
+	},
 ];
