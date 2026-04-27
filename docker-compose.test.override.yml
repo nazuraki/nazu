@@ -2,6 +2,7 @@ services:
   web:
     environment:
       NODE_ENV: test
+      DATABASE_URL: postgres://nazu:nazu@postgres:5432/nazu
       GITHUB_API_BASE_URL: http://mocks:8080/github
       PERSONAL_GITHUB_TOKEN: test-personal-token
       LOREARC_GITHUB_TOKEN: test-org-token
@@ -10,8 +11,10 @@ services:
     ports: !override
       - "3001:3000"
     depends_on:
-      - postgres
-      - mocks
+      postgres:
+        condition: service_healthy
+      mocks:
+        condition: service_healthy
 
   postgres:
     ports: !override
