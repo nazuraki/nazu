@@ -1,4 +1,14 @@
 services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN}
+    depends_on:
+      - web
+
   caddy:
     image: caddy:2-alpine
     ports:

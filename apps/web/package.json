@@ -15,9 +15,11 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
+    "@auth/sveltekit": "^1.11.2",
     "@nazu/ui": "workspace:*",
     "dockerode": "^4.0.5",
     "ioredis": "^5.6.1",
+    "jose": "^6.2.2",
     "postgres": "^3.4.8"
   },
   "devDependencies": {

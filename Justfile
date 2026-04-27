@@ -42,15 +42,15 @@ docker-rebuild:
 
 # Start all services (web + postgres + falkordb)
 up:
-    docker compose up -d
+    docker compose --profile tunnel up -d
 
 # Start all services, rebuilding web
 reup:
-    docker compose up -d --build
+    docker compose --profile tunnel up -d --build
 
 # Start only backing services (no web container)
 up-deps:
-    docker compose up -d postgres falkordb
+    docker compose up -d postgres falkordb caddy
 
 # Stop all services
 down:

@@ -20,9 +20,10 @@ nazu/
 │       │   ├── app.html
 │       │   ├── app.d.ts       # App.Locals: user (from $lib/auth)
 │       │   ├── app.css        # Global styles, imports @nazu/ui/tokens.css
-│       │   ├── hooks.server.ts # Populates locals.user
+│       │   ├── auth.ts            # SvelteKitAuth config (Google + GitHub providers)
+│       │   ├── hooks.server.ts    # sequence(authHandle, authFlow): CF JWT → OAuth session → /login redirect
 │       │   ├── lib/
-│       │   │   ├── auth.ts        # Placeholder: getUserFromRequest() → null
+│       │   │   ├── auth.ts        # User interface + validateCFToken() (jose, CF_ACCESS_TEAM_DOMAIN/AUD)
 │       │   │   ├── priority.ts    # Issue sort scoring (label weight, PR linkage, age)
 │       │   │   ├── time.ts        # timeAgo() helper
 │       │   │   ├── config/
@@ -45,7 +46,8 @@ nazu/
 │       │   └── routes/
 │       │       ├── +layout.svelte         # Shell: header nav + content area
 │       │       ├── (home)/+page.svelte    # / — home dashboard
-│       │       ├── api/                   # Consolidated server routes (no auth — Cloudflare Tunnel)
+│       │       ├── login/                 # /login — OAuth sign-in page (GitHub + Google)
+│       │       ├── api/                   # Consolidated server routes (protected by hooks.server.ts auth)
 │       │       │   ├── repos/+server.ts
 │       │       │   ├── repos/activity/+server.ts
 │       │       │   ├── repos/compliance/+server.ts
@@ -132,6 +134,7 @@ Three services:
 
 | Service | Image | Ports (host:container) |
 |---|---|---|
+| `cloudflared` | cloudflare/cloudflared:latest | none (outbound only) |
 | `web` | built from `apps/web/Dockerfile` | 3000:3000 |
 | `postgres` | postgres:16 | 5433:5432 |
 | `falkordb` | falkordb/falkordb:latest | 6380:6379, 7688:7687 |
@@ -182,3 +185,9 @@ No auth — protected by Cloudflare Tunnel access control.
 | `GITHUB_TOKEN` | GitHub PAT for dashboard API calls |
 | `GITHUB_OWNERS` | Comma-separated GitHub orgs/users to display |
 | `DOCKER_CONTAINERS` | Comma-separated container names to show (empty = all) |
+| `AUTH_SECRET` | Session signing key — `openssl rand -hex 32` |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth app credentials |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth app credentials |
+| `CF_ACCESS_TEAM_DOMAIN` | CF Access team domain, e.g. `yourteam.cloudflareaccess.com` |
+| `CF_ACCESS_AUD` | CF Access Application Audience tag (from CF dashboard) |
+| `CF_TUNNEL_TOKEN` | Tunnel token from CF dashboard "Install connector" page |
