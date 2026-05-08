@@ -8,6 +8,7 @@
 nazu/
 ├── CLAUDE.md              # Claude coding instructions
 ├── CONTEXT.md             # This file — full code reference
+├── apps/indexer/          # Code intelligence indexer + MCP server (see apps/indexer/README.md)
 ├── Justfile               # Repo-wide task runner
 ├── package.json           # pnpm workspace root (pnpm.onlyBuiltDependencies: esbuild)
 ├── pnpm-workspace.yaml    # Workspace config (apps/*, packages/*)
@@ -165,6 +166,10 @@ No auth — protected by Cloudflare Tunnel access control.
 
 | Route | Purpose |
 |---|---|
+| `code-graph/projects/` | List indexed projects from apps/indexer/projects.json |
+| `code-graph/[project]/overview/` | File/symbol counts, services, deps for a project |
+| `code-graph/query/` | POST `{project, cypher}` → raw Cypher results |
+| `webhooks/github/` | POST — GitHub push webhook, triggers background reindex |
 | `repos/` | Repo list with issue/PR counts |
 | `repos/activity/` | Recent commit activity |
 | `repos/compliance/` | Branch protection / CI compliance |
@@ -210,3 +215,5 @@ No auth — protected by Cloudflare Tunnel access control.
 | `MINIO_SECRET_KEY` | MinIO root password (default: `minioadmin`) |
 | `MINIO_BUCKET` | Bucket for documents (default: `nazu-documents`) |
 | `ANTHROPIC_API_KEY` | Used to generate excerpts on document ingest (claude-haiku-4-5) |
+| `GITHUB_WEBHOOK_SECRET` | HMAC secret for GitHub push webhook signature verification |
+| `REPO_CACHE_DIR` | Dir for cached git checkouts used by webhook reindexer (default: `/var/cache/nazu/repos`) |
