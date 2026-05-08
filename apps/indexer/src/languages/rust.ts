@@ -8,8 +8,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function binaryPath(): string {
 	// Prefer release build, fall back to debug
-	const rel = resolve(__dirname, '../../../native/rust-indexer/target/release/rust-indexer');
-	const dbg = resolve(__dirname, '../../../native/rust-indexer/target/debug/rust-indexer');
+	const rel = resolve(__dirname, '../../native/rust-indexer/target/release/rust-indexer');
+	const dbg = resolve(__dirname, '../../native/rust-indexer/target/debug/rust-indexer');
 	if (existsSync(rel)) return rel;
 	if (existsSync(dbg)) return dbg;
 	throw new Error('rust-indexer binary not found. Run: cargo build --manifest-path apps/indexer/native/rust-indexer/Cargo.toml');

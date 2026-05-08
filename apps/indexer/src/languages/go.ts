@@ -7,7 +7,7 @@ import type { AnalysisResult } from '../types.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function binaryPath(): string {
-	const bin = resolve(__dirname, '../../../native/go-indexer/go-indexer');
+	const bin = resolve(__dirname, '../../native/go-indexer/go-indexer');
 	if (existsSync(bin)) return bin;
 	throw new Error('go-indexer binary not found. Run: cd apps/indexer/native/go-indexer && go build -o go-indexer .');
 }
