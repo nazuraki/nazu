@@ -26,6 +26,11 @@ async function run(cypher: string): Promise<Row[]> {
 	return (res[1] ?? []) as Row[];
 }
 
+export async function runInGraph(graph: string, cypher: string): Promise<Row[]> {
+	const res = (await client().call('GRAPH.QUERY', graph, cypher)) as unknown[][];
+	return (res[1] ?? []) as Row[];
+}
+
 export function str(v: unknown): string {
 	return v == null ? '' : String(v);
 }

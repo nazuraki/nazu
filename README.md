@@ -10,6 +10,7 @@ nazu is a personal second-brain and home control panel. It consists of:
 - **Tasks** — personal task list with subtasks, status tracking, and due dates
 - **Search** — knowledge base: full-text search, tag browser, and entry viewer backed by PostgreSQL + MinIO
 - **Ingest** — paste markdown or plain text to add documents to the knowledge base; excerpts generated automatically via Claude
+- **Code graph** — indexes codebases into per-project FalkorDB graphs using real language tooling (ts-morph, jedi, syn, go/ast); queryable via MCP tools or REST API
 
 ## Stack
 
@@ -18,7 +19,7 @@ nazu is a personal second-brain and home control panel. It consists of:
 | Web app | SvelteKit 5 (adapter-node, port 3000) |
 | Database | PostgreSQL 16 |
 | Object storage | MinIO (S3-compatible, documents + attachments) |
-| Graph DB | FalkorDB (via Graphiti for temporal graph) |
+| Graph DB | FalkorDB (knowledge graph + per-project code intelligence graphs) |
 | Tunnel | Cloudflare Tunnel (outbound-only, no open ports) |
 | Runtime | Docker Compose |
 
@@ -81,8 +82,10 @@ openssl rand -hex 32
 | `MINIO_BUCKET` | Bucket for documents (default: `nazu-documents`) |
 | `ANTHROPIC_API_KEY` | Used to generate excerpts on document ingest (claude-haiku-4-5) |
 | `FALKORDB_ADDR` | FalkorDB host:port (Redis protocol) |
-| `FALKORDB_GRAPH` | Graph name |
+| `FALKORDB_GRAPH` | Graph name for the personal knowledge graph |
 | `OPENAI_API_KEY` | Used by Graphiti for entity extraction |
+| `GITHUB_WEBHOOK_SECRET` | HMAC secret for GitHub push webhook (code graph auto-reindex) |
+| `REPO_CACHE_DIR` | Directory for cached git checkouts used by webhook reindexer |
 | `GITHUB_TOKEN` | GitHub PAT for dashboard API calls |
 | `GITHUB_OWNERS` | Comma-separated GitHub orgs/users to display |
 | `DOCKER_CONTAINERS` | Comma-separated container names to show (empty = all) |
@@ -98,6 +101,30 @@ openssl rand -hex 32
 The `cloudflared` service in Docker Compose connects outbound to the CF edge — no inbound firewall ports needed.
 
 **One-time CF dashboard setup:** in Zero Trust → Networks → Tunnels → your tunnel → Public Hostnames, set the origin to `http://web:3000` (Docker service name). See `infra/cloudflare/tunnel-config.example.yml` for details.
+
+## Code graph indexer
+
+Indexes codebases into per-project FalkorDB graphs for use with Claude Code. See [`apps/indexer/README.md`](apps/indexer/README.md) for full setup instructions.
+
+```sh
+just build-indexer          # build TypeScript + Rust binary + Go binary
+just index nazu             # index the nazu codebase
+just index wealth           # index the wealth codebase
+just index-path <dir> <graph>  # index any project
+```
+
+Claude Code connects to the MCP server for code intelligence queries — configure in `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "code-graph": {
+      "command": "node",
+      "args": ["/path/to/nazu/apps/indexer/dist/mcp.js"]
+    }
+  }
+}
+```
 
 ## Task runner
 

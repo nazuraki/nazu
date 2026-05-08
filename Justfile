@@ -78,6 +78,26 @@ test-up:
 test-down:
     docker compose -p nazu-test -f docker-compose.yml -f docker-compose.test.override.yml down -v --remove-orphans
 
+# ─── Code graph indexer ───────────────────────────────────────────
+
+# Build the indexer (TypeScript + Rust binary + Go binary)
+build-indexer:
+    pnpm --filter @nazu/indexer build
+    cargo build --release --manifest-path apps/indexer/native/rust-indexer/Cargo.toml
+    cd apps/indexer/native/go-indexer && go build -o go-indexer .
+
+# Index a registered project by name (default: nazu)
+index project="nazu":
+    pnpm --filter @nazu/indexer exec tsx src/cli.ts --project {{project}}
+
+# Index an arbitrary path into a named graph
+index-path path graph:
+    pnpm --filter @nazu/indexer exec tsx src/cli.ts --path $(realpath {{path}}) --graph {{graph}}
+
+# Install indexer npm deps only
+install-indexer:
+    pnpm --filter @nazu/indexer install
+
 # ─── Repo-wide ────────────────────────────────────────────────────
 
 # Install local git hooks (post-commit GitNexus re-indexer)
