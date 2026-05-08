@@ -92,7 +92,7 @@ index project="nazu":
 
 # Index an arbitrary path into a named graph
 index-path path graph:
-    pnpm --filter @nazu/indexer exec tsx src/cli.ts --path {{path}} --graph {{graph}}
+    pnpm --filter @nazu/indexer exec tsx src/cli.ts --path $(realpath {{path}}) --graph {{graph}}
 
 # Install indexer npm deps only
 install-indexer:
