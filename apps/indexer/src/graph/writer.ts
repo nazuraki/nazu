@@ -1,13 +1,12 @@
 import { runInGraph, escape, toCypherValue } from './client.js';
 import type { AnalysisResult, FileInfo, SymbolInfo, RelationInfo, DependencyInfo, ServiceInfo, EnvVarInfo } from '../types.js';
 
-const BATCH = 200;
+const CONCURRENCY = 50;
 
 async function batchMerge(graph: string, items: unknown[], cypher: (item: unknown) => string) {
-	for (let i = 0; i < items.length; i += BATCH) {
-		const slice = items.slice(i, i + BATCH);
-		const stmts = slice.map(cypher).join('\n');
-		if (stmts.trim()) await runInGraph(graph, stmts);
+	const stmts = items.map(cypher).filter((s) => s.trim());
+	for (let i = 0; i < stmts.length; i += CONCURRENCY) {
+		await Promise.all(stmts.slice(i, i + CONCURRENCY).map((s) => runInGraph(graph, s)));
 	}
 }
 
