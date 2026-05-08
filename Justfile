@@ -88,11 +88,11 @@ build-indexer:
 
 # Index a registered project by name (default: nazu)
 index project="nazu":
-    pnpm --filter @nazu/indexer index -- --project {{project}}
+    pnpm --filter @nazu/indexer exec tsx src/cli.ts --project {{project}}
 
 # Index an arbitrary path into a named graph
 index-path path graph:
-    pnpm --filter @nazu/indexer index -- --path {{path}} --graph {{graph}}
+    pnpm --filter @nazu/indexer exec tsx src/cli.ts --path {{path}} --graph {{graph}}
 
 # Install indexer npm deps only
 install-indexer:
