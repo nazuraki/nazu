@@ -2,14 +2,14 @@ use anyhow::{Context, Result};
 use cargo_metadata::MetadataCommand;
 use serde::Serialize;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     env,
     fs,
     path::{Path, PathBuf},
 };
 use syn::{
     visit::Visit,
-    File as SynFile, ImplItem, Item,
+    File as SynFile, ImplItem,
 };
 use walkdir::WalkDir;
 
