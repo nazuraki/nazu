@@ -1,8 +1,18 @@
 # nazu — Claude Instructions
 
-## First Step: Read CONTEXT.md
+## Code intelligence
 
-**At the start of every session, read `CONTEXT.md` in this directory.** It contains the complete code reference — file maps, architecture, data model, API surfaces. This eliminates the need to re-read source files.
+This project is indexed in nazu's code graph as `code:nazu`.
+
+At the start of every session, call `get_project_overview("nazu")` via the
+`code-graph` MCP server to orient yourself. Use `find_symbol`, `find_callers`,
+and `query_code_graph` for targeted lookups — do not read source files to answer
+structural questions.
+
+Example queries:
+- "What functions exist in the auth module?" → find_symbol("nazu", "auth")
+- "Who calls saveUser?" → find_callers("nazu", "saveUser")
+- "What services does this project use?" → get_project_overview("nazu")
 
 ## Project Overview
 

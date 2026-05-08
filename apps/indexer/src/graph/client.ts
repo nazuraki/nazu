@@ -8,7 +8,7 @@ function getClient(): Redis {
 		const colonIdx = addr.lastIndexOf(':');
 		const host = addr.slice(0, colonIdx);
 		const port = parseInt(addr.slice(colonIdx + 1), 10);
-		_client = new Redis({ host, port, lazyConnect: true, enableOfflineQueue: false });
+		_client = new Redis({ host, port, enableOfflineQueue: false });
 		// Prevent Node.js from crashing on connection errors — they surface through rejected promises
 		_client.on('error', () => {});
 	}
