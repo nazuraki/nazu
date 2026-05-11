@@ -124,7 +124,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 					services.length ? services.map((r) => `  ${str(r[0])} (${str(r[1])})`).join('\n') : '  (none)',
 					'',
 					'### Dependencies (sample)',
-					...deps.map((r) => `  [${str(r[0])}] ${(r[1] as string[]).join(', ')}`),
+					...deps.map((r) => {
+						const names = Array.isArray(r[1]) ? (r[1] as unknown[]).map(str) : [str(r[1])].filter(Boolean);
+						return `  [${str(r[0])}] ${names.join(', ')}`;
+					}),
 				];
 				return { content: [{ type: 'text', text: lines.join('\n') }] };
 			}
