@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "nazu-index": "dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc -w",
