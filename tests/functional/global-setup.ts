@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 
 const PROJECT = "nazu-test";
 const COMPOSE_FILES = ["-f", "docker-compose.yml", "-f", "docker-compose.test.override.yml"];
-// minio and falkordb are core services (no profile); tls/tunnel remain optional.
-const PROFILES = ["--profile", "tls"];
+// minio and falkordb are core services (no profile). The tls/tunnel ingress
+// services aren't exercised by the functional suite, so no profiles are
+// activated — keeps caddy/cloudflared (and their host cert mounts) out of CI.
+const PROFILES: string[] = [];
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
 export const STARTUP_LOG_DIR = join(HERE, ".tmp", "startup");
