@@ -10,5 +10,11 @@
     "path": "/Users/nazuraki/src/wealth",
     "graph": "code:wealth",
     "github": "nazuraki/wealth"
+  },
+  {
+    "name": "signalpath",
+    "path": "/Users/nazuraki/src/SignalPath",
+    "graph": "code:signalpath",
+    "github": "nazuraki/SignalPath"
   }
 ]
