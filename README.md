@@ -16,7 +16,7 @@ nazu is a personal second-brain and home control panel. It consists of:
 
 | Layer | Technology |
 |---|---|
-| Web app | SvelteKit 5 (adapter-node, port 3000) |
+| Web app | SvelteKit 5 (adapter-node; host port 8420 → container 3000) |
 | Database | PostgreSQL 16 |
 | Object storage | MinIO (S3-compatible, documents + attachments) |
 | Graph DB | FalkorDB (knowledge graph + per-project code intelligence graphs) |
@@ -36,7 +36,7 @@ nazu is a personal second-brain and home control panel. It consists of:
 just up
 ```
 
-This starts the **core stack** — `web`, `postgres`, `minio`, and `falkordb`. The app is available at `http://localhost:3000`.
+This starts the **core stack** — `web`, `postgres`, `minio`, and `falkordb`. The app is available at `http://localhost:8420`.
 
 #### Optional services (Compose profiles)
 
@@ -72,12 +72,18 @@ just test-functional   # spin up isolated stack, run vitest suite, tear down
 
 ## Authentication
 
-Auth runs in two layers:
+nazu is **open by default** (zero-conf) — on a fresh install anyone who can reach the port is treated as a local user, with no login. Layer on security as you need it. The app resolves identity in this order:
 
-1. **Cloudflare Access** (production) — CF Access sits in front of the tunnel and authenticates at the edge. The app validates the `Cf-Access-Jwt-Assertion` JWT for defense-in-depth.
-2. **OAuth via Auth.js** (local dev fallback) — Google and GitHub OAuth when no CF token is present. Requires `AUTH_*` env vars.
+1. **Cloudflare Access** — CF Access sits in front of the tunnel and authenticates remote traffic at the edge; the app validates the `Cf-Access-Jwt-Assertion` JWT. CF Access only gates the tunnel — it never blocks LAN access on its own.
+2. **OAuth via Auth.js** — Google and GitHub OAuth. When configured (`AUTH_*` env vars), unauthenticated LAN requests are redirected to `/login`.
+3. **Local admin login (HTTP Basic)** — set `NAZU_AUTH_USER` and `NAZU_AUTH_PASSWORD` and the LAN prompts for those credentials. Simplest gate — no OAuth apps required.
+4. **Open** — if none of the above gate the LAN, requests pass through as a local user (`NAZU_LOCAL_USER_EMAIL`, default `local@nazu.local`).
 
 ### Setup
+
+Open mode needs no setup. To gate LAN access, pick **one** of OAuth or local Basic auth (CF Access is orthogonal and gates the tunnel).
+
+**Local admin (Basic auth)** — set `NAZU_AUTH_USER` and `NAZU_AUTH_PASSWORD` in `.env`. Done.
 
 **Generate `AUTH_SECRET`** (required for OAuth session signing):
 
@@ -85,9 +91,9 @@ Auth runs in two layers:
 openssl rand -hex 32
 ```
 
-**Google OAuth** — create credentials at [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials → OAuth 2.0 Client. Set redirect URI to `http://localhost:3000/auth/callback/google` (dev) and your public domain (prod).
+**Google OAuth** — create credentials at [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials → OAuth 2.0 Client. Set redirect URI to `http://localhost:8420/auth/callback/google` (dev) and your public domain (prod).
 
-**GitHub OAuth** — create an app at [github.com/settings/developers](https://github.com/settings/developers). Set callback URL to `http://localhost:3000/auth/callback/github` (dev) and your public domain (prod).
+**GitHub OAuth** — create an app at [github.com/settings/developers](https://github.com/settings/developers). Set callback URL to `http://localhost:8420/auth/callback/github` (dev) and your public domain (prod).
 
 ## Environment Variables
 
@@ -110,6 +116,8 @@ openssl rand -hex 32
 | `AUTH_SECRET` | Session signing key — generate with `openssl rand -hex 32` |
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth app credentials |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth app credentials |
+| `NAZU_AUTH_USER` / `NAZU_AUTH_PASSWORD` | Local admin login (HTTP Basic) — set both to gate LAN access without OAuth |
+| `NAZU_LOCAL_USER_EMAIL` | Identity stamped on local / Basic-auth requests (default: `local@nazu.local`) |
 | `CF_ACCESS_TEAM_DOMAIN` | CF Access team domain, e.g. `yourteam.cloudflareaccess.com` |
 | `CF_ACCESS_AUD` | CF Access Application Audience tag (from CF dashboard) |
 | `CF_TUNNEL_TOKEN` | Tunnel token from CF dashboard "Install connector" page |
