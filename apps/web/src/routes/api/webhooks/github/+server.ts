@@ -5,8 +5,8 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { getSection } from '$lib/server/settings.js';
 
-const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? '';
 const REPO_CACHE_DIR = process.env.REPO_CACHE_DIR ?? '/var/cache/nazu/repos';
 
 interface ProjectEntry {
@@ -30,9 +30,11 @@ function loadProjects(): ProjectEntry[] {
 	return JSON.parse(readFileSync(registry, 'utf8')) as ProjectEntry[];
 }
 
-function verifySignature(body: string, signature: string): boolean {
-	if (!WEBHOOK_SECRET) return false;
-	const expected = `sha256=${createHmac('sha256', WEBHOOK_SECRET).update(body).digest('hex')}`;
+async function verifySignature(body: string, signature: string): Promise<boolean> {
+	const { webhookSecret } = await getSection('github');
+	const secret = (webhookSecret as string)?.trim();
+	if (!secret) return false;
+	const expected = `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
 	try {
 		return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 	} catch {
@@ -78,7 +80,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const signature = request.headers.get('x-hub-signature-256') ?? '';
 	const body = await request.text();
 
-	if (!verifySignature(body, signature)) {
+	if (!(await verifySignature(body, signature))) {
 		error(401, 'Invalid signature');
 	}
 

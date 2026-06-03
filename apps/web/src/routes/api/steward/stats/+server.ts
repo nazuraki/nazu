@@ -1,9 +1,10 @@
-import { env } from '$env/dynamic/private';
 import { json } from '@sveltejs/kit';
 import { getSql } from '$lib/server/db.js';
+import { getSection } from '$lib/server/settings.js';
 
 export async function GET() {
-	const budget = Number.parseFloat(env.STEWARD_MONTHLY_BUDGET ?? "50");
+	const { stewardMonthlyBudget } = await getSection('dashboard');
+	const budget = Number(stewardMonthlyBudget) || 50;
 
 	try {
 		const sql = getSql();

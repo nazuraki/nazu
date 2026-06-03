@@ -72,8 +72,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Lets the web app drive `docker compose` to toggle optional services.
+      # Secrets (e.g. the CF tunnel token) are injected into that subprocess from
+      # DB settings, so no host .env file is needed.
       - ./docker-compose.yml:/app/docker-compose.yml:ro
-      - ./.env:/app/.env:ro
       # Shared with caddy: the web app writes the generated Caddyfile here when
       # tls is enabled. Named volume — no host path, works without config.
       - caddy_config:/config

@@ -1,19 +1,20 @@
 import { json, error } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import Anthropic from '@anthropic-ai/sdk';
 
 import { getSql } from '$lib/server/db.js';
+import { getSection } from '$lib/server/settings.js';
 import { uploadDocument } from '$lib/server/storage.js';
 
-let _anthropic: Anthropic | null = null;
-function anthropic(): Anthropic {
-	if (!_anthropic) _anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-	return _anthropic;
+async function anthropic(): Promise<Anthropic> {
+	const { anthropicApiKey } = await getSection('ai');
+	const apiKey = (anthropicApiKey as string)?.trim();
+	if (!apiKey) throw error(503, 'Anthropic API key is not configured — set it in Settings');
+	return new Anthropic({ apiKey });
 }
 
 async function generateExcerpt(title: string, content: string): Promise<string> {
 	const preview = content.slice(0, 8000);
-	const msg = await anthropic().messages.create({
+	const msg = await (await anthropic()).messages.create({
 		model: 'claude-haiku-4-5',
 		max_tokens: 256,
 		system: [

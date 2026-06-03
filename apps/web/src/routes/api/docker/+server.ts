@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { json } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
+import { getSection } from '$lib/server/settings.js';
 
 interface DockerApiContainer {
 	Id: string;
@@ -31,9 +31,8 @@ function fetchDockerContainers(): Promise<DockerApiContainer[]> {
 }
 
 export async function GET() {
-	const allowlist = env.DOCKER_CONTAINERS
-		? env.DOCKER_CONTAINERS.split(',').map((s) => s.trim()).filter(Boolean)
-		: [];
+	const { dockerContainers } = await getSection('dashboard');
+	const allowlist = (Array.isArray(dockerContainers) ? dockerContainers : []) as string[];
 
 	try {
 		const raw = await fetchDockerContainers();

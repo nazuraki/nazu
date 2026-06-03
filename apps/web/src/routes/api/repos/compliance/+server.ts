@@ -23,7 +23,7 @@ function parseJustfileRecipes(content: string): Set<string> {
 }
 
 export async function GET() {
-	const { github, owners } = getGitHub();
+	const { github, owners } = await getGitHub();
 	const [personal, org] = await Promise.all([
 		fetchUserRepos(github, owners.user),
 		fetchOrgRepos(github, owners.org),

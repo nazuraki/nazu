@@ -6,7 +6,8 @@ let _client: Redis | null = null;
 
 function client(): Redis {
 	if (!_client) {
-		const addr = process.env.FALKORDB_ADDR ?? 'localhost:6379';
+		// Default targets the Compose-internal falkordb service (zero-conf).
+		const addr = process.env.FALKORDB_ADDR ?? 'falkordb:6379';
 		const colonIdx = addr.lastIndexOf(':');
 		const host = addr.slice(0, colonIdx);
 		const port = parseInt(addr.slice(colonIdx + 1), 10);
