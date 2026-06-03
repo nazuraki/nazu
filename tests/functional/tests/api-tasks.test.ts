@@ -313,6 +313,7 @@ describe("schema_migrations", () => {
 			"004_documents.sql",
 			"005_kb_index.sql",
 			"006_service_config.sql",
+			"007_app_settings.sql",
 		]);
 	});
 });
