@@ -44,10 +44,16 @@ docker-rebuild:
 
 # Start the full stack (all profiles: tls, objects, graph, tunnel)
 up:
+    docker compose --profile objects --profile graph up -d
+
+reup:
+    docker compose --profile objects --profile graph up -d --build
+
+up-all:
     docker compose --profile tls --profile objects --profile graph --profile tunnel up -d
 
 # Start the full stack, rebuilding web
-reup:
+reup-all:
     docker compose --profile tls --profile objects --profile graph --profile tunnel up -d --build
 
 # Start only backing services (no web container)
