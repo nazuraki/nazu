@@ -36,7 +36,26 @@ nazu is a personal second-brain and home control panel. It consists of:
 just up
 ```
 
-This starts `web`, `postgres`, `falkordb`, and `minio`. The app is available at `http://localhost:3000`.
+This starts the **core stack** — `web` + `postgres`. The app is available at `http://localhost:3000`.
+
+#### Optional services (Compose profiles)
+
+Optional services are gated behind Compose profiles so you only run what you need. Pass `--profile <name>` (one or more) to enable them:
+
+| Profile | Services | Needed for |
+|---|---|---|
+| `tls` | `caddy` | HTTPS termination on `:443` (requires `NAZU_HOSTNAME`, `NAZU_TLS_CERT`, `NAZU_TLS_KEY`) |
+| `objects` | `minio` | Document ingest and attachments |
+| `graph` | `falkordb` | Knowledge graph + code intelligence |
+| `tunnel` | `cloudflared` | Public access via Cloudflare Tunnel (requires `CF_TUNNEL_TOKEN`) |
+
+Examples:
+
+```sh
+docker compose up -d                                       # core only
+docker compose --profile objects --profile graph up -d     # add storage + graph
+docker compose --profile tls --profile tunnel up -d        # add HTTPS + tunnel
+```
 
 ### Development
 
@@ -95,6 +114,9 @@ openssl rand -hex 32
 | `CF_ACCESS_TEAM_DOMAIN` | CF Access team domain, e.g. `yourteam.cloudflareaccess.com` |
 | `CF_ACCESS_AUD` | CF Access Application Audience tag (from CF dashboard) |
 | `CF_TUNNEL_TOKEN` | Tunnel token from CF dashboard "Install connector" page |
+| `NAZU_HOSTNAME` | Hostname Caddy serves on (e.g. `nazu.example.com`) — required with `tls` profile |
+| `NAZU_TLS_CERT` | Path to TLS cert inside the caddy container (e.g. `/certs/nazu.pem`) — required with `tls` profile |
+| `NAZU_TLS_KEY` | Path to TLS key inside the caddy container (e.g. `/certs/nazu-key.pem`) — required with `tls` profile |
 
 ## Remote Access
 

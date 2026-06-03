@@ -1,4 +1,4 @@
-butterfly {
-	tls /certs/butterfly.pem /certs/butterfly-key.pem
+{$NAZU_HOSTNAME} {
+	tls {$NAZU_TLS_CERT} {$NAZU_TLS_KEY}
 	reverse_proxy web:3000
 }

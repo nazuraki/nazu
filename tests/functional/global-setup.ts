@@ -5,13 +5,14 @@ import { fileURLToPath } from "node:url";
 
 const PROJECT = "nazu-test";
 const COMPOSE_FILES = ["-f", "docker-compose.yml", "-f", "docker-compose.test.override.yml"];
+const PROFILES = ["--profile", "tls", "--profile", "objects", "--profile", "graph"];
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
 export const STARTUP_LOG_DIR = join(HERE, ".tmp", "startup");
 const SERVICES = ["web", "postgres", "falkordb", "mocks"] as const;
 
 function compose(args: string[]): { status: number; stdout: string; stderr: string } {
-	const res = spawnSync("docker", ["compose", "-p", PROJECT, ...COMPOSE_FILES, ...args], {
+	const res = spawnSync("docker", ["compose", "-p", PROJECT, ...COMPOSE_FILES, ...PROFILES, ...args], {
 		cwd: REPO_ROOT,
 		encoding: "utf8",
 		stdio: ["ignore", "pipe", "pipe"],
