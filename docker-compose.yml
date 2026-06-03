@@ -25,10 +25,16 @@ services:
         : "$${NAZU_HOSTNAME:?NAZU_HOSTNAME is required when the tls profile is active}"
         : "$${NAZU_TLS_CERT:?NAZU_TLS_CERT is required when the tls profile is active}"
         : "$${NAZU_TLS_KEY:?NAZU_TLS_KEY is required when the tls profile is active}"
-        exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+        exec caddy run --config /config/Caddyfile --adapter caddyfile
+    # The web app writes the generated Caddyfile into the shared caddy_config
+    # volume; caddy reads it from there (no host path, no env needed). Certs are
+    # user-provided absolute host paths, mirrored so the path is valid as-is.
+    # The :- defaults keep `compose` parseable when tls is unconfigured (caddy
+    # is only ever started once certs are set and validated by the web app).
     volumes:
-      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./infra/certs:/certs:ro
+      - caddy_config:/config:ro
+      - ${NAZU_TLS_CERT:-/etc/ssl/nazu/cert.pem}:${NAZU_TLS_CERT:-/etc/ssl/nazu/cert.pem}:ro
+      - ${NAZU_TLS_KEY:-/etc/ssl/nazu/key.pem}:${NAZU_TLS_KEY:-/etc/ssl/nazu/key.pem}:ro
       - caddy_data:/data
     restart: unless-stopped
     depends_on:
@@ -36,7 +42,6 @@ services:
 
   minio:
     image: minio/minio:latest
-    profiles: ["objects"]
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -59,15 +64,25 @@ services:
         required: false
     environment:
       NODE_ENV: production
+      # Pin the project name so the in-container compose CLI targets the same
+      # project/network as the host — required for caddy's `web:3000` to resolve.
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-nazu}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Lets the web app drive `docker compose` to toggle optional services.
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+      - ./.env:/app/.env:ro
+      # Shared with caddy: the web app writes the generated Caddyfile here when
+      # tls is enabled. Named volume — no host path, works without config.
+      - caddy_config:/config
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_started
       minio:
         condition: service_started
-        required: false
+      falkordb:
+        condition: service_started
 
   postgres:
     image: postgres:16
@@ -83,7 +98,6 @@ services:
 
   falkordb:
     image: falkordb/falkordb:latest
-    profiles: ["graph"]
     ports:
       - "6380:6379"
       - "7688:7687"
@@ -102,4 +116,5 @@ volumes:
   postgres_data:
   falkordb_data:
   caddy_data:
+  caddy_config:
   minio_data:

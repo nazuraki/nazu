@@ -36,32 +36,31 @@ nazu is a personal second-brain and home control panel. It consists of:
 just up
 ```
 
-This starts the **core stack** — `web` + `postgres`. The app is available at `http://localhost:3000`.
+This starts the **core stack** — `web`, `postgres`, `minio`, and `falkordb`. The app is available at `http://localhost:3000`.
 
 #### Optional services (Compose profiles)
 
-Optional services are gated behind Compose profiles so you only run what you need. Pass `--profile <name>` (one or more) to enable them:
+The two ingress services are gated behind Compose profiles so you only run what you need. They can be toggled at runtime from **Settings** in the web UI (the app shells out to `docker compose` over the mounted Docker socket), or enabled at startup with `--profile <name>`:
 
 | Profile | Services | Needed for |
 |---|---|---|
 | `tls` | `caddy` | HTTPS termination on `:443` (requires `NAZU_HOSTNAME`, `NAZU_TLS_CERT`, `NAZU_TLS_KEY`) |
-| `objects` | `minio` | Document ingest and attachments |
-| `graph` | `falkordb` | Knowledge graph + code intelligence |
 | `tunnel` | `cloudflared` | Public access via Cloudflare Tunnel (requires `CF_TUNNEL_TOKEN`) |
+
+All services declare `restart: unless-stopped`, so once enabled they survive reboots until explicitly disabled. Enabling `tls` makes the web app write the generated `Caddyfile` into a named volume (`caddy_config`) shared with the caddy container — no host path required.
 
 Examples:
 
 ```sh
-docker compose up -d                                       # core only
-docker compose --profile objects --profile graph up -d     # add storage + graph
-docker compose --profile tls --profile tunnel up -d        # add HTTPS + tunnel
+docker compose up -d                              # core stack
+docker compose --profile tls --profile tunnel up -d   # add HTTPS + tunnel
 ```
 
 ### Development
 
 ```sh
 just web-install   # install pnpm workspace deps
-just up-deps       # start postgres + falkordb + minio only
+just up-deps       # start postgres + minio + falkordb only
 just web-dev       # run SvelteKit dev server (hot reload)
 ```
 
@@ -115,8 +114,9 @@ openssl rand -hex 32
 | `CF_ACCESS_AUD` | CF Access Application Audience tag (from CF dashboard) |
 | `CF_TUNNEL_TOKEN` | Tunnel token from CF dashboard "Install connector" page |
 | `NAZU_HOSTNAME` | Hostname Caddy serves on (e.g. `nazu.example.com`) — required with `tls` profile |
-| `NAZU_TLS_CERT` | Path to TLS cert inside the caddy container (e.g. `/certs/nazu.pem`) — required with `tls` profile |
-| `NAZU_TLS_KEY` | Path to TLS key inside the caddy container (e.g. `/certs/nazu-key.pem`) — required with `tls` profile |
+| `NAZU_TLS_CERT` | Absolute host path to the TLS cert (e.g. `/etc/ssl/nazu.pem`) — bind-mounted into caddy at the same path; required with `tls` profile |
+| `NAZU_TLS_KEY` | Absolute host path to the TLS key — bind-mounted into caddy at the same path; required with `tls` profile |
+| `COMPOSE_PROJECT_NAME` | Compose project name (default `nazu`); pinned so the web app's in-container `docker compose` targets the same project/network |
 
 ## Remote Access
 
