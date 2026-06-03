@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@vite-pwa/sveltekit>vite': ^6.0.0
+
 importers:
 
   .: {}

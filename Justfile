@@ -46,16 +46,9 @@ docker-rebuild:
 up:
     docker compose up -d
 
+# Start the core stack, rebuilding web
 reup:
     docker compose up -d --build
-
-# Start the core stack plus optional ingress (tls, tunnel)
-up-all:
-    docker compose --profile tls --profile tunnel up -d
-
-# Start the core stack plus optional ingress, rebuilding web
-reup-all:
-    docker compose --profile tls --profile tunnel up -d --build
 
 # Start only backing services (no web container)
 up-deps:
