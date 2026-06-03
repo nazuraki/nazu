@@ -1,18 +1,14 @@
 services:
   web:
     environment:
+      # GitHub config is seeded into the DB (app_settings) by global-setup.ts;
+      # the AI key is omitted on purpose (ingest falls back when unset).
       NODE_ENV: test
       DATABASE_URL: postgres://nazu:nazu@postgres:5432/nazu
-      GITHUB_API_BASE_URL: http://mocks:8080/github
-      PERSONAL_GITHUB_TOKEN: test-personal-token
-      LOREARC_GITHUB_TOKEN: test-org-token
-      GITHUB_USER: testuser
-      GITHUB_ORG: testorg
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: nazu-documents-test
-      ANTHROPIC_API_KEY: test-key
     ports: !override
       - "3001:3000"
     depends_on:

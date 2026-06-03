@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { closeDb, sql } from "./lib/db.js";
 
 const PROJECT = "nazu-test";
 const COMPOSE_FILES = ["-f", "docker-compose.yml", "-f", "docker-compose.test.override.yml"];
@@ -36,6 +37,35 @@ function captureStartupLogs(): void {
 	}
 }
 
+// App config now lives in the DB (app_settings), not env. Seed the GitHub
+// section the repo-view tests rely on, pointing at the mock GitHub server.
+async function seedSettings(): Promise<void> {
+	const github = {
+		user: "testuser",
+		org: "testorg",
+		personalToken: "test-personal-token",
+		orgToken: "test-org-token",
+		apiBaseUrl: "http://mocks:8080/github",
+	};
+	const s = sql();
+	// The web container creates app_settings during its startup migration; retry
+	// until that has happened.
+	const deadline = Date.now() + 60_000;
+	for (;;) {
+		try {
+			await s`
+				INSERT INTO app_settings (section, config)
+				VALUES ('github', ${s.json(github)})
+				ON CONFLICT (section) DO UPDATE SET config = ${s.json(github)}
+			`;
+			return;
+		} catch (err) {
+			if (Date.now() > deadline) throw err;
+			await new Promise((r) => setTimeout(r, 1000));
+		}
+	}
+}
+
 export async function setup(): Promise<void> {
 	console.log(`[functional] starting stack (project=${PROJECT})`);
 	const up = compose(["up", "-d", "--build", "--wait"]);
@@ -47,6 +77,8 @@ export async function setup(): Promise<void> {
 		);
 	}
 	captureStartupLogs();
+	await seedSettings();
+	await closeDb();
 	console.log("[functional] stack ready");
 }
 

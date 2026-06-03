@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { env } from '$env/dynamic/private';
+import { getSection, verifyPassword } from '$lib/server/settings.js';
 
 export interface User {
 	id: string;
@@ -13,21 +14,24 @@ export interface User {
 const LOCAL_USER_EMAIL = 'local@nazu.local';
 
 /** True when CF Access edge auth is configured (gates the tunnel, not the LAN). */
-export function cfAccessConfigured(): boolean {
-	return Boolean(env.CF_ACCESS_TEAM_DOMAIN?.trim() && env.CF_ACCESS_AUD?.trim());
+export async function cfAccessConfigured(): Promise<boolean> {
+	const o = await getSection('oauth');
+	return Boolean((o.cfAccessTeamDomain as string)?.trim() && (o.cfAccessAud as string)?.trim());
 }
 
 /** True when at least one OAuth provider is configured. */
-export function oauthConfigured(): boolean {
+export async function oauthConfigured(): Promise<boolean> {
+	const o = await getSection('oauth');
 	return Boolean(
-		(env.AUTH_GITHUB_ID?.trim() && env.AUTH_GITHUB_SECRET?.trim()) ||
-			(env.AUTH_GOOGLE_ID?.trim() && env.AUTH_GOOGLE_SECRET?.trim()),
+		((o.githubId as string)?.trim() && (o.githubSecret as string)?.trim()) ||
+			((o.googleId as string)?.trim() && (o.googleSecret as string)?.trim()),
 	);
 }
 
-/** True when local admin user/password credentials are configured. */
-export function localAuthConfigured(): boolean {
-	return Boolean(env.NAZU_AUTH_USER?.trim() && env.NAZU_AUTH_PASSWORD?.trim());
+/** True when a local admin username + password are configured. */
+export async function localAuthConfigured(): Promise<boolean> {
+	const a = await getSection('auth');
+	return Boolean((a.localUser as string)?.trim() && (a.localPassword as string)?.trim());
 }
 
 function safeEqual(a: string, b: string): boolean {
@@ -40,12 +44,14 @@ function safeEqual(a: string, b: string): boolean {
 
 /**
  * Validate an HTTP Basic Authorization header against the configured local
- * admin credentials. Returns the local user on match, null otherwise.
+ * admin credentials (username plain, password scrypt-hashed). Returns the local
+ * user on match, null otherwise.
  */
-export function validateBasicAuth(request: Request): User | null {
-	const user = env.NAZU_AUTH_USER?.trim();
-	const pass = env.NAZU_AUTH_PASSWORD;
-	if (!user || !pass) return null;
+export async function validateBasicAuth(request: Request): Promise<User | null> {
+	const a = await getSection('auth');
+	const user = (a.localUser as string)?.trim();
+	const passHash = a.localPassword as string;
+	if (!user || !passHash) return null;
 
 	const header = request.headers.get('Authorization');
 	if (!header?.startsWith('Basic ')) return null;
@@ -61,42 +67,43 @@ export function validateBasicAuth(request: Request): User | null {
 	const gotUser = decoded.slice(0, sep);
 	const gotPass = decoded.slice(sep + 1);
 
-	if (!safeEqual(gotUser, user) || !safeEqual(gotPass, pass)) return null;
+	if (!safeEqual(gotUser, user) || !verifyPassword(gotPass, passHash)) return null;
 
-	return { id: user, email: env.NAZU_LOCAL_USER_EMAIL?.trim() || LOCAL_USER_EMAIL, source: 'local' };
+	return { id: user, email: localEmail(), source: 'local' };
+}
+
+function localEmail(): string {
+	return env.NAZU_LOCAL_USER_EMAIL?.trim() || LOCAL_USER_EMAIL;
 }
 
 /** The default local user for zero-conf open mode (no auth method configured). */
 export function localUser(): User {
-	return {
-		id: 'local',
-		email: env.NAZU_LOCAL_USER_EMAIL?.trim() || LOCAL_USER_EMAIL,
-		source: 'local',
-	};
+	return { id: 'local', email: localEmail(), source: 'local' };
 }
 
-let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+// JWKS sets are cached per team domain (the domain now comes from DB config).
+const jwksByDomain = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
-function getCFJWKS() {
-	const domain = env.CF_ACCESS_TEAM_DOMAIN;
-	if (!domain) return null;
-	if (!jwks) {
-		jwks = createRemoteJWKSet(new URL(`https://${domain}/cdn-cgi/access/certs`));
+function getCFJWKS(domain: string) {
+	let set = jwksByDomain.get(domain);
+	if (!set) {
+		set = createRemoteJWKSet(new URL(`https://${domain}/cdn-cgi/access/certs`));
+		jwksByDomain.set(domain, set);
 	}
-	return jwks;
+	return set;
 }
 
 export async function validateCFToken(request: Request): Promise<User | null> {
-	const domain = env.CF_ACCESS_TEAM_DOMAIN;
-	const aud = env.CF_ACCESS_AUD;
+	const o = await getSection('oauth');
+	const domain = (o.cfAccessTeamDomain as string)?.trim();
+	const aud = (o.cfAccessAud as string)?.trim();
 	if (!domain || !aud) return null;
 
 	const token = request.headers.get('Cf-Access-Jwt-Assertion');
 	if (!token) return null;
 
 	try {
-		const keySet = getCFJWKS()!;
-		const { payload } = await jwtVerify(token, keySet, {
+		const { payload } = await jwtVerify(token, getCFJWKS(domain), {
 			issuer: `https://${domain}`,
 			audience: aud,
 		});
@@ -104,11 +111,7 @@ export async function validateCFToken(request: Request): Promise<User | null> {
 		const email = payload.email as string | undefined;
 		if (!email) return null;
 
-		return {
-			id: payload.sub ?? email,
-			email,
-			source: 'cf-access',
-		};
+		return { id: payload.sub ?? email, email, source: 'cf-access' };
 	} catch {
 		return null;
 	}

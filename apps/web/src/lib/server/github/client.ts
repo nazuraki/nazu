@@ -1,4 +1,4 @@
-const GITHUB_API = process.env.GITHUB_API_BASE_URL ?? "https://api.github.com";
+const DEFAULT_GITHUB_API = "https://api.github.com";
 const GITHUB_HEADERS = {
 	Accept: "application/vnd.github+json",
 	"X-GitHub-Api-Version": "2022-11-28",
@@ -6,9 +6,11 @@ const GITHUB_HEADERS = {
 
 export class GitHubClient {
 	private tokens: Map<string, string>;
+	private apiBase: string;
 
-	constructor(tokens: Record<string, string>) {
+	constructor(tokens: Record<string, string>, apiBase?: string) {
 		this.tokens = new Map(Object.entries(tokens));
+		this.apiBase = apiBase?.trim() || DEFAULT_GITHUB_API;
 	}
 
 	private tokenFor(owner: string): string {
@@ -22,7 +24,7 @@ export class GitHubClient {
 	}
 
 	async get<T>(owner: string, path: string, params?: Record<string, string>): Promise<T> {
-		const url = new URL(`${GITHUB_API}${path}`);
+		const url = new URL(`${this.apiBase}${path}`);
 		if (params) {
 			for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 		}

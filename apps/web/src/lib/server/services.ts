@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { env } from '$env/dynamic/private';
 import { getSql } from './db.js';
+import { getSection } from './settings.js';
 
 const exec = promisify(execFile);
 
@@ -56,13 +57,32 @@ function find(profile: string): OptionalService {
 	return svc;
 }
 
-function missingEnv(svc: OptionalService): string[] {
+/**
+ * Config a service needs before it can start. The Cloudflare Tunnel token now
+ * lives in DB settings (injected into the compose subprocess by {@link composeEnv}),
+ * so it's reported missing from there rather than from the host env.
+ */
+async function missingConfig(svc: OptionalService): Promise<string[]> {
+	if (svc.profile === 'tunnel') {
+		const o = await getSection('oauth');
+		return (o.cfTunnelToken as string)?.trim() ? [] : ['CF_TUNNEL_TOKEN'];
+	}
 	return svc.requires.filter((k) => !env[k]?.trim());
 }
 
-async function compose(args: string[]): Promise<void> {
+/** Extra env injected into the compose subprocess for a service. */
+async function composeEnv(svc: OptionalService): Promise<Record<string, string>> {
+	if (svc.profile === 'tunnel') {
+		const o = await getSection('oauth');
+		return { CF_TUNNEL_TOKEN: (o.cfTunnelToken as string)?.trim() ?? '' };
+	}
+	return {};
+}
+
+async function compose(args: string[], extraEnv: Record<string, string> = {}): Promise<void> {
 	await exec('docker', ['compose', '-f', COMPOSE_FILE, ...args], {
 		timeout: 120_000,
+		env: { ...process.env, ...extraEnv },
 	});
 }
 
@@ -83,25 +103,27 @@ export async function listServiceStates(running: Set<string>): Promise<ServiceSt
 	`;
 	const intent = new Map(rows.map((r) => [r.profile, r.enabled]));
 
-	return OPTIONAL_SERVICES.map((svc) => ({
-		profile: svc.profile,
-		service: svc.service,
-		label: svc.label,
-		enabled: intent.get(svc.profile) ?? false,
-		running: running.has(svc.service),
-		missingEnv: missingEnv(svc),
-	}));
+	return Promise.all(
+		OPTIONAL_SERVICES.map(async (svc) => ({
+			profile: svc.profile,
+			service: svc.service,
+			label: svc.label,
+			enabled: intent.get(svc.profile) ?? false,
+			running: running.has(svc.service),
+			missingEnv: await missingConfig(svc),
+		})),
+	);
 }
 
 /** Start an optional service via its compose profile and persist the intent. */
 export async function enableService(profile: string): Promise<void> {
 	const svc = find(profile);
-	const missing = missingEnv(svc);
+	const missing = await missingConfig(svc);
 	if (missing.length) {
 		throw new Error(`missing required config: ${missing.join(', ')}`);
 	}
 	await svc.prepare?.();
-	await compose(['--profile', svc.profile, 'up', '-d', svc.service]);
+	await compose(['--profile', svc.profile, 'up', '-d', svc.service], await composeEnv(svc));
 	await persist(svc.profile, true);
 }
 

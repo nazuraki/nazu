@@ -3,7 +3,7 @@ import { getGitHub } from '$lib/server/github/index.js';
 import { fetchOrgRepos, fetchUserRepos } from '$lib/server/github/queries.js';
 
 export async function GET() {
-	const { github, owners } = getGitHub();
+	const { github, owners } = await getGitHub();
 	const [personal, org] = await Promise.all([
 		fetchUserRepos(github, owners.user),
 		fetchOrgRepos(github, owners.org),

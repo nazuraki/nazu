@@ -1,5 +1,5 @@
 import { sequence } from '@sveltejs/kit/hooks';
-import type { Handle } from '@sveltejs/kit';
+import { error, type Handle } from '@sveltejs/kit';
 import { handle as authHandle } from './auth';
 import {
 	validateCFToken,
@@ -8,6 +8,8 @@ import {
 	oauthConfigured,
 	localUser,
 } from '$lib/auth';
+import { featureForPath } from '$lib/config/settings';
+import { isFeatureEnabled } from '$lib/server/settings';
 import { runMigrations } from '$lib/server/migrate';
 import { env } from '$env/dynamic/private';
 
@@ -28,8 +30,8 @@ const authFlow: Handle = async ({ event, resolve }) => {
 	}
 
 	// 2. OAuth session (only when a provider is configured — event.locals.auth
-	//    exists only when authHandle is in the sequence, see below).
-	if (oauthConfigured()) {
+	//    is populated by authHandle, which no-ops when OAuth is unconfigured).
+	if (await oauthConfigured()) {
 		const session = await event.locals.auth();
 		if (session?.user?.email) {
 			event.locals.user = {
@@ -43,8 +45,8 @@ const authFlow: Handle = async ({ event, resolve }) => {
 	}
 
 	// 3. Local admin credentials via HTTP Basic (zero-dependency LAN gate).
-	if (localAuthConfigured()) {
-		const basicUser = validateBasicAuth(event.request);
+	if (await localAuthConfigured()) {
+		const basicUser = await validateBasicAuth(event.request);
 		if (basicUser) {
 			event.locals.user = basicUser;
 			return resolve(event);
@@ -54,7 +56,7 @@ const authFlow: Handle = async ({ event, resolve }) => {
 	// 4. Request is unauthenticated. Which gate applies depends on what's
 	//    configured. CF Access only protects the tunnel, so it never blocks LAN
 	//    access on its own — only OAuth or local credentials gate the LAN.
-	if (oauthConfigured()) {
+	if (await oauthConfigured()) {
 		// Interactive login UI takes precedence (works with OAuth callbacks).
 		const { pathname } = event.url;
 		if (!pathname.startsWith('/login') && !pathname.startsWith('/auth')) {
@@ -63,7 +65,7 @@ const authFlow: Handle = async ({ event, resolve }) => {
 		event.locals.user = null;
 		return resolve(event);
 	}
-	if (localAuthConfigured()) {
+	if (await localAuthConfigured()) {
 		// No valid Basic credentials — challenge.
 		return new Response('Authentication required', {
 			status: 401,
@@ -76,7 +78,14 @@ const authFlow: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-// Auth.js (authHandle) requires AUTH_SECRET and throws MissingSecret if it runs
-// without one. Only mount it when an OAuth provider is actually configured — in
-// zero-conf / Basic-auth modes it's neither needed nor configured.
-export const handle = oauthConfigured() ? sequence(authHandle, authFlow) : authFlow;
+// Gate app features: a request to a disabled feature's route (or its API)
+// returns 404, as if the feature did not exist.
+const featureGate: Handle = async ({ event, resolve }) => {
+	const feature = featureForPath(event.url.pathname);
+	if (feature && !(await isFeatureEnabled(feature.key))) {
+		throw error(404, 'Not found');
+	}
+	return resolve(event);
+};
+
+export const handle = sequence(authHandle, authFlow, featureGate);

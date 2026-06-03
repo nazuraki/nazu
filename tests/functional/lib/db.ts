@@ -10,9 +10,12 @@ export function sql() {
 
 export async function truncateAll(): Promise<void> {
 	const s = sql();
+	// Keep config/migration tables: app_settings holds seeded test config and
+	// schema_migrations records applied migrations.
 	const tables = await s<{ tablename: string }[]>`
 		SELECT tablename FROM pg_tables
 		WHERE schemaname = 'public'
+		  AND tablename NOT IN ('app_settings', 'schema_migrations')
 	`;
 	if (tables.length === 0) return;
 	const list = tables.map((t) => `"${t.tablename}"`).join(", ");
