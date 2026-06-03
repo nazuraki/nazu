@@ -26,9 +26,15 @@ services:
         : "$${NAZU_TLS_CERT:?NAZU_TLS_CERT is required when the tls profile is active}"
         : "$${NAZU_TLS_KEY:?NAZU_TLS_KEY is required when the tls profile is active}"
         exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    # Bind sources are absolute host paths (mirrored into the container) so they
+    # resolve correctly whether `compose up caddy` is run on the host or from the
+    # web container. The web app generates the Caddyfile at $NAZU_CONFIG_DIR/caddy.
+    # The :- defaults keep `compose` parseable when tls is unconfigured (caddy is
+    # only ever started once these are set and validated by the web app).
     volumes:
-      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./infra/certs:/certs:ro
+      - ${NAZU_CONFIG_DIR:-/srv/nazu}/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${NAZU_TLS_CERT:-/srv/nazu/certs/cert.pem}:${NAZU_TLS_CERT:-/srv/nazu/certs/cert.pem}:ro
+      - ${NAZU_TLS_KEY:-/srv/nazu/certs/key.pem}:${NAZU_TLS_KEY:-/srv/nazu/certs/key.pem}:ro
       - caddy_data:/data
     restart: unless-stopped
     depends_on:
@@ -36,7 +42,6 @@ services:
 
   minio:
     image: minio/minio:latest
-    profiles: ["objects"]
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -59,15 +64,26 @@ services:
         required: false
     environment:
       NODE_ENV: production
+      # Pin the project name so the in-container compose CLI targets the same
+      # project/network as the host — required for caddy's `web:3000` to resolve.
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-nazu}
+      NAZU_CONFIG_DIR: ${NAZU_CONFIG_DIR:-/srv/nazu}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Lets the web app drive `docker compose` to toggle optional services.
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+      - ./.env:/app/.env:ro
+      # Mirrored config dir: the web app writes generated config (e.g. the
+      # Caddyfile) here, and optional services bind the same host path.
+      - ${NAZU_CONFIG_DIR:-/srv/nazu}:${NAZU_CONFIG_DIR:-/srv/nazu}
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_started
       minio:
         condition: service_started
-        required: false
+      falkordb:
+        condition: service_started
 
   postgres:
     image: postgres:16
@@ -83,7 +99,6 @@ services:
 
   falkordb:
     image: falkordb/falkordb:latest
-    profiles: ["graph"]
     ports:
       - "6380:6379"
       - "7688:7687"

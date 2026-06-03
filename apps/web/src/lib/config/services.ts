@@ -25,4 +25,9 @@ export const services: Service[] = [
 		href: '/ingest',
 		description: 'Add a document to the knowledge base',
 	},
+	{
+		name: 'Settings',
+		href: '/settings',
+		description: 'Toggle optional services',
+	},
 ];

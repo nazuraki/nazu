@@ -42,23 +42,24 @@ docker-build *flags:
 docker-rebuild:
     docker compose build --no-cache web
 
-# Start the full stack (all profiles: tls, objects, graph, tunnel)
+# Start the core stack (web, postgres, minio, falkordb)
 up:
-    docker compose --profile objects --profile graph up -d
+    docker compose up -d
 
 reup:
-    docker compose --profile objects --profile graph up -d --build
+    docker compose up -d --build
 
+# Start the core stack plus optional ingress (tls, tunnel)
 up-all:
-    docker compose --profile tls --profile objects --profile graph --profile tunnel up -d
+    docker compose --profile tls --profile tunnel up -d
 
-# Start the full stack, rebuilding web
+# Start the core stack plus optional ingress, rebuilding web
 reup-all:
-    docker compose --profile tls --profile objects --profile graph --profile tunnel up -d --build
+    docker compose --profile tls --profile tunnel up -d --build
 
 # Start only backing services (no web container)
 up-deps:
-    docker compose up -d postgres falkordb caddy minio
+    docker compose up -d postgres falkordb minio
 
 # Stop all services
 down:

@@ -19,6 +19,11 @@ RUN pnpm --filter @nazu/web build
 FROM node:24-alpine AS runtime
 WORKDIR /app
 
+# Docker CLI + compose plugin: the web app shells out to `docker compose` over
+# the mounted socket to toggle optional services from the config UI. Client
+# only — it talks to the host daemon, no daemon runs in this container.
+RUN apk add --no-cache docker-cli docker-cli-compose
+
 RUN corepack enable pnpm
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
