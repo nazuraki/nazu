@@ -18,7 +18,7 @@ dev:
 build:
     pnpm --filter @nazu/web build
 
-check: typecheck lint
+check: typecheck lint test-unit
 
 # Type-check the web app
 typecheck:
@@ -27,6 +27,10 @@ typecheck:
 # Lint the web app
 lint:
     pnpm --filter @nazu/web lint
+
+# Run fast web unit tests (no docker stack)
+test-unit:
+    pnpm --filter @nazu/web test
 
 # Lint and auto-fix the web app
 fix:
