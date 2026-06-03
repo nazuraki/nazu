@@ -312,6 +312,7 @@ describe("schema_migrations", () => {
 			"003_subtasks_and_notes.sql",
 			"004_documents.sql",
 			"005_kb_index.sql",
+			"006_service_config.sql",
 		]);
 	});
 });
