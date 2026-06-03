@@ -42,13 +42,13 @@ docker-build *flags:
 docker-rebuild:
     docker compose build --no-cache web
 
-# Start all services (web + postgres + falkordb)
+# Start the full stack (all profiles: tls, objects, graph, tunnel)
 up:
-    docker compose --profile tunnel up -d
+    docker compose --profile tls --profile objects --profile graph --profile tunnel up -d
 
-# Start all services, rebuilding web
+# Start the full stack, rebuilding web
 reup:
-    docker compose --profile tunnel up -d --build
+    docker compose --profile tls --profile objects --profile graph --profile tunnel up -d --build
 
 # Start only backing services (no web container)
 up-deps:
