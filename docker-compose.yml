@@ -25,16 +25,16 @@ services:
         : "$${NAZU_HOSTNAME:?NAZU_HOSTNAME is required when the tls profile is active}"
         : "$${NAZU_TLS_CERT:?NAZU_TLS_CERT is required when the tls profile is active}"
         : "$${NAZU_TLS_KEY:?NAZU_TLS_KEY is required when the tls profile is active}"
-        exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
-    # Bind sources are absolute host paths (mirrored into the container) so they
-    # resolve correctly whether `compose up caddy` is run on the host or from the
-    # web container. The web app generates the Caddyfile at $NAZU_CONFIG_DIR/caddy.
-    # The :- defaults keep `compose` parseable when tls is unconfigured (caddy is
-    # only ever started once these are set and validated by the web app).
+        exec caddy run --config /config/Caddyfile --adapter caddyfile
+    # The web app writes the generated Caddyfile into the shared caddy_config
+    # volume; caddy reads it from there (no host path, no env needed). Certs are
+    # user-provided absolute host paths, mirrored so the path is valid as-is.
+    # The :- defaults keep `compose` parseable when tls is unconfigured (caddy
+    # is only ever started once certs are set and validated by the web app).
     volumes:
-      - ${NAZU_CONFIG_DIR:-/srv/nazu}/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ${NAZU_TLS_CERT:-/srv/nazu/certs/cert.pem}:${NAZU_TLS_CERT:-/srv/nazu/certs/cert.pem}:ro
-      - ${NAZU_TLS_KEY:-/srv/nazu/certs/key.pem}:${NAZU_TLS_KEY:-/srv/nazu/certs/key.pem}:ro
+      - caddy_config:/config:ro
+      - ${NAZU_TLS_CERT:-/etc/ssl/nazu/cert.pem}:${NAZU_TLS_CERT:-/etc/ssl/nazu/cert.pem}:ro
+      - ${NAZU_TLS_KEY:-/etc/ssl/nazu/key.pem}:${NAZU_TLS_KEY:-/etc/ssl/nazu/key.pem}:ro
       - caddy_data:/data
     restart: unless-stopped
     depends_on:
@@ -67,15 +67,14 @@ services:
       # Pin the project name so the in-container compose CLI targets the same
       # project/network as the host — required for caddy's `web:3000` to resolve.
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-nazu}
-      NAZU_CONFIG_DIR: ${NAZU_CONFIG_DIR:-/srv/nazu}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Lets the web app drive `docker compose` to toggle optional services.
       - ./docker-compose.yml:/app/docker-compose.yml:ro
       - ./.env:/app/.env:ro
-      # Mirrored config dir: the web app writes generated config (e.g. the
-      # Caddyfile) here, and optional services bind the same host path.
-      - ${NAZU_CONFIG_DIR:-/srv/nazu}:${NAZU_CONFIG_DIR:-/srv/nazu}
+      # Shared with caddy: the web app writes the generated Caddyfile here when
+      # tls is enabled. Named volume — no host path, works without config.
+      - caddy_config:/config
     restart: unless-stopped
     depends_on:
       postgres:
@@ -117,4 +116,5 @@ volumes:
   postgres_data:
   falkordb_data:
   caddy_data:
+  caddy_config:
   minio_data:

@@ -47,7 +47,7 @@ The two ingress services are gated behind Compose profiles so you only run what 
 | `tls` | `caddy` | HTTPS termination on `:443` (requires `NAZU_HOSTNAME`, `NAZU_TLS_CERT`, `NAZU_TLS_KEY`) |
 | `tunnel` | `cloudflared` | Public access via Cloudflare Tunnel (requires `CF_TUNNEL_TOKEN`) |
 
-All services declare `restart: unless-stopped`, so once enabled they survive reboots until explicitly disabled. Enabling `tls` makes the web app write the generated `Caddyfile` to `$NAZU_CONFIG_DIR/caddy/Caddyfile` (a host dir mirrored into both containers).
+All services declare `restart: unless-stopped`, so once enabled they survive reboots until explicitly disabled. Enabling `tls` makes the web app write the generated `Caddyfile` into a named volume (`caddy_config`) shared with the caddy container — no host path required.
 
 Examples:
 
@@ -116,7 +116,6 @@ openssl rand -hex 32
 | `NAZU_HOSTNAME` | Hostname Caddy serves on (e.g. `nazu.example.com`) — required with `tls` profile |
 | `NAZU_TLS_CERT` | Absolute host path to the TLS cert (e.g. `/etc/ssl/nazu.pem`) — bind-mounted into caddy at the same path; required with `tls` profile |
 | `NAZU_TLS_KEY` | Absolute host path to the TLS key — bind-mounted into caddy at the same path; required with `tls` profile |
-| `NAZU_CONFIG_DIR` | Absolute host dir for generated config (default `/srv/nazu`), mirrored into the web + caddy containers |
 | `COMPOSE_PROJECT_NAME` | Compose project name (default `nazu`); pinned so the web app's in-container `docker compose` targets the same project/network |
 
 ## Remote Access

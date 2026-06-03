@@ -8,7 +8,8 @@ import { getSql } from './db.js';
 const exec = promisify(execFile);
 
 const COMPOSE_FILE = env.COMPOSE_FILE || '/app/docker-compose.yml';
-const CONFIG_DIR = env.NAZU_CONFIG_DIR || '/srv/nazu';
+// Mount point of the caddy_config volume shared with the caddy container.
+const CADDY_CONFIG_DIR = env.CADDY_CONFIG_DIR || '/config';
 
 interface OptionalService {
 	/** Compose profile that gates the service. */
@@ -42,7 +43,7 @@ export const OPTIONAL_SERVICES: OptionalService[] = [
 		label: 'TLS (Caddy)',
 		requires: ['NAZU_HOSTNAME', 'NAZU_TLS_CERT', 'NAZU_TLS_KEY'],
 		async prepare() {
-			const path = resolve(CONFIG_DIR, 'caddy', 'Caddyfile');
+			const path = resolve(CADDY_CONFIG_DIR, 'Caddyfile');
 			await mkdir(dirname(path), { recursive: true });
 			await writeFile(path, CADDYFILE, 'utf8');
 		},
