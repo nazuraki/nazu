@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN}
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:-}
     depends_on:
       - web
 
@@ -57,8 +57,10 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    # Host port 8420 → container 3000. The internal port stays 3000 so caddy /
+    # cloudflared (same docker network) keep reaching `web:3000` unchanged.
     ports:
-      - "3000:3000"
+      - "8420:3000"
     env_file:
       - path: .env
         required: false
