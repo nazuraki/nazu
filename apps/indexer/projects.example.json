@@ -1,0 +1,8 @@
+[
+  {
+    "name": "myproject",
+    "path": "/absolute/path/to/myproject",
+    "graph": "code:myproject",
+    "github": "owner/repo"
+  }
+]

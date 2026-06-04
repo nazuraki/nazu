@@ -155,7 +155,20 @@ export const SECTIONS: SectionDef[] = [
 				type: 'number',
 				default: 50,
 			},
-			{ key: 'statusWorkflow', label: 'Default status workflow', type: 'string' },
+			{
+				key: 'statusWorkflow',
+				label: 'Default status workflow',
+				type: 'string',
+				default: 'ci.yml',
+				help: 'Workflow filename polled for each repo’s build status.',
+			},
+			{
+				key: 'pagesWorkflows',
+				label: 'Per-repo Pages workflows',
+				type: 'list',
+				default: [],
+				help: 'Repos with a Pages deploy, as owner/repo=workflow.yml (e.g. me/site=deploy.yml).',
+			},
 		],
 	},
 	{

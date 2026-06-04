@@ -16,8 +16,10 @@ export async function GET() {
 	const activity = await Promise.all(
 		all.map(async (repo) => {
 			const [owner, name] = repo.full_name.split("/");
-			const statusWorkflow = await getStatusWorkflow(repo.full_name);
-			const pagesWorkflow = getPagesWorkflow(repo.full_name);
+			const [statusWorkflow, pagesWorkflow] = await Promise.all([
+				getStatusWorkflow(repo.full_name),
+				getPagesWorkflow(repo.full_name),
+			]);
 			const [issues, prs, statusRuns, pagesRuns] = await Promise.all([
 				fetchOpenIssues(github, owner, name),
 				fetchOpenPRs(github, owner, name),

@@ -61,7 +61,10 @@ describe('section schema', () => {
 		const defaults = sectionDefaults(dashboard);
 		expect(defaults.stewardMonthlyBudget).toBe(50);
 		expect(defaults.dockerContainers).toEqual([]);
-		expect('statusWorkflow' in defaults).toBe(false);
+		expect(defaults.statusWorkflow).toBe('ci.yml');
+		expect(defaults.pagesWorkflows).toEqual([]);
+		// Fields without a declared default are omitted.
+		expect('user' in sectionDefaults(getSectionDef('github')!)).toBe(false);
 	});
 
 	it('every section key is unique', () => {

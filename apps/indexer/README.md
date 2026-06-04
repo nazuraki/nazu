@@ -95,7 +95,9 @@ MATCH (d:Dependency {ecosystem: 'npm'}) RETURN d.name, d.version
 
 ## Adding `just index` to another project
 
-1. Add the project to [`projects.json`](./projects.json):
+1. Add the project to `projects.json` (this file is git-ignored — it holds
+   machine-specific absolute paths. Copy [`projects.example.json`](./projects.example.json)
+   to `projects.json` on first setup):
 
 ```json
 {
