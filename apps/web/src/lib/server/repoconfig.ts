@@ -6,7 +6,7 @@ import { getSection } from './settings.js';
  * `pagesWorkflows` list of `owner/repo=workflow.yml` entries.
  */
 
-export async function getStatusWorkflow(fullName: string): Promise<string | undefined> {
+export async function getStatusWorkflow(): Promise<string | undefined> {
 	const d = await getSection('dashboard');
 	return (d.statusWorkflow as string)?.trim() || undefined;
 }
