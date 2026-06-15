@@ -69,6 +69,9 @@ services:
       # Pin the project name so the in-container compose CLI targets the same
       # project/network as the host — required for caddy's `web:3000` to resolve.
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-nazu}
+      # Static API key(s) for non-interactive agents / the Memory MCP. Off when
+      # empty. Also loadable from .env; surfaced here so `NAZU_API_KEY=… up` works.
+      NAZU_API_KEY: ${NAZU_API_KEY:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Lets the web app drive `docker compose` to toggle optional services.
