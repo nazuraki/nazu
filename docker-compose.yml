@@ -91,13 +91,15 @@ services:
         condition: service_started
 
   postgres:
-    image: postgres:16
+    image: postgres:18
     environment:
       POSTGRES_USER: nazu
       POSTGRES_PASSWORD: nazu
       POSTGRES_DB: nazu
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # postgres:18+ stores data in a version-specific subdir, so the volume is
+      # mounted at the parent (/var/lib/postgresql), not /…/data as on ≤16.
+      - postgres_data:/var/lib/postgresql
     ports:
       - "5433:5432"
     restart: unless-stopped

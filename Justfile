@@ -65,6 +65,22 @@ down:
 # Restart all services
 restart: down reup
 
+# ─── Database ─────────────────────────────────────────────────────
+
+# Back up the canonical DB (the bundled compose `postgres` service) to ./backups
+db-backup:
+    mkdir -p backups
+    docker compose exec -T postgres pg_dump -U nazu -d nazu --no-owner --no-privileges > "backups/nazu-$(date +%Y%m%d-%H%M%S).sql"
+    @ls -1t backups/nazu-*.sql | head -1 | sed 's/^/Wrote /'
+
+# Restore a dump into the canonical DB: just db-restore backups/nazu-YYYYmmdd-HHMMSS.sql
+db-restore file:
+    docker compose exec -T postgres psql -U nazu -d nazu -v ON_ERROR_STOP=1 < "{{file}}"
+
+# Open a psql shell on the canonical DB
+db-shell:
+    docker compose exec postgres psql -U nazu -d nazu
+
 # ─── Tests ────────────────────────────────────────────────────────
 
 # Run tests

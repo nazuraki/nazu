@@ -51,6 +51,9 @@ apps/indexer/projects.json
 *.log
 tmp/
 
+# Database backups (just db-backup) — may contain sensitive config
+backups/
+
 # Embedding eval output (generated, not source)
 # included for now while size is small, for reference, given cost to generate
 # embedding-eval/output/

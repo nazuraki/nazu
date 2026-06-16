@@ -4,9 +4,11 @@
 
 Personal knowledge accumulates across conversations, research sessions, and daily tasks — and then disappears. AI assistants are stateless by default: each session starts from zero, and anything learned or decided is gone the moment the context window closes. There is no durable place for an AI agent to store what it knows, what it has been told, or what it has figured out on your behalf.
 
-nazu is a self-hosted personal knowledge system and home dashboard. It stores facts, observations, and relationships in a temporal knowledge graph, maintains a curated index of concepts and entities worth surfacing quickly, and surfaces live engineering context (GitHub activity, CI status, running containers) in a single web interface.
+nazu is a self-hosted personal knowledge system and home dashboard. Today it stores curated records and documents in PostgreSQL (full-text search) and MinIO, exposes a **remember / recall** loop to AI agents over REST and the Memory MCP, and surfaces live engineering context (GitHub activity, CI status, running containers) in a single web interface.
 
-The graph layer (FalkorDB via Graphiti) captures the richness and relationships of unstructured knowledge. The relational layer (PostgreSQL) holds well-typed records that are fast to query without graph traversal. The two layers are deliberately separate: structured data for structured queries, graph data for everything else.
+The long-term design adds a **graph layer** (FalkorDB via Graphiti) to capture the richness and relationships of unstructured knowledge in a temporal knowledge graph, alongside the relational layer (PostgreSQL) for well-typed records that are fast to query without graph traversal — structured data for structured queries, graph data for everything else.
+
+> **Status:** the relational + object layers and the Memory MCP are built and in use. The Graphiti temporal knowledge graph is **planned, not yet implemented** — FalkorDB currently backs only the code-graph indexer (`code:*` graphs), not personal knowledge.
 
 ## Non-Goals
 

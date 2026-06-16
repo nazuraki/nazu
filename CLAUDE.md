@@ -16,45 +16,86 @@ Example queries:
 
 ## Project Overview
 
-Personal knowledge management system and home dashboard. Monorepo: SvelteKit web app in `apps/web/`. PostgreSQL + FalkorDB (via Graphiti) for structured and graph storage. All services run via Docker Compose.
+Personal knowledge management system and home dashboard. The product is a single
+**SvelteKit (TypeScript) app** in `apps/web/` that serves both the UI and a REST
+API. Data lives in **PostgreSQL** (structured records + full-text search) and
+**MinIO** (documents/attachments). Everything runs via Docker Compose.
+
+Repo layout:
+
+| Path | What it is |
+|---|---|
+| `apps/web/` | SvelteKit 5 app — UI, REST API, all business logic. The product. |
+| `apps/mcp/` | **Memory MCP** — a thin TypeScript stdio server that wraps the REST API (`recall`→`GET /api/search`, `remember`→`POST /api/remember`). No DB access of its own. |
+| `apps/indexer/` | Code-graph indexer (TS + Rust + Go binaries) + the `code-graph` MCP. Builds per-project graphs in FalkorDB. |
+| `infra/` | DB migrations, Caddy/Cloudflare config, git hooks. |
+
+> **Aspirational, not built:** a temporal knowledge graph (Graphiti over FalkorDB)
+> for semantic recall is part of the long-term vision (see `docs/PURPOSE.md` and
+> the roadmap), but **no Graphiti code exists today**. FalkorDB is currently used
+> *only* by the code-graph indexer (`code:*` graphs), not for personal knowledge.
+> Treat any "temporal knowledge graph" framing as forward-looking.
 
 ## Coding Conventions
 
 | Area | Convention |
 |---|---|
-| Language | TypeScript (`apps/web/`), Python 3.12+ (`apps/mcp/`, dormant) |
-| File naming | `kebab-case.ts` (TS), `snake_case.py` (Python) |
-| Package structure | `apps/web/src/lib/server/` (server logic), `apps/web/src/routes/` (SvelteKit routes) |
-| Imports | Standard lib → third-party → local, separated by blank lines |
-| Type hints | Use everywhere — function signatures, return types, class attributes |
-| Docstrings | Google style, only for public functions/classes |
-| Config | Environment variables via `.env`, never hardcode secrets |
-| Infra scripts | DB init and service config go in `infra/`, not in app code |
+| Language | TypeScript everywhere (`apps/web/`, `apps/mcp/`). `apps/indexer/` also ships Rust + Go parser binaries. |
+| File naming | `kebab-case.ts` |
+| Server code | `apps/web/src/lib/server/` (DB, auth, settings, search), `apps/web/src/routes/` (pages + `/api/*` endpoints) |
+| Imports | Node builtins → third-party → local (`$lib/...`), separated by blank lines |
+| Types | Annotate function signatures and return types; prefer `interface` for object shapes |
+| Config | Host-coupled infra via env (`.env`); **app config (GitHub, OAuth, Anthropic key, feature gates) is DB-backed** in `app_settings`, edited in the in-app Settings UI — never hardcode secrets |
+| Infra | DB migrations and service config live in `infra/`, not app code |
 
 ## Naming Conventions
 
 | Element | Convention | Example |
 |---|---|---|
-| Files/modules | snake_case | `graphiti.py` |
-| Functions | snake_case | `add_task()` |
-| Classes | PascalCase | `TaskCreate` |
-| Constants | UPPER_SNAKE | `ALL_STATEMENTS` |
+| Files/modules | kebab-case | `librarian.ts` |
+| Functions | camelCase | `runMigrations()` |
+| Types/interfaces/classes | PascalCase | `User`, `SearchEntry` |
+| Constants | UPPER_SNAKE | `DEFAULT_DATABASE_URL` |
 | DB tables | snake_case, plural | `tasks`, `kb_index` |
 | DB columns | snake_case | `created_at` |
-| MCP tools | snake_case | `remember`, `recall` |
+| MCP tools | lowercase verb | `recall`, `remember` |
 
 ## Key Patterns
 
-- **Database:** PostgreSQL (containerized via Docker Compose). No pgvector — semantic/graph search is handled by Graphiti/FalkorDB.
-- **Graph:** Graphiti (`graphiti-core`) wraps FalkorDB for temporal knowledge graph storage. OpenAI used internally for entity extraction.
-- **MCP tools:** Each tool is a function in `apps/mcp/server/tools.py`, wired up in `apps/mcp/server/server.py`. Keep tools thin — business logic goes in `apps/mcp/db/`.
-- **Data model:** Two tables — `tasks` (structured task records) and `kb_index` (curated index entries). Unstructured knowledge lives in Graphiti, not Postgres.
-- **Error handling:** Raise specific exceptions from `apps/mcp/db/`, catch and format in `apps/mcp/server/`.
+- **Database:** PostgreSQL accessed via the `postgres` (porsager) client in
+  `apps/web/src/lib/server/db.ts`. Full-text search lives in `librarian.ts`
+  (Postgres `tsvector`/`to_tsvector` — **no pgvector**). Migrations are plain SQL
+  in `infra/postgres/migrations/` and are applied on boot by `migrate.ts`
+  (idempotent — tracked in `schema_migrations`).
+- **Canonical DB:** the **bundled Docker Compose `postgres` service** is the
+  source of truth (the app defaults to `postgres://nazu:nazu@postgres:5432/nazu`).
+  Do not point `DATABASE_URL` at a host Postgres.
+- **Object storage:** MinIO holds ingested documents/attachments.
+- **Settings/config:** DB-backed via `app_settings` (sections like `oauth`,
+  `github`, `ai`, `dashboard`). Auth is constructed lazily from these rows
+  (`apps/web/src/auth.ts`, `lib/auth.ts`) — no OAuth/credential env vars.
+- **Code graph:** FalkorDB stores per-project code graphs built by `apps/indexer`,
+  queried via the `code-graph` MCP and `/api/code-graph/*`. This is FalkorDB's
+  only current use.
+- **Memory MCP:** `apps/mcp` is a thin stdio MCP over the REST API. Keep it thin —
+  all logic stays in `apps/web` server code.
+- **Data model:** `tasks`, `kb_index`, `documents`, `app_settings`,
+  `service_config` (+ `schema_migrations`).
+- **Error handling:** raise specific errors in `lib/server/` modules; catch and
+  format (HTTP status + message) in the `/api/*` route handlers.
 
 ## Key Gotchas
 
-- All services run in Docker Compose — use service names (e.g. `falkordb`, `postgres`) as hostnames, not `localhost`.
-- Cloudflare Tunnel is outbound-only — no inbound firewall ports needed, but the tunnel daemon must be running on the host.
-- `.env` contains API keys — never commit it. Keep `.env.example` as a template.
-- The AI reasoning layer (Claude) is external — nazu only stores/retrieves data, it does not call LLMs for inference.
-- MCP server uses stdio transport — it is not a long-running HTTP service and does not belong in docker-compose.
+- Inside Docker Compose, reach services by name (`postgres`, `minio`, `falkordb`),
+  not `localhost`.
+- `.env` is for host-coupled infra only (TLS cert paths, `COMPOSE_PROJECT_NAME`,
+  optional connection overrides). Almost all app config is in the DB — a fresh
+  `docker compose up` works with **no** `.env`.
+- `.env` may contain secrets — never commit it. `.env.example` is the template.
+- Cloudflare Tunnel is outbound-only — no inbound ports — but the `cloudflared`
+  service must be running.
+- The Memory MCP uses **stdio** transport — it is a client-side process (e.g. run
+  by Claude Code), not a long-running HTTP service, and does **not** belong in
+  docker-compose.
+- The AI reasoning layer (Claude) is external — nazu only stores/retrieves data;
+  it does not call LLMs for inference (excerpt generation on ingest aside).
