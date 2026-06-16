@@ -126,9 +126,9 @@ init:
     install -m 0755 infra/git/post-commit .git/hooks/post-commit
     @echo "Installed: .git/hooks/post-commit"
 
-# Remove caches and venvs
+# Remove build artifacts (pnpm/TypeScript dist + SvelteKit output)
 clean:
-    rm -rf apps/mcp/.venv
+    rm -rf apps/*/dist apps/web/.svelte-kit apps/web/build
 
 # Reinstall from scratch
 fresh: clean install
