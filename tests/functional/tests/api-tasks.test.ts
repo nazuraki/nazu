@@ -314,6 +314,7 @@ describe("schema_migrations", () => {
 			"005_kb_index.sql",
 			"006_service_config.sql",
 			"007_app_settings.sql",
+			"008_documents_body_fts.sql",
 		]);
 	});
 });

@@ -72,7 +72,16 @@ export async function storeDocument(input: StoreInput): Promise<StoreResult> {
 
 	const storageKey = `documents/${doc.id}.md`;
 	await uploadDocument(storageKey, input.content, 'text/markdown');
-	await sql`UPDATE documents SET storage_key = ${storageKey} WHERE id = ${doc.id}`;
+	// Index the body into FTS on the documents (raw-store) layer — lexemes only,
+	// the raw body stays in MinIO. `indexed_at` marks the body as processed. This
+	// keeps kb_index lean; see migration 008 / #51.
+	await sql`
+		UPDATE documents
+		SET storage_key = ${storageKey},
+		    body_search = to_tsvector('english', ${input.content}),
+		    indexed_at  = now()
+		WHERE id = ${doc.id}
+	`;
 
 	// Excerpt is non-critical — never let it fail the write.
 	let excerpt = '';

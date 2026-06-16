@@ -105,6 +105,18 @@ describe("/api/ingest", () => {
 		const rows = await sql()<{ word_count: number }[]>`SELECT word_count FROM kb_index WHERE id = ${result.id}`;
 		expect(rows[0].word_count).toBeGreaterThan(0);
 	});
+
+	it("indexes the body and stamps indexed_at on the documents row (#51)", async () => {
+		const result = await ingest("Indexed Doc", "some indexable body content");
+		const rows = await sql()<{ indexed_at: Date | null; has_body: boolean }[]>`
+			SELECT d.indexed_at, d.body_search IS NOT NULL AS has_body
+			FROM documents d
+			JOIN kb_index k ON k.document_id = d.id
+			WHERE k.id = ${result.id}
+		`;
+		expect(rows[0].indexed_at).not.toBeNull();
+		expect(rows[0].has_body).toBe(true);
+	});
 });
 
 describe("/api/entries/[id]", () => {
@@ -149,6 +161,34 @@ describe("/api/search", () => {
 		const body = (await res.json()) as SearchResponse;
 		expect(body.entries.map((e) => e.id)).toContain(result.id);
 		expect(body.total).toBeGreaterThanOrEqual(1);
+	});
+
+	it("finds a document by a phrase that appears only in the body (#51)", async () => {
+		// "byzantine" is absent from the title — it lives only in the body, which
+		// the old title+excerpt-only index would have missed.
+		const result = await ingest(
+			"Distributed Systems Overview",
+			"Covers the byzantine generals problem in depth.",
+		);
+		const res = await apiGet("/api/search?q=byzantine");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as SearchResponse;
+		expect(body.entries.map((e) => e.id)).toContain(result.id);
+	});
+
+	it("ranks a title match above a body-only match (#51)", async () => {
+		// titleMatch is ingested first (older); bodyMatch second (newer). If results
+		// were ordered by recency, bodyMatch would win — so titleMatch coming first
+		// proves relevance weighting (title=A > body=C), not creation order.
+		const titleMatch = await ingest("Byzantine Generals Problem", "Unrelated text about networks.");
+		const bodyMatch = await ingest("Distributed Systems Notes", "A discussion of byzantine fault tolerance.");
+
+		const res = await apiGet("/api/search?q=byzantine");
+		const body = (await res.json()) as SearchResponse;
+		const ids = body.entries.map((e) => e.id);
+		expect(ids).toContain(titleMatch.id);
+		expect(ids).toContain(bodyMatch.id);
+		expect(ids.indexOf(titleMatch.id)).toBeLessThan(ids.indexOf(bodyMatch.id));
 	});
 
 	it("returns empty results when nothing matches", async () => {
