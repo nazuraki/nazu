@@ -8,6 +8,10 @@ export async function search(q: string, page: number, pageSize: number): Promise
 	const sql = getSql();
 	const skip = (page - 1) * pageSize;
 
+	// Match title/summary (kb_index, the lean topic index) OR document body
+	// (documents.body_search, the raw-store FTS layer — #51). The OR lets Postgres
+	// BitmapOr the two GIN indexes. Rank with weighted lexemes so title (A) >
+	// summary (B) > body (C): body-only hits surface, ranked below title/summary.
 	const rows = await sql<
 		{
 			id: string;
@@ -25,14 +29,23 @@ export async function search(q: string, page: number, pageSize: number): Promise
 		JOIN documents d ON d.id = k.document_id
 		WHERE to_tsvector('english', k.title || ' ' || COALESCE(k.excerpt, ''))
 		      @@ plainto_tsquery('english', ${q})
-		ORDER BY k.created_at DESC
+		   OR d.body_search @@ plainto_tsquery('english', ${q})
+		ORDER BY ts_rank(
+			         setweight(to_tsvector('english', k.title), 'A') ||
+			         setweight(to_tsvector('english', COALESCE(k.excerpt, '')), 'B') ||
+			         setweight(COALESCE(d.body_search, ''::tsvector), 'C'),
+			         plainto_tsquery('english', ${q})
+			     ) DESC,
+			     k.created_at DESC
 		LIMIT ${pageSize} OFFSET ${skip}
 	`;
 
 	const [{ count }] = await sql<{ count: string }[]>`
 		SELECT count(*)::text FROM kb_index k
+		JOIN documents d ON d.id = k.document_id
 		WHERE to_tsvector('english', k.title || ' ' || COALESCE(k.excerpt, ''))
 		      @@ plainto_tsquery('english', ${q})
+		   OR d.body_search @@ plainto_tsquery('english', ${q})
 	`;
 
 	const entries: Entry[] = rows.map((r) => ({
