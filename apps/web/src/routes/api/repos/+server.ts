@@ -1,13 +1,9 @@
 import { json } from '@sveltejs/kit';
 import { getGitHub } from '$lib/server/github/index.js';
-import { fetchOrgRepos, fetchUserRepos } from '$lib/server/github/queries.js';
+import { getAllRepos } from '$lib/server/github/repos.js';
 
 export async function GET() {
 	const { github, owners } = await getGitHub();
-	const [personal, org] = await Promise.all([
-		fetchUserRepos(github, owners.user),
-		fetchOrgRepos(github, owners.org),
-	]);
-	const all = [...personal, ...org].sort((a, b) => a.full_name.localeCompare(b.full_name));
-	return json(all);
+	const result = await getAllRepos(github, owners);
+	return json(result);
 }

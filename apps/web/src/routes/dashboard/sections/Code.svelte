@@ -8,6 +8,7 @@ let activity = new SvelteMap<string, RepoActivity>();
 let compliance = new SvelteMap<string, RepoCompliance>();
 let changedAt = new SvelteMap<string, number>();
 let error = $state<string | null>(null);
+let stale = $state(false);
 let loading = $state(true);
 
 function fingerprint(repo: Repo, act?: RepoActivity): string {
@@ -35,7 +36,9 @@ async function loadCompliance() {
 
 async function load() {
 	try {
-		const [repoList, activityList] = await Promise.all([api.repos(), api.activity()]);
+		const [repoRes, activityRes] = await Promise.all([api.repos(), api.activity()]);
+		const repoList = repoRes.repos;
+		const activityList = activityRes.activity;
 
 		if (!loading) {
 			const now = Date.now();
@@ -56,6 +59,7 @@ async function load() {
 		for (const a of activityList) activity.set(a.full_name, a);
 
 		repos = repoList;
+		stale = repoRes.stale || activityRes.stale;
 		error = null;
 	} catch (e) {
 		error = e instanceof Error ? e.message : "Failed to load";
@@ -86,6 +90,13 @@ $effect(() => {
     {:else if error}
       <p class="state-msg error">{error}</p>
     {:else}
+      {#if stale}
+        <p class="state-msg stale">
+          ⚠ {repos.length
+            ? 'GitHub data may be out of date — showing cached results.'
+            : 'GitHub is temporarily unreachable.'}
+        </p>
+      {/if}
       <div class="grid">
         {#each repos as repo (repo.id)}
           <RepoCard {repo} activity={activity.get(repo.full_name)} compliance={compliance.get(repo.full_name)} changedAt={changedAt.get(repo.full_name)} />
@@ -132,6 +143,7 @@ $effect(() => {
 
   .state-msg { color: var(--on-surface-dim); font-size: 0.875rem; }
   .state-msg.error { color: var(--secondary); }
+  .state-msg.stale { color: var(--caution); margin-bottom: 0.75rem; }
 
   .grid {
     display: grid;
