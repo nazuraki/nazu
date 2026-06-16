@@ -51,6 +51,20 @@ export interface RepoActivity {
 	pagesRun: { conclusion: string | null; status: string | null; html_url: string } | null;
 }
 
+export interface RepoListResponse {
+	repos: Repo[];
+	/** True when GitHub was unreachable and the list is cached/empty. */
+	stale: boolean;
+	error: string | null;
+}
+
+export interface ActivityResponse {
+	activity: RepoActivity[];
+	/** True when the repo list or any per-repo data could not be refreshed. */
+	stale: boolean;
+	error: string | null;
+}
+
 export interface WorkflowRun {
 	id: number;
 	name: string | null;
@@ -111,8 +125,8 @@ export interface DockerContainer {
 }
 
 export const api = {
-	repos: () => get<Repo[]>("/repos"),
-	activity: () => get<RepoActivity[]>("/repos/activity"),
+	repos: () => get<RepoListResponse>("/repos"),
+	activity: () => get<ActivityResponse>("/repos/activity"),
 	compliance: () => get<RepoCompliance[]>("/repos/compliance"),
 	stewardStats: () => get<StewardStats>("/steward/stats"),
 	nazuProjects: () => get<NazuTopic[]>("/nazu/projects"),
