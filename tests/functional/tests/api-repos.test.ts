@@ -33,8 +33,9 @@ describe("/api/repos", () => {
 		const res = await apiGet("/api/repos");
 		expect(res.status).toBe(200);
 
-		const body = (await res.json()) as { full_name: string }[];
-		expect(body.map((r) => r.full_name)).toEqual([`${ORG}/beta`, `${USER}/alpha`]);
+		const body = (await res.json()) as { repos: { full_name: string }[]; stale: boolean };
+		expect(body.stale).toBe(false);
+		expect(body.repos.map((r) => r.full_name)).toEqual([`${ORG}/beta`, `${USER}/alpha`]);
 
 		const calls = await getCalls("github");
 		const paths = calls.map((c) => c.path).sort();
@@ -64,11 +65,12 @@ describe("/api/repos", () => {
 		const res = await apiGet("/api/repos");
 		expect(res.status).toBe(200);
 
-		const body = (await res.json()) as { full_name: string }[];
-		expect(body.map((r) => r.full_name)).toEqual([`${ORG}/beta`, `${USER}/alpha`]);
+		const body = (await res.json()) as { repos: { full_name: string }[]; stale: boolean };
+		expect(body.stale).toBe(false);
+		expect(body.repos.map((r) => r.full_name)).toEqual([`${ORG}/beta`, `${USER}/alpha`]);
 	});
 
-	it("returns 500 when a GitHub call fails", async () => {
+	it("degrades gracefully (200 + stale) instead of 500 when a GitHub call fails", async () => {
 		await setFixture("github", {
 			method: "GET",
 			path: "/user/repos",
@@ -83,6 +85,12 @@ describe("/api/repos", () => {
 		});
 
 		const res = await apiGet("/api/repos");
-		expect(res.status).toBe(500);
+		// A transient GitHub failure must never 500 the dashboard (issue #48).
+		expect(res.status).toBe(200);
+
+		const body = (await res.json()) as { repos: unknown[]; stale: boolean; error: string | null };
+		expect(body.stale).toBe(true);
+		expect(body.error).toBeTruthy();
+		expect(Array.isArray(body.repos)).toBe(true);
 	});
 });
