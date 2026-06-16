@@ -71,7 +71,7 @@
 		</h1>
 		{#if results}
 			<p class="label-sm text-on-surface-faint">
-				Query completed in {results.duration} across local vector clusters.
+				Query completed in {results.duration} via full-text search.
 			</p>
 		{/if}
 	</div>
@@ -110,7 +110,7 @@
 <footer class="fixed bottom-0 right-0 px-6 py-2 bg-surface-low border-t border-outline">
 	<span class="label-sm text-on-surface-faint">
 		{#if results}
-			SYSTEM STATUS: NOMINAL // ENTRIES: {results.total} // VECTOR SEARCH ACTIVE
+			SYSTEM STATUS: NOMINAL // ENTRIES: {results.total} // FULL-TEXT SEARCH ACTIVE
 		{:else}
 			SYSTEM STATUS: QUERYING...
 		{/if}
