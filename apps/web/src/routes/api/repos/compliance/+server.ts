@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getGitHub } from '$lib/server/github/index.js';
-import { fetchFileContent, fetchOrgRepos, fetchRepoTree, fetchUserRepos } from '$lib/server/github/queries.js';
+import { fetchFileContent, fetchRepoTree } from '$lib/server/github/queries.js';
+import { getAllRepos } from '$lib/server/github/repos.js';
 
 const STANDARD_FILES = [
 	{ key: "readme", path: "README.md" },
@@ -24,11 +25,7 @@ function parseJustfileRecipes(content: string): Set<string> {
 
 export async function GET() {
 	const { github, owners } = await getGitHub();
-	const [personal, org] = await Promise.all([
-		fetchUserRepos(github, owners.user),
-		fetchOrgRepos(github, owners.org),
-	]);
-	const all = [...personal, ...org];
+	const { repos: all } = await getAllRepos(github, owners);
 
 	const results = await Promise.all(
 		all.map(async (repo) => {
