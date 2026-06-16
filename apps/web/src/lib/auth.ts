@@ -7,7 +7,7 @@ export interface User {
 	id: string;
 	email: string;
 	name?: string;
-	source: 'cf-access' | 'oauth' | 'local';
+	source: 'cf-access' | 'oauth' | 'local' | 'api-key';
 }
 
 /** Default identity assigned to unauthenticated requests in zero-conf open mode. */

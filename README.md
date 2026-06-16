@@ -118,6 +118,7 @@ openssl rand -hex 32
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth app credentials |
 | `NAZU_AUTH_USER` / `NAZU_AUTH_PASSWORD` | Local admin login (HTTP Basic) — set both to gate LAN access without OAuth |
 | `NAZU_LOCAL_USER_EMAIL` | Identity stamped on local / Basic-auth requests (default: `local@nazu.local`) |
+| `NAZU_API_KEY` | Static API key(s) for non-interactive agents / the Memory MCP (comma-separated; `Authorization: Bearer` or `X-API-Key`). Off when unset. |
 | `CF_ACCESS_TEAM_DOMAIN` | CF Access team domain, e.g. `yourteam.cloudflareaccess.com` |
 | `CF_ACCESS_AUD` | CF Access Application Audience tag (from CF dashboard) |
 | `CF_TUNNEL_TOKEN` | Tunnel token from CF dashboard "Install connector" page |

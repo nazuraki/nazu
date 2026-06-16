@@ -8,6 +8,7 @@ import {
 	oauthConfigured,
 	localUser,
 } from '$lib/auth';
+import { validateApiKey, parseApiKeys } from '$lib/server/api-key';
 import { featureForPath } from '$lib/config/settings';
 import { isFeatureEnabled } from '$lib/server/settings';
 import { runMigrations } from '$lib/server/migrate';
@@ -19,6 +20,15 @@ const authFlow: Handle = async ({ event, resolve }) => {
 	// Bypass auth in test environment — functional tests hit /api/* directly without credentials
 	if (env.NODE_ENV === 'test') {
 		event.locals.user = { id: 'test', email: 'test@nazu.local', source: 'oauth' };
+		return resolve(event);
+	}
+
+	// 0. Static API key (non-interactive agents / MCP). Header-based, checked
+	//    before the interactive methods so programmatic calls never hit the
+	//    /login redirect or a Basic-auth challenge. Off unless NAZU_API_KEY is set.
+	const apiUser = validateApiKey(event.request, parseApiKeys(env.NAZU_API_KEY));
+	if (apiUser) {
+		event.locals.user = apiUser;
 		return resolve(event);
 	}
 
