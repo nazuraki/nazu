@@ -19,7 +19,7 @@ nazu is a personal second-brain and home control panel. It consists of:
 | Web app | SvelteKit 5 (adapter-node; host port 8420 → container 3000) |
 | Database | PostgreSQL 16 |
 | Object storage | MinIO (S3-compatible, documents + attachments) |
-| Graph DB | FalkorDB (knowledge graph + per-project code intelligence graphs) |
+| Graph DB | FalkorDB — per-project code-intelligence graphs (`code:*`); a personal knowledge graph is planned, not yet built |
 | Tunnel | Cloudflare Tunnel (outbound-only, no open ports) |
 | Runtime | Docker Compose |
 
@@ -75,57 +75,37 @@ just test-functional   # spin up isolated stack, run vitest suite, tear down
 nazu is **open by default** (zero-conf) — on a fresh install anyone who can reach the port is treated as a local user, with no login. Layer on security as you need it. The app resolves identity in this order:
 
 1. **Cloudflare Access** — CF Access sits in front of the tunnel and authenticates remote traffic at the edge; the app validates the `Cf-Access-Jwt-Assertion` JWT. CF Access only gates the tunnel — it never blocks LAN access on its own.
-2. **OAuth via Auth.js** — Google and GitHub OAuth. When configured (`AUTH_*` env vars), unauthenticated LAN requests are redirected to `/login`.
-3. **Local admin login (HTTP Basic)** — set `NAZU_AUTH_USER` and `NAZU_AUTH_PASSWORD` and the LAN prompts for those credentials. Simplest gate — no OAuth apps required.
+2. **OAuth via Auth.js** — Google and GitHub OAuth. When configured (in **Settings → Auth**), unauthenticated LAN requests are redirected to `/login`.
+3. **Local admin login (HTTP Basic)** — set a local admin username + password in **Settings → Auth** and the LAN prompts for those credentials. Simplest gate — no OAuth apps required.
 4. **Open** — if none of the above gate the LAN, requests pass through as a local user (`NAZU_LOCAL_USER_EMAIL`, default `local@nazu.local`).
 
 ### Setup
 
-Open mode needs no setup. To gate LAN access, pick **one** of OAuth or local Basic auth (CF Access is orthogonal and gates the tunnel).
+All auth is configured in the in-app **Settings** UI and stored in the database (`app_settings`) — **not** in `.env`. Changes apply on the next request, no restart. Open mode needs no setup. To gate LAN access, pick **one** of OAuth or local admin login (CF Access is orthogonal and gates the tunnel).
 
-**Local admin (Basic auth)** — set `NAZU_AUTH_USER` and `NAZU_AUTH_PASSWORD` in `.env`. Done.
-
-**Generate `AUTH_SECRET`** (required for OAuth session signing):
-
-```sh
-openssl rand -hex 32
-```
-
-**Google OAuth** — create credentials at [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials → OAuth 2.0 Client. Set redirect URI to `http://localhost:8420/auth/callback/google` (dev) and your public domain (prod).
-
-**GitHub OAuth** — create an app at [github.com/settings/developers](https://github.com/settings/developers). Set callback URL to `http://localhost:8420/auth/callback/github` (dev) and your public domain (prod).
+- **Local admin (HTTP Basic)** — set a username + password under Settings → Auth.
+- **OAuth (Google / GitHub)** — create an OAuth app with the provider, then paste the client ID/secret under Settings → Auth (the session signing secret is generated automatically). Use callback URL `http://localhost:8420/auth/callback/{google,github}` for dev, and your public domain for prod. Create apps at [console.cloud.google.com](https://console.cloud.google.com) (Google) and [github.com/settings/developers](https://github.com/settings/developers) (GitHub).
+- **Cloudflare Access** — set your CF Access team domain + application audience (AUD) under Settings → Auth to validate edge JWTs on the tunnel.
 
 ## Environment Variables
 
+nazu is **zero-conf**: a fresh `docker compose up` runs with no `.env`. Almost all application config — GitHub integration, OAuth / Cloudflare Access, the Anthropic key (excerpt generation), dashboard containers, feature toggles — is set in the in-app **Settings** UI and stored in the database (`app_settings`), **not** in env. The variables below are the host-coupled values that genuinely can't live in the DB.
+
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `MINIO_ENDPOINT` | MinIO API endpoint (default: `http://minio:9000`) |
-| `MINIO_ACCESS_KEY` | MinIO root user (default: `minioadmin`) |
-| `MINIO_SECRET_KEY` | MinIO root password (default: `minioadmin`) |
-| `MINIO_BUCKET` | Bucket for documents (default: `nazu-documents`) |
-| `ANTHROPIC_API_KEY` | Used to generate excerpts on document ingest (claude-haiku-4-5) |
-| `FALKORDB_ADDR` | FalkorDB host:port (Redis protocol) |
-| `FALKORDB_GRAPH` | Graph name for the personal knowledge graph |
-| `OPENAI_API_KEY` | Used by Graphiti for entity extraction |
-| `GITHUB_WEBHOOK_SECRET` | HMAC secret for GitHub push webhook (code graph auto-reindex) |
-| `REPO_CACHE_DIR` | Directory for cached git checkouts used by webhook reindexer |
-| `GITHUB_TOKEN` | GitHub PAT for dashboard API calls |
-| `GITHUB_OWNERS` | Comma-separated GitHub orgs/users to display |
-| `DOCKER_CONTAINERS` | Comma-separated container names to show (empty = all) |
-| `AUTH_SECRET` | Session signing key — generate with `openssl rand -hex 32` |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth app credentials |
-| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth app credentials |
-| `NAZU_AUTH_USER` / `NAZU_AUTH_PASSWORD` | Local admin login (HTTP Basic) — set both to gate LAN access without OAuth |
-| `NAZU_LOCAL_USER_EMAIL` | Identity stamped on local / Basic-auth requests (default: `local@nazu.local`) |
+| `DATABASE_URL` | PostgreSQL connection string. Defaults to the bundled compose `postgres` service (`postgres://nazu:nazu@postgres:5432/nazu`) — **the canonical DB**. Don't point it at a host Postgres. |
+| `MINIO_ENDPOINT` | MinIO API endpoint (default `http://minio:9000`) |
+| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | MinIO root credentials (default `minioadmin`) |
+| `MINIO_BUCKET` | Bucket for documents (default `nazu-documents`) |
+| `FALKORDB_ADDR` | FalkorDB host:port for the code-graph (default `falkordb:6379`) |
+| `FALKORDB_GRAPH` | Default FalkorDB graph name (code-graph queries pass `code:<project>`) |
+| `REPO_CACHE_DIR` | Directory for cached git checkouts used by the code-graph webhook reindexer |
 | `NAZU_API_KEY` | Static API key(s) for non-interactive agents / the Memory MCP (comma-separated; `Authorization: Bearer` or `X-API-Key`). Off when unset. |
-| `CF_ACCESS_TEAM_DOMAIN` | CF Access team domain, e.g. `yourteam.cloudflareaccess.com` |
-| `CF_ACCESS_AUD` | CF Access Application Audience tag (from CF dashboard) |
-| `CF_TUNNEL_TOKEN` | Tunnel token from CF dashboard "Install connector" page |
-| `NAZU_HOSTNAME` | Hostname Caddy serves on (e.g. `nazu.example.com`) — required with `tls` profile |
-| `NAZU_TLS_CERT` | Absolute host path to the TLS cert (e.g. `/etc/ssl/nazu.pem`) — bind-mounted into caddy at the same path; required with `tls` profile |
-| `NAZU_TLS_KEY` | Absolute host path to the TLS key — bind-mounted into caddy at the same path; required with `tls` profile |
-| `COMPOSE_PROJECT_NAME` | Compose project name (default `nazu`); pinned so the web app's in-container `docker compose` targets the same project/network |
+| `NAZU_LOCAL_USER_EMAIL` | Identity stamped on local / open-mode requests (default `local@nazu.local`) |
+| `CF_TUNNEL_TOKEN` | Cloudflare Tunnel token (also settable in Settings; required with the `tunnel` profile) |
+| `NAZU_HOSTNAME` | Hostname Caddy serves on (e.g. `nazu.example.com`) — required with the `tls` profile |
+| `NAZU_TLS_CERT` / `NAZU_TLS_KEY` | Absolute host paths to the TLS cert/key, bind-mounted into caddy at the same path — required with the `tls` profile |
+| `COMPOSE_PROJECT_NAME` | Compose project name (default `nazu`); pins the web app's in-container `docker compose` to the same project/network |
 
 ## Remote Access
 
@@ -156,6 +136,10 @@ Claude Code connects to the MCP server for code intelligence queries — configu
   }
 }
 ```
+
+## Memory MCP
+
+`apps/mcp` is a thin stdio MCP server that gives an AI agent (Claude Code, etc.) a durable **remember / recall** loop over the knowledge base — `remember` → `POST /api/remember`, `recall` → `GET /api/search`. It talks to nazu over REST (set `NAZU_URL` and a matching `NAZU_API_KEY`), so it works against a nazu running anywhere reachable. See [`apps/mcp/README.md`](apps/mcp/README.md) for build + Claude Code registration.
 
 ## Task runner
 
