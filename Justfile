@@ -20,10 +20,10 @@ build:
 
 check: typecheck lint test-unit
 
-# Run exactly what CI runs (.github/workflows/ci.yml): lint + typecheck + unit +
-# functional. Needs Docker for the functional stack. Use `check` for the fast
-# inner loop; use this before pushing to mirror CI.
-ci: lint typecheck test-unit test-functional
+# Run exactly what CI runs (.github/workflows/ci.yml): the core suite (lint,
+# typecheck, unit, functional) then the gated optional pieces. Needs Docker. Use
+# `check` for the fast inner loop; use this before pushing to mirror CI.
+ci: lint typecheck test-unit test-functional test-optional
 
 # Type-check the web app
 typecheck:
@@ -110,6 +110,14 @@ graphiti_python := "/opt/homebrew/bin/python3.14"
 # so no FalkorDB / LLM / embeddings endpoint is needed — only the FastAPI contract.
 graphiti-test:
     cd apps/graphiti && {{graphiti_python}} -m venv .venv && .venv/bin/pip install -q fastapi 'pydantic>=2.7' pytest httpx && .venv/bin/pytest -q
+
+# Test the optional pieces (Graphiti sidecar): contract tests, then build + boot
+# the real image and health-check it via `--wait`. Heavy (builds the Python
+# image) — `just ci` runs it only after the core suite passes. Isolated compose
+# project so it never touches a running dev/test stack. Mirrors CI's test-optional.
+test-optional: graphiti-test
+    docker compose -p nazu-optional --profile graph up -d --build --wait --no-deps graphiti || { docker compose -p nazu-optional --profile graph logs graphiti; docker compose -p nazu-optional --profile graph down -v --remove-orphans; exit 1; }
+    docker compose -p nazu-optional --profile graph down -v --remove-orphans
 
 # ─── Code graph indexer ───────────────────────────────────────────
 

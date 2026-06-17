@@ -114,6 +114,18 @@ services:
     # Lets the container reach a host-run Ollama on Linux (no-op on Docker Desktop).
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # /health needs no LLM/embedder/graph connectivity — it confirms the app
+    # booted. Uses python (the slim image has no curl). Lets `up --wait` gate.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u, sys; sys.exit(0 if u.urlopen('http://localhost:8000/health', timeout=2).status == 200 else 1)"
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 10s
     restart: unless-stopped
     depends_on:
       falkordb:
