@@ -315,6 +315,7 @@ describe("schema_migrations", () => {
 			"006_service_config.sql",
 			"007_app_settings.sql",
 			"008_documents_body_fts.sql",
+			"009_document_chunks.sql",
 		]);
 	});
 });
