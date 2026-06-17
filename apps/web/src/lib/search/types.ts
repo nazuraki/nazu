@@ -3,6 +3,8 @@ export interface Entry {
 	title: string;
 	content?: string;
 	excerpt: string;
+	/** Passage snippet from the best-matching chunk for a query; absent for title-only matches. */
+	snippet?: string;
 	type: string;
 	tags: string[];
 	author: string;

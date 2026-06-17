@@ -79,8 +79,11 @@ Repo layout:
   only current use.
 - **Memory MCP:** `apps/mcp` is a thin stdio MCP over the REST API. Keep it thin —
   all logic stays in `apps/web` server code.
-- **Data model:** `tasks`, `kb_index`, `documents`, `app_settings`,
-  `service_config` (+ `schema_migrations`).
+- **Data model:** `tasks`, `kb_index`, `documents`, `document_chunks`,
+  `app_settings`, `service_config` (+ `schema_migrations`). `document_chunks`
+  holds passage-sized slices of a document body (one FTS `tsvector` per chunk)
+  produced by the ingest pipeline (`lib/server/chunk.ts`); the canonical raw body
+  stays in MinIO.
 - **Error handling:** raise specific errors in `lib/server/` modules; catch and
   format (HTTP status + message) in the `/api/*` route handlers.
 

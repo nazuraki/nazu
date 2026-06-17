@@ -22,11 +22,26 @@ export async function search(q: string, page: number, pageSize: number): Promise
 			author: string | null;
 			created_at: Date;
 			word_count: number;
+			snippet: string | null;
 		}[]
 	>`
-		SELECT k.id, k.title, k.excerpt, k.type, k.tags, d.author, k.created_at, k.word_count
+		SELECT k.id, k.title, k.excerpt, k.type, k.tags, d.author, k.created_at, k.word_count,
+		       snip.snippet
 		FROM kb_index k
 		JOIN documents d ON d.id = k.document_id
+		-- Best-matching chunk → a passage snippet (#25). Plain-text fragment; the UI
+		-- highlights the query client-side, so ts_headline emits no markup itself.
+		LEFT JOIN LATERAL (
+			SELECT ts_headline(
+				'english', c.content, plainto_tsquery('english', ${q}),
+				'StartSel=,StopSel=,MaxFragments=2,MinWords=8,MaxWords=30,FragmentDelimiter= … '
+			) AS snippet
+			FROM document_chunks c
+			WHERE c.document_id = k.document_id
+			  AND c.body_search @@ plainto_tsquery('english', ${q})
+			ORDER BY ts_rank(c.body_search, plainto_tsquery('english', ${q})) DESC
+			LIMIT 1
+		) snip ON true
 		WHERE to_tsvector('english', k.title || ' ' || COALESCE(k.excerpt, ''))
 		      @@ plainto_tsquery('english', ${q})
 		   OR d.body_search @@ plainto_tsquery('english', ${q})
@@ -52,6 +67,7 @@ export async function search(q: string, page: number, pageSize: number): Promise
 		id: r.id,
 		title: r.title,
 		excerpt: r.excerpt ?? '',
+		snippet: r.snippet?.trim() || undefined,
 		type: r.type,
 		tags: r.tags,
 		author: r.author ?? '',
