@@ -28,10 +28,11 @@
 			{@html highlight(entry.title, query)}
 		</h2>
 
-		{#if entry.excerpt}
+		{#if entry.snippet ?? entry.excerpt}
 			<p class="text-sm text-on-surface-dim leading-relaxed line-clamp-2">
+				<!-- Passage snippet from the matching chunk when present, else the summary. -->
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html highlight(entry.excerpt, query)}
+				{@html highlight(entry.snippet ?? entry.excerpt, query)}
 			</p>
 		{/if}
 
