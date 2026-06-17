@@ -28,7 +28,7 @@ Repo layout:
 | `apps/web/` | SvelteKit 5 app — UI, REST API, all business logic. The product. |
 | `apps/mcp/` | **Memory MCP** — a thin TypeScript stdio server that wraps the REST API (`recall`→`GET /api/search`, `remember`→`POST /api/remember`). No DB access of its own. |
 | `apps/indexer/` | Code-graph indexer (TS + Rust + Go binaries) + the `code-graph` MCP. Builds per-project graphs in FalkorDB. |
-| `apps/graphiti/` | **Graphiti sidecar** — a thin Python (FastAPI) wrapper over `graphiti-core` for temporal-knowledge recall (#53). Owns no config; the web app passes credentials per request. Off by default. |
+| `apps/graphiti/` | **Graphiti sidecar** — a thin Python (FastAPI) wrapper over `graphiti-core` for temporal-knowledge recall (#53). Owns no config; the web app passes credentials per request. Off by default; a profile-gated optional service (`profiles: ["graph"]`). |
 | `infra/` | DB migrations, Caddy/Cloudflare config, git hooks. |
 
 > **Partially built:** the Graphiti temporal knowledge graph (semantic/relationship

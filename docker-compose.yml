@@ -98,6 +98,11 @@ services:
   # config per request. Entity extraction embeds via a local, OpenAI-compatible
   # endpoint (Ollama on the host by default).
   graphiti:
+    # Opt-in: off by default and excluded from the test stack (which activates no
+    # profiles), so the heavy Python image only builds when graph recall is used.
+    # Start it via the in-app "Optional services" toggle or
+    # `docker compose --profile graph up -d graphiti`.
+    profiles: ["graph"]
     build:
       context: ./apps/graphiti
       dockerfile: Dockerfile

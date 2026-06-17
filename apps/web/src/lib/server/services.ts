@@ -49,6 +49,14 @@ export const OPTIONAL_SERVICES: OptionalService[] = [
 			await writeFile(path, CADDYFILE, 'utf8');
 		},
 	},
+	{
+		// Graphiti temporal-graph recall sidecar (#53). Needs the Anthropic key
+		// (DB-backed) for entity extraction; checked from settings in missingConfig.
+		profile: 'graph',
+		service: 'graphiti',
+		label: 'Graph recall (Graphiti)',
+		requires: [],
+	},
 ];
 
 function find(profile: string): OptionalService {
@@ -66,6 +74,10 @@ async function missingConfig(svc: OptionalService): Promise<string[]> {
 	if (svc.profile === 'tunnel') {
 		const o = await getSection('oauth');
 		return (o.cfTunnelToken as string)?.trim() ? [] : ['CF_TUNNEL_TOKEN'];
+	}
+	if (svc.profile === 'graph') {
+		const ai = await getSection('ai');
+		return (ai.anthropicApiKey as string)?.trim() ? [] : ['Anthropic API key'];
 	}
 	return svc.requires.filter((k) => !env[k]?.trim());
 }

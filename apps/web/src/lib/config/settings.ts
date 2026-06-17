@@ -148,7 +148,7 @@ export const SECTIONS: SectionDef[] = [
 				label: 'Enable graph recall',
 				type: 'boolean',
 				default: false,
-				help: 'Off by default — the Graphiti sidecar and an embeddings endpoint must be running.',
+				help: 'Off by default. Also start the Graphiti sidecar under Optional services (and run an embeddings endpoint) for this to do anything.',
 			},
 			{
 				key: 'embedderBaseUrl',

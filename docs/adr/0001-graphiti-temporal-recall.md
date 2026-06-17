@@ -47,7 +47,10 @@ Implementation choices:
   the Anthropic key + embedder settings from DB-backed `app_settings` and passes
   them to the sidecar per request; the sidecar persists no secret. Only
   host-coupled values (FalkorDB address, graph name) are sidecar env. A new
-  `graph` settings section gates the feature (**off by default**).
+  `graph` settings section gates the feature (**off by default**). The sidecar
+  itself is a profile-gated **optional service** (`profiles: ["graph"]`,
+  registered in `services.ts`), so its heavy Python image is excluded from the
+  default and test/CI stacks until graph recall is turned on.
 - **Document ↔ graph mapping:** Postgres holds only the join key
   (`graph_episodes(document_id, episode_uuid)`); the episode body, entities, and
   edges live in FalkorDB. Recall maps returned facts → episodes → documents →
