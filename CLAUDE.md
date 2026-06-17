@@ -29,6 +29,7 @@ Repo layout:
 | `apps/mcp/` | **Memory MCP** — a thin TypeScript stdio server that wraps the REST API (`recall`→`GET /api/search`, `remember`→`POST /api/remember`). No DB access of its own. |
 | `apps/indexer/` | Code-graph indexer (TS + Rust + Go binaries) + the `code-graph` MCP. Builds per-project graphs in FalkorDB. |
 | `apps/graphiti/` | **Graphiti sidecar** — a thin Python (FastAPI) wrapper over `graphiti-core` for temporal-knowledge recall (#53). Owns no config; the web app passes credentials per request. Off by default; a profile-gated optional service (`profiles: ["graph"]`). |
+| `apps/discord/` | **Discord ingest sidecar** — a thin TypeScript bot (#34) that watches channels for YouTube/TikTok links and ingests transcripts via the web app's `POST /api/ingest/url`. Owns no logic; pulls config from `GET /api/discord/config`. Off by default; a profile-gated optional service (`profiles: ["discord"]`). See [ADR 0002](docs/adr/0002-discord-transcript-ingest.md). |
 | `infra/` | DB migrations, Caddy/Cloudflare config, git hooks. |
 
 > **Partially built:** the Graphiti temporal knowledge graph (semantic/relationship
