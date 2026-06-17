@@ -131,6 +131,27 @@ services:
       falkordb:
         condition: service_started
 
+  # Discord ingest bot (#34): watches configured channels for YouTube/TikTok
+  # links and ingests their transcripts via the web app's /api/ingest/url. Thin
+  # sidecar — all app config (bot token, channels, enabled flag) is DB-backed and
+  # fetched from the web app at runtime; only the bootstrap URL + API key are env.
+  discord:
+    # Opt-in: off by default and excluded from the test stack. Start it via the
+    # in-app "Optional services" toggle or
+    # `docker compose --profile discord up -d discord`.
+    profiles: ["discord"]
+    build:
+      context: .
+      dockerfile: apps/discord/Dockerfile
+    environment:
+      NAZU_URL: ${NAZU_URL_INTERNAL:-http://web:3000}
+      # Same static key the web app accepts; empty in zero-conf open mode.
+      NAZU_API_KEY: ${NAZU_API_KEY:-}
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+
   postgres:
     image: postgres:18
     environment:
