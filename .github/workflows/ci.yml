@@ -25,6 +25,8 @@ jobs:
         run: pnpm --filter @nazu/web run lint
       - name: Type-check
         run: pnpm --filter @nazu/web run typecheck
+      - name: Unit tests
+        run: pnpm --filter @nazu/web run test
 
   test-functional:
     runs-on: ubuntu-latest

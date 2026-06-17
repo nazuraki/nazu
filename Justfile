@@ -20,6 +20,11 @@ build:
 
 check: typecheck lint test-unit
 
+# Run exactly what CI runs (.github/workflows/ci.yml): lint + typecheck + unit +
+# functional. Needs Docker for the functional stack. Use `check` for the fast
+# inner loop; use this before pushing to mirror CI.
+ci: lint typecheck test-unit test-functional
+
 # Type-check the web app
 typecheck:
     pnpm --filter @nazu/web check
