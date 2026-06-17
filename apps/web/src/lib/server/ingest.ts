@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+import { chunkDocument, countWords } from './chunk.js';
 import { getSql } from './db.js';
 import { getSection } from './settings.js';
 import { uploadDocument } from './storage.js';
@@ -47,14 +48,11 @@ async function generateExcerpt(title: string, content: string): Promise<string> 
 	return block?.type === 'text' ? block.text.trim() : '';
 }
 
-function countWords(text: string): number {
-	return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
 /**
  * Persist a document end to end: insert the `documents` metadata row, upload the
- * original body to object storage, generate a best-effort excerpt, and create the
- * `kb_index` entry that makes it discoverable via search/recall.
+ * original body to object storage, split the body into passage-sized chunks for
+ * recall, generate a best-effort excerpt, and create the `kb_index` entry that
+ * makes it discoverable via search/recall.
  */
 export async function storeDocument(input: StoreInput): Promise<StoreResult> {
 	const title = input.title.trim();
@@ -82,6 +80,22 @@ export async function storeDocument(input: StoreInput): Promise<StoreResult> {
 		    indexed_at  = now()
 		WHERE id = ${doc.id}
 	`;
+
+	// Passage-level chunks (#25): one tsvector per chunk so recall can rank and
+	// surface the matching *section* of a long document. tsvectors are computed
+	// server-side per row; a single UNNEST insert zips the parallel arrays.
+	const chunks = chunkDocument(input.content);
+	if (chunks.length > 0) {
+		await sql`
+			INSERT INTO document_chunks (document_id, chunk_index, content, word_count, body_search)
+			SELECT ${doc.id}, idx, body, wc, to_tsvector('english', body)
+			FROM unnest(
+				${chunks.map((c) => c.index)}::int[],
+				${chunks.map((c) => c.content)}::text[],
+				${chunks.map((c) => c.wordCount)}::int[]
+			) AS t(idx, body, wc)
+		`;
+	}
 
 	// Excerpt is non-critical — never let it fail the write.
 	let excerpt = '';
