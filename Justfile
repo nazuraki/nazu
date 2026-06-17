@@ -98,6 +98,14 @@ test-up:
 test-down:
     docker compose -p nazu-test -f docker-compose.yml -f docker-compose.test.override.yml down -v --remove-orphans
 
+# Python interpreter for the Graphiti sidecar tests (3.10+ required)
+graphiti_python := "/opt/homebrew/bin/python3.14"
+
+# Run the Graphiti sidecar contract tests. graphiti-core is stubbed (conftest.py),
+# so no FalkorDB / LLM / embeddings endpoint is needed — only the FastAPI contract.
+graphiti-test:
+    cd apps/graphiti && {{graphiti_python}} -m venv .venv && .venv/bin/pip install -q fastapi 'pydantic>=2.7' pytest httpx && .venv/bin/pytest -q
+
 # ─── Code graph indexer ───────────────────────────────────────────
 
 # Build the indexer (TypeScript + Rust binary + Go binary)
