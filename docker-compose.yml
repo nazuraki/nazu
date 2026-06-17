@@ -72,6 +72,9 @@ services:
       # Static API key(s) for non-interactive agents / the Memory MCP. Off when
       # empty. Also loadable from .env; surfaced here so `NAZU_API_KEY=… up` works.
       NAZU_API_KEY: ${NAZU_API_KEY:-}
+      # Graphiti temporal-graph sidecar (#53). Compose-internal; the web app
+      # passes credentials per request, so no secret env is needed here.
+      GRAPHITI_URL: ${GRAPHITI_URL:-http://graphiti:8000}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Lets the web app drive `docker compose` to toggle optional services.
@@ -87,6 +90,27 @@ services:
         condition: service_started
       minio:
         condition: service_started
+      falkordb:
+        condition: service_started
+
+  # Temporal-knowledge recall (#53): thin FastAPI wrapper over graphiti-core.
+  # Stateless about secrets — the web app passes the Anthropic key + embedder
+  # config per request. Entity extraction embeds via a local, OpenAI-compatible
+  # endpoint (Ollama on the host by default).
+  graphiti:
+    build:
+      context: ./apps/graphiti
+      dockerfile: Dockerfile
+    environment:
+      FALKORDB_ADDR: ${FALKORDB_ADDR:-falkordb:6379}
+      GRAPHITI_GRAPH: ${GRAPHITI_GRAPH:-nazu_knowledge}
+      EMBEDDER_BASE_URL: ${EMBEDDER_BASE_URL:-http://host.docker.internal:11434/v1}
+      EMBEDDER_MODEL: ${EMBEDDER_MODEL:-nomic-embed-text}
+    # Lets the container reach a host-run Ollama on Linux (no-op on Docker Desktop).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    depends_on:
       falkordb:
         condition: service_started
 
