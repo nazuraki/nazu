@@ -1,4 +1,5 @@
 import { getSql } from './db.js';
+import { searchGraph, type GraphFact } from './graphiti.js';
 import { getDocumentText } from './storage.js';
 
 import type { Entry, EntryDetail, Tag, SearchResponse } from '$lib/search/types.js';
@@ -75,17 +76,105 @@ export async function search(q: string, page: number, pageSize: number): Promise
 		updated_at: r.created_at.toISOString(),
 		ref_count: 0,
 		word_count: r.word_count,
-		read_time: Math.ceil(r.word_count / 200)
+		read_time: Math.ceil(r.word_count / 200),
+		recall_source: 'fts'
 	}));
+
+	// Augment page 1 with knowledge-graph hits (#53): FTS is lexical, so synonym
+	// and paraphrase queries miss. The graph surfaces semantically-related
+	// documents FTS didn't. Basic for now — graph hits fill page 1's spare slots
+	// after FTS; blended ranking across the full result set is a follow-up.
+	let total = parseInt(count);
+	if (page === 1 && entries.length < pageSize) {
+		const seen = new Set(entries.map((e) => e.id));
+		const graphEntries = await graphRecall(q, seen, pageSize - entries.length);
+		entries.push(...graphEntries);
+		total += graphEntries.length;
+	}
 
 	return {
 		query: q,
-		total: parseInt(count),
+		total,
 		duration: `${Date.now() - t0}ms`,
 		page,
 		page_size: pageSize,
 		entries
 	};
+}
+
+/**
+ * Resolve knowledge-graph facts for `q` back to kb entries the FTS pass didn't
+ * already return. Graph errors are non-fatal: recall falls back to FTS alone.
+ * Entries are ordered by their best (earliest-ranked) supporting fact.
+ */
+async function graphRecall(q: string, exclude: Set<string>, limit: number): Promise<Entry[]> {
+	if (limit <= 0) return [];
+
+	let facts: GraphFact[];
+	try {
+		facts = await searchGraph(q, Math.max(limit, 10));
+	} catch (err) {
+		console.error('graph recall failed (non-fatal)', err);
+		return [];
+	}
+	if (facts.length === 0) return [];
+
+	// Rank each episode by the first fact that mentions it (best fact first).
+	const episodeRank = new Map<string, number>();
+	facts.forEach((f, fi) => {
+		for (const uuid of f.episodeUuids) {
+			if (!episodeRank.has(uuid)) episodeRank.set(uuid, fi);
+		}
+	});
+	const uuids = [...episodeRank.keys()];
+	if (uuids.length === 0) return [];
+
+	const sql = getSql();
+	const rows = await sql<
+		{
+			id: string;
+			title: string;
+			excerpt: string | null;
+			type: string;
+			tags: string[];
+			author: string | null;
+			created_at: Date;
+			word_count: number;
+			episode_uuid: string;
+		}[]
+	>`
+		SELECT k.id, k.title, k.excerpt, k.type, k.tags, d.author, k.created_at, k.word_count,
+		       ge.episode_uuid
+		FROM graph_episodes ge
+		JOIN kb_index k  ON k.document_id = ge.document_id
+		JOIN documents d ON d.id = ge.document_id
+		WHERE ge.episode_uuid = ANY(${uuids})
+	`;
+
+	rows.sort((a, b) => episodeRank.get(a.episode_uuid)! - episodeRank.get(b.episode_uuid)!);
+
+	const out: Entry[] = [];
+	const seen = new Set(exclude);
+	for (const r of rows) {
+		if (seen.has(r.id)) continue;
+		seen.add(r.id);
+		out.push({
+			id: r.id,
+			title: r.title,
+			excerpt: r.excerpt ?? '',
+			type: r.type,
+			tags: r.tags,
+			author: r.author ?? '',
+			created_at: r.created_at.toISOString(),
+			updated_at: r.created_at.toISOString(),
+			ref_count: 0,
+			word_count: r.word_count,
+			read_time: Math.ceil(r.word_count / 200),
+			recall_source: 'graph'
+		});
+		if (out.length >= limit) break;
+	}
+	return out;
 }
 
 export async function getEntry(id: string): Promise<EntryDetail | null> {

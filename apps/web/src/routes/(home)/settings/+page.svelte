@@ -56,6 +56,8 @@
 				config[f.key] = raw.split('\n').map((l) => l.trim()).filter(Boolean);
 			} else if (f.type === 'number') {
 				config[f.key] = Number(raw);
+			} else if (f.type === 'boolean') {
+				config[f.key] = raw === 'true';
 			} else if (f.type === 'secret' || f.type === 'password') {
 				if (raw === '') continue; // blank = leave unchanged
 				config[f.key] = raw;
@@ -169,6 +171,13 @@
 							type="number"
 							bind:value={forms[section.key][field.key]}
 							class="bg-surface-container rounded px-3 py-2 font-inter text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
+						/>
+					{:else if field.type === 'boolean'}
+						<input
+							type="checkbox"
+							checked={forms[section.key][field.key] === 'true'}
+							onchange={(e) => (forms[section.key][field.key] = String(e.currentTarget.checked))}
+							class="self-start w-4 h-4 accent-primary"
 						/>
 					{:else}
 						<input

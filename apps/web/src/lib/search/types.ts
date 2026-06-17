@@ -15,6 +15,8 @@ export interface Entry {
 	read_time: number;
 	vector_score?: number;
 	image_url?: string;
+	/** Which recall layer surfaced this entry: lexical FTS or the knowledge graph (#53). */
+	recall_source?: 'fts' | 'graph';
 }
 
 export interface EntryDetail extends Entry {

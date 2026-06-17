@@ -13,6 +13,12 @@ vi.mock('./storage.js', () => ({
 	getDocumentText: vi.fn(async () => '')
 }));
 vi.mock('./settings.js', () => ({ getSection: vi.fn(async () => ({})) }));
+// Graph recall is exercised in graphiti.integration.test.ts; here it is stubbed
+// out so these tests cover the FTS-only path (and avoid the $env import).
+vi.mock('./graphiti.js', () => ({
+	addEpisode: vi.fn(async () => null),
+	searchGraph: vi.fn(async () => [])
+}));
 
 import { storeDocument } from './ingest';
 import { search } from './librarian';
