@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { chunkDocument, countWords } from './chunk.js';
 import { getSql } from './db.js';
+import { addEpisode } from './graphiti.js';
 import { getSection } from './settings.js';
 import { uploadDocument } from './storage.js';
 
@@ -110,6 +111,28 @@ export async function storeDocument(input: StoreInput): Promise<StoreResult> {
 		VALUES (${doc.id}, ${title}, ${excerpt}, ${type}, ${tags}, ${wordCount})
 		RETURNING id
 	`;
+
+	// Add to the temporal knowledge graph for semantic/relationship recall (#53).
+	// Best-effort and non-fatal — like the excerpt above, graph indexing must
+	// never fail the write. No-ops when graph recall is disabled. (Extraction is
+	// LLM-driven and synchronous for now; moving it to a background queue is a
+	// follow-up.)
+	try {
+		const episodeUuid = await addEpisode({
+			documentId: doc.id,
+			name: title,
+			content: input.content,
+			referenceTime: new Date(),
+		});
+		if (episodeUuid) {
+			await sql`
+				INSERT INTO graph_episodes (document_id, episode_uuid)
+				VALUES (${doc.id}, ${episodeUuid})
+			`;
+		}
+	} catch (err) {
+		console.error('graphiti add_episode failed (non-fatal)', err);
+	}
 
 	return { id: entry.id, title, document_id: doc.id };
 }

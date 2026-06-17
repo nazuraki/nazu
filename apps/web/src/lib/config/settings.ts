@@ -138,6 +138,34 @@ export const SECTIONS: SectionDef[] = [
 		fields: [{ key: 'anthropicApiKey', label: 'Anthropic API key', type: 'secret' }],
 	},
 	{
+		key: 'graph',
+		label: 'Graph recall',
+		description:
+			'Temporal-knowledge recall via the Graphiti sidecar (#53). When on, ingested documents are added to the knowledge graph and graph hits augment search. Uses the Anthropic key above for entity extraction.',
+		fields: [
+			{
+				key: 'enabled',
+				label: 'Enable graph recall',
+				type: 'boolean',
+				default: false,
+				help: 'Off by default. Also start the Graphiti sidecar under Optional services (and run an embeddings endpoint) for this to do anything.',
+			},
+			{
+				key: 'embedderBaseUrl',
+				label: 'Embedder base URL',
+				type: 'string',
+				default: 'http://host.docker.internal:11434/v1',
+				help: 'OpenAI-compatible embeddings endpoint (e.g. local Ollama).',
+			},
+			{
+				key: 'embedderModel',
+				label: 'Embedder model',
+				type: 'string',
+				default: 'nomic-embed-text',
+			},
+		],
+	},
+	{
 		key: 'dashboard',
 		label: 'Dashboard',
 		description: 'Behavior of the dashboard views.',

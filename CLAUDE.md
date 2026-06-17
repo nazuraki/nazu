@@ -28,13 +28,15 @@ Repo layout:
 | `apps/web/` | SvelteKit 5 app — UI, REST API, all business logic. The product. |
 | `apps/mcp/` | **Memory MCP** — a thin TypeScript stdio server that wraps the REST API (`recall`→`GET /api/search`, `remember`→`POST /api/remember`). No DB access of its own. |
 | `apps/indexer/` | Code-graph indexer (TS + Rust + Go binaries) + the `code-graph` MCP. Builds per-project graphs in FalkorDB. |
+| `apps/graphiti/` | **Graphiti sidecar** — a thin Python (FastAPI) wrapper over `graphiti-core` for temporal-knowledge recall (#53). Owns no config; the web app passes credentials per request. Off by default; a profile-gated optional service (`profiles: ["graph"]`). |
 | `infra/` | DB migrations, Caddy/Cloudflare config, git hooks. |
 
-> **Aspirational, not built:** a temporal knowledge graph (Graphiti over FalkorDB)
-> for semantic recall is part of the long-term vision (see `docs/PURPOSE.md` and
-> the roadmap), but **no Graphiti code exists today**. FalkorDB is currently used
-> *only* by the code-graph indexer (`code:*` graphs), not for personal knowledge.
-> Treat any "temporal knowledge graph" framing as forward-looking.
+> **Partially built:** the Graphiti temporal knowledge graph (semantic/relationship
+> recall, the long-term vision in `docs/PURPOSE.md`) now has a first cut — see
+> [ADR 0001](docs/adr/0001-graphiti-temporal-recall.md). The `apps/graphiti/`
+> sidecar indexes ingested documents into a `nazu_knowledge` graph in FalkorDB and
+> augments FTS recall, **gated behind the `graph` setting and off by default**.
+> Blended ranking, background extraction, and backfill are not yet done.
 
 ## Coding Conventions
 
@@ -72,18 +74,23 @@ Repo layout:
   Do not point `DATABASE_URL` at a host Postgres.
 - **Object storage:** MinIO holds ingested documents/attachments.
 - **Settings/config:** DB-backed via `app_settings` (sections like `oauth`,
-  `github`, `ai`, `dashboard`). Auth is constructed lazily from these rows
-  (`apps/web/src/auth.ts`, `lib/auth.ts`) — no OAuth/credential env vars.
+  `github`, `ai`, `dashboard`, `graph`). Auth is constructed lazily from these
+  rows (`apps/web/src/auth.ts`, `lib/auth.ts`) — no OAuth/credential env vars.
 - **Code graph:** FalkorDB stores per-project code graphs built by `apps/indexer`,
-  queried via the `code-graph` MCP and `/api/code-graph/*`. This is FalkorDB's
-  only current use.
+  queried via the `code-graph` MCP and `/api/code-graph/*` (the `code:*` graphs).
+- **Graph recall:** FalkorDB also backs the personal-knowledge graph
+  (`nazu_knowledge`) via the `apps/graphiti/` sidecar. The web client
+  (`lib/server/graphiti.ts`) adds an episode per ingested document (best-effort,
+  non-fatal) and augments FTS recall with graph hits in `librarian.ts`. Gated by
+  the `graph` setting, off by default. See [ADR 0001](docs/adr/0001-graphiti-temporal-recall.md).
 - **Memory MCP:** `apps/mcp` is a thin stdio MCP over the REST API. Keep it thin —
   all logic stays in `apps/web` server code.
 - **Data model:** `tasks`, `kb_index`, `documents`, `document_chunks`,
-  `app_settings`, `service_config` (+ `schema_migrations`). `document_chunks`
-  holds passage-sized slices of a document body (one FTS `tsvector` per chunk)
-  produced by the ingest pipeline (`lib/server/chunk.ts`); the canonical raw body
-  stays in MinIO.
+  `graph_episodes`, `app_settings`, `service_config` (+ `schema_migrations`).
+  `document_chunks` holds passage-sized slices of a document body (one FTS
+  `tsvector` per chunk) produced by the ingest pipeline (`lib/server/chunk.ts`);
+  the canonical raw body stays in MinIO. `graph_episodes` maps Graphiti episode
+  uuids back to documents so graph facts resolve to `kb_index` entries.
 - **Error handling:** raise specific errors in `lib/server/` modules; catch and
   format (HTTP status + message) in the `/api/*` route handlers.
 

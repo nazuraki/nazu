@@ -8,7 +8,7 @@ nazu is a self-hosted personal knowledge system and home dashboard. Today it sto
 
 The long-term design adds a **graph layer** (FalkorDB via Graphiti) to capture the richness and relationships of unstructured knowledge in a temporal knowledge graph, alongside the relational layer (PostgreSQL) for well-typed records that are fast to query without graph traversal — structured data for structured queries, graph data for everything else.
 
-> **Status:** the relational + object layers and the Memory MCP are built and in use. The Graphiti temporal knowledge graph is **planned, not yet implemented** — FalkorDB currently backs only the code-graph indexer (`code:*` graphs), not personal knowledge.
+> **Status:** the relational + object layers and the Memory MCP are built and in use. The Graphiti temporal knowledge graph is now **partially implemented** (issue #53, [ADR 0001](adr/0001-graphiti-temporal-recall.md)): a thin FastAPI sidecar (`apps/graphiti/`) over `graphiti-core` indexes ingested documents into a `nazu_knowledge` graph in FalkorDB and augments FTS recall with graph hits. It is **off by default** and gated behind a `graph` setting. Blended ranking, background extraction, and document backfill are follow-ups.
 
 ## Non-Goals
 

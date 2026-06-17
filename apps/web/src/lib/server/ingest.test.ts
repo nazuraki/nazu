@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('./db.js', () => ({ getSql: vi.fn() }));
 vi.mock('./storage.js', () => ({ uploadDocument: vi.fn() }));
 vi.mock('./settings.js', () => ({ getSection: vi.fn() }));
+vi.mock('./graphiti.js', () => ({ addEpisode: vi.fn() }));
 
 import { normalizeTags } from './ingest';
 

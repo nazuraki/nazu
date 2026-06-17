@@ -20,6 +20,11 @@ build:
 
 check: typecheck lint test-unit
 
+# Run exactly what CI runs (.github/workflows/ci.yml): the core suite (lint,
+# typecheck, unit, functional) then the gated optional pieces. Needs Docker. Use
+# `check` for the fast inner loop; use this before pushing to mirror CI.
+ci: lint typecheck test-unit test-functional test-optional
+
 # Type-check the web app
 typecheck:
     pnpm --filter @nazu/web check
@@ -97,6 +102,22 @@ test-up:
 # Tear down the test stack
 test-down:
     docker compose -p nazu-test -f docker-compose.yml -f docker-compose.test.override.yml down -v --remove-orphans
+
+# Python interpreter for the Graphiti sidecar tests (3.10+ required)
+graphiti_python := "/opt/homebrew/bin/python3.14"
+
+# Run the Graphiti sidecar contract tests. graphiti-core is stubbed (conftest.py),
+# so no FalkorDB / LLM / embeddings endpoint is needed — only the FastAPI contract.
+graphiti-test:
+    cd apps/graphiti && {{graphiti_python}} -m venv .venv && .venv/bin/pip install -q fastapi 'pydantic>=2.7' pytest httpx && .venv/bin/pytest -q
+
+# Test the optional pieces (Graphiti sidecar): contract tests, then build + boot
+# the real image and health-check it via `--wait`. Heavy (builds the Python
+# image) — `just ci` runs it only after the core suite passes. Isolated compose
+# project so it never touches a running dev/test stack. Mirrors CI's test-optional.
+test-optional: graphiti-test
+    docker compose -p nazu-optional --profile graph up -d --build --wait --no-deps graphiti || { docker compose -p nazu-optional --profile graph logs graphiti; docker compose -p nazu-optional --profile graph down -v --remove-orphans; exit 1; }
+    docker compose -p nazu-optional --profile graph down -v --remove-orphans
 
 # ─── Code graph indexer ───────────────────────────────────────────
 
