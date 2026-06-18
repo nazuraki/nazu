@@ -57,6 +57,14 @@ export const OPTIONAL_SERVICES: OptionalService[] = [
 		label: 'Graph recall (Graphiti)',
 		requires: [],
 	},
+	{
+		// Discord ingest bot (#34). Needs a bot token (DB-backed, in the `discord`
+		// settings section); checked from settings in missingConfig.
+		profile: 'discord',
+		service: 'discord',
+		label: 'Discord ingest bot',
+		requires: [],
+	},
 ];
 
 function find(profile: string): OptionalService {
@@ -78,6 +86,10 @@ async function missingConfig(svc: OptionalService): Promise<string[]> {
 	if (svc.profile === 'graph') {
 		const ai = await getSection('ai');
 		return (ai.anthropicApiKey as string)?.trim() ? [] : ['Anthropic API key'];
+	}
+	if (svc.profile === 'discord') {
+		const d = await getSection('discord');
+		return (d.botToken as string)?.trim() ? [] : ['Discord bot token'];
 	}
 	return svc.requires.filter((k) => !env[k]?.trim());
 }

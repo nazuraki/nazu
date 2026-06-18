@@ -166,6 +166,36 @@ export const SECTIONS: SectionDef[] = [
 		],
 	},
 	{
+		key: 'discord',
+		label: 'Discord ingest bot',
+		description:
+			'Watches Discord channels for YouTube/TikTok links and ingests their transcripts (#34). Runs as an optional sidecar — also start it under Optional services. The bot needs the Message Content privileged intent enabled in the Discord developer portal.',
+		fields: [
+			{
+				key: 'enabled',
+				label: 'Enable Discord bot',
+				type: 'boolean',
+				default: false,
+				help: 'Off by default. The sidecar polls this flag and connects/disconnects without a restart.',
+			},
+			{ key: 'botToken', label: 'Bot token', type: 'secret' },
+			{
+				key: 'channels',
+				label: 'Watched channel IDs',
+				type: 'list',
+				default: [],
+				help: 'Discord channel IDs to watch. Empty watches none.',
+			},
+			{
+				key: 'statusReactions',
+				label: 'React with status',
+				type: 'boolean',
+				default: true,
+				help: 'React ✅/♻️/⚠️ on messages to confirm ingest status.',
+			},
+		],
+	},
+	{
 		key: 'dashboard',
 		label: 'Dashboard',
 		description: 'Behavior of the dashboard views.',

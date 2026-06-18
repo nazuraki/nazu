@@ -7,3 +7,4 @@ supersede rather than delete.
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-graphiti-temporal-recall.md) | Graphiti temporal-knowledge graph for semantic recall | Accepted |
+| [0002](0002-discord-transcript-ingest.md) | Discord bot as an automated transcript-ingest source | Accepted |

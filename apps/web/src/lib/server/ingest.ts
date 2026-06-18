@@ -142,3 +142,21 @@ export function normalizeTags(tags: string | string[] | undefined): string[] {
 	const raw = Array.isArray(tags) ? tags : (tags ?? '').split(',');
 	return [...new Set(raw.map((t) => t.trim().toLowerCase()).filter(Boolean))];
 }
+
+/** Find the oldest KB entry whose source document came from `sourceUrl`, if any.
+ *  Lets automated ingest paths (e.g. the Discord bot) skip re-storing a link
+ *  that's already been ingested. */
+export async function findEntryBySourceUrl(
+	sourceUrl: string,
+): Promise<{ id: string; title: string } | null> {
+	const sql = getSql();
+	const rows = await sql<{ id: string; title: string }[]>`
+		SELECT k.id, k.title
+		FROM kb_index k
+		JOIN documents d ON d.id = k.document_id
+		WHERE d.source_url = ${sourceUrl}
+		ORDER BY k.created_at
+		LIMIT 1
+	`;
+	return rows[0] ?? null;
+}

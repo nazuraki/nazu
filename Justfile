@@ -18,12 +18,12 @@ dev:
 build:
     pnpm --filter @nazu/web build
 
-check: typecheck lint test-unit
+check: typecheck lint test-unit discord-check discord-test
 
 # Run exactly what CI runs (.github/workflows/ci.yml): the core suite (lint,
 # typecheck, unit, functional) then the gated optional pieces. Needs Docker. Use
 # `check` for the fast inner loop; use this before pushing to mirror CI.
-ci: lint typecheck test-unit test-functional test-optional
+ci: lint typecheck test-unit discord-check discord-test test-functional test-optional
 
 # Type-check the web app
 typecheck:
@@ -40,6 +40,16 @@ test-unit:
 # Lint and auto-fix the web app
 fix:
     pnpm --filter @nazu/web lint:fix
+
+# ─── Discord ingest sidecar ───────────────────────────────────────
+
+# Type-check the Discord ingest sidecar
+discord-check:
+    pnpm --filter @nazu/discord check
+
+# Run the Discord sidecar unit tests (pure logic — no live gateway/network)
+discord-test:
+    pnpm --filter @nazu/discord test
 
 # ─── Infrastructure ───────────────────────────────────────────────
 
@@ -118,6 +128,9 @@ graphiti-test:
 test-optional: graphiti-test
     docker compose -p nazu-optional --profile graph up -d --build --wait --no-deps graphiti || { docker compose -p nazu-optional --profile graph logs graphiti; docker compose -p nazu-optional --profile graph down -v --remove-orphans; exit 1; }
     docker compose -p nazu-optional --profile graph down -v --remove-orphans
+    # The Discord sidecar has no live deps to boot against in CI; just prove the
+    # image builds (its pure logic is covered by discord-test).
+    docker compose -p nazu-optional --profile discord build discord
 
 # ─── Code graph indexer ───────────────────────────────────────────
 
