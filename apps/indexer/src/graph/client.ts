@@ -8,7 +8,18 @@ function getClient(): Redis {
 		const colonIdx = addr.lastIndexOf(':');
 		const host = addr.slice(0, colonIdx);
 		const port = parseInt(addr.slice(colonIdx + 1), 10);
-		_client = new Redis({ host, port, enableOfflineQueue: false });
+		_client = new Redis({
+			host,
+			port,
+			// Offline queue ON (ioredis default): buffer commands issued before the
+			// connection is `ready`, so the first tool call on a cold MCP start waits
+			// for the socket instead of rejecting with "Stream isn't writeable".
+			connectTimeout: 5000,
+			maxRetriesPerRequest: 3,
+			// Bound reconnection so a genuinely-down FalkorDB fails in finite time
+			// (queued commands reject) rather than hanging forever.
+			retryStrategy: (times) => (times > 5 ? null : Math.min(times * 200, 1000)),
+		});
 		// Prevent Node.js from crashing on connection errors — they surface through rejected promises
 		_client.on('error', () => {});
 	}
