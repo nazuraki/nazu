@@ -11,7 +11,18 @@ function client(): Redis {
 		const colonIdx = addr.lastIndexOf(':');
 		const host = addr.slice(0, colonIdx);
 		const port = parseInt(addr.slice(colonIdx + 1), 10);
-		_client = new Redis({ host, port, lazyConnect: true, enableOfflineQueue: false });
+			// Offline queue ON (ioredis default): buffer commands issued before the
+			// connection is `ready` so the first query after boot waits for the socket
+			// instead of rejecting with "Stream isn't writeable". Bounded reconnect/
+			// timeout keeps a genuinely-down FalkorDB failing in finite time.
+			_client = new Redis({
+				host,
+				port,
+				lazyConnect: true,
+				connectTimeout: 5000,
+				maxRetriesPerRequest: 3,
+				retryStrategy: (times) => (times > 5 ? null : Math.min(times * 200, 1000))
+			});
 	}
 	return _client;
 }
