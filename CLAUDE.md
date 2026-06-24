@@ -84,6 +84,12 @@ Repo layout:
   (`lib/server/graphiti.ts`) adds an episode per ingested document (best-effort,
   non-fatal) and augments FTS recall with graph hits in `librarian.ts`. Gated by
   the `graph` setting, off by default. See [ADR 0001](docs/adr/0001-graphiti-temporal-recall.md).
+- **Assistant (RAG chat):** the `/nazu` page is a chat surface. `POST /api/nazu/chat`
+  streams a grounded answer (SSE) via `lib/server/assistant.ts`, which retrieves KB
+  context with `librarian.search()`, hands it to Claude as numbered citable sources,
+  and streams the reply. **This is the one place nazu calls an LLM to answer the
+  user** — see the gotcha below and [ADR 0003](docs/adr/0003-rag-chat-app-calls-llm.md).
+  Model is `ai.chatModel` (default `claude-sonnet-4-6`); needs `ai.anthropicApiKey`.
 - **Memory MCP:** `apps/mcp` is a thin stdio MCP over the REST API. Keep it thin —
   all logic stays in `apps/web` server code.
 - **Data model:** `tasks`, `kb_index`, `documents`, `document_chunks`,
@@ -108,5 +114,9 @@ Repo layout:
 - The Memory MCP uses **stdio** transport — it is a client-side process (e.g. run
   by Claude Code), not a long-running HTTP service, and does **not** belong in
   docker-compose.
-- The AI reasoning layer (Claude) is external — nazu only stores/retrieves data;
-  it does not call LLMs for inference (excerpt generation on ingest aside).
+- nazu **does** call an LLM (Claude) for the `/nazu` RAG chat — the app retrieves
+  KB context and asks Claude to answer from it ([ADR 0003](docs/adr/0003-rag-chat-app-calls-llm.md)).
+  This reverses the original "reasoning layer is external" stance. Beyond chat, LLM
+  use stays to write-path augmentation: excerpt generation on ingest and graph
+  entity extraction (#53). nazu is not otherwise an inference engine — storage and
+  retrieval remain the core.
