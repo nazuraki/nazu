@@ -134,8 +134,17 @@ export const SECTIONS: SectionDef[] = [
 	{
 		key: 'ai',
 		label: 'AI',
-		description: 'Credentials for AI-assisted ingestion.',
-		fields: [{ key: 'anthropicApiKey', label: 'Anthropic API key', type: 'secret' }],
+		description: 'Credentials and model for AI-assisted ingestion and the /nazu chat.',
+		fields: [
+			{ key: 'anthropicApiKey', label: 'Anthropic API key', type: 'secret' },
+			{
+				key: 'chatModel',
+				label: 'Chat model',
+				type: 'string',
+				default: 'claude-sonnet-4-6',
+				help: 'Anthropic model used to answer /nazu chat questions (RAG over the KB).',
+			},
+		],
 	},
 	{
 		key: 'graph',
