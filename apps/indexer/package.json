@@ -1,6 +1,6 @@
 {
   "name": "@nazu/indexer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "bin": {
@@ -13,7 +13,7 @@
     "mcp": "node dist/mcp.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "fast-glob": "^3.3.3",
     "ioredis": "^5.6.1",
     "ts-morph": "^24.0.0",
