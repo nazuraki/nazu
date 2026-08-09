@@ -10,9 +10,8 @@
  *   NAZU_API_KEY  static key sent as `Authorization: Bearer <key>` (required
  *                 unless nazu is in zero-conf open mode on the LAN)
  */
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { McpServer, fromJsonSchema, type CallToolResult } from '@modelcontextprotocol/server';
+import { serveStdio } from '@modelcontextprotocol/server/stdio';
 
 const NAZU_URL = (process.env.NAZU_URL ?? 'http://localhost:8420').replace(/\/+$/, '');
 const API_KEY = process.env.NAZU_API_KEY?.trim() ?? '';
@@ -70,82 +69,95 @@ async function remember(input: RememberInput): Promise<string> {
 
 // ── MCP wiring ────────────────────────────────────────────────────────────────
 
-const server = new Server(
-	{ name: 'nazu-memory', version: '0.1.0' },
-	{ capabilities: { tools: {} } }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-	tools: [
-		{
-			name: 'recall',
-			description:
-				"Search nazu's knowledge base for previously stored facts, notes, decisions, and documents. Use this to retrieve what you (or the user) have saved before.",
-			inputSchema: {
-				type: 'object',
-				properties: {
-					query: { type: 'string', description: 'Full-text search query' },
-					limit: { type: 'number', description: 'Max results (default 10)' }
-				},
-				required: ['query']
-			}
-		},
-		{
-			name: 'remember',
-			description:
-				"Store a fact, note, decision, or document into nazu's knowledge base so it can be recalled in future sessions. Title is optional — it is derived from the content when omitted.",
-			inputSchema: {
-				type: 'object',
-				properties: {
-					content: { type: 'string', description: 'The knowledge to store (markdown ok)' },
-					title: { type: 'string', description: 'Optional title; derived from content if omitted' },
-					type: { type: 'string', description: "Entry kind, e.g. 'note', 'fact', 'decision', 'article' (default 'note')" },
-					tags: { type: 'array', items: { type: 'string' }, description: 'Optional tags for later discovery' },
-					source_url: { type: 'string', description: 'Optional source URL' }
-				},
-				required: ['content']
-			}
-		}
-	]
-}));
-
-function str(v: unknown): string {
-	return v == null ? '' : String(v);
+interface RecallArgs {
+	query: string;
+	limit?: number;
 }
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-	const { name, arguments: args } = request.params;
-	try {
-		switch (name) {
-			case 'recall': {
-				const query = str(args?.query).trim();
-				if (!query) throw new Error('query is required');
-				const limit = typeof args?.limit === 'number' && args.limit > 0 ? Math.floor(args.limit) : 10;
-				return { content: [{ type: 'text', text: await recall(query, limit) }] };
-			}
-			case 'remember': {
-				const content = str(args?.content).trim();
-				if (!content) throw new Error('content is required');
-				const tags = Array.isArray(args?.tags) ? (args.tags as unknown[]).map(str).filter(Boolean) : undefined;
-				const text = await remember({
-					content,
-					title: args?.title ? str(args.title) : undefined,
-					type: args?.type ? str(args.type) : undefined,
-					tags,
-					source_url: args?.source_url ? str(args.source_url) : undefined
-				});
-				return { content: [{ type: 'text', text }] };
-			}
-			default:
-				return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
-		}
-	} catch (err) {
-		return {
-			content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-			isError: true
-		};
-	}
+const recallSchema = fromJsonSchema<RecallArgs>({
+	type: 'object',
+	properties: {
+		query: { type: 'string', description: 'Full-text search query' },
+		limit: { type: 'number', description: 'Max results (default 10)' }
+	},
+	required: ['query']
 });
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+const rememberSchema = fromJsonSchema<RememberInput>({
+	type: 'object',
+	properties: {
+		content: { type: 'string', description: 'The knowledge to store (markdown ok)' },
+		title: { type: 'string', description: 'Optional title; derived from content if omitted' },
+		type: { type: 'string', description: "Entry kind, e.g. 'note', 'fact', 'decision', 'article' (default 'note')" },
+		tags: { type: 'array', items: { type: 'string' }, description: 'Optional tags for later discovery' },
+		source_url: { type: 'string', description: 'Optional source URL' }
+	},
+	required: ['content']
+});
+
+function textResult(text: string): CallToolResult {
+	return { content: [{ type: 'text', text }] };
+}
+
+function errorResult(err: unknown): CallToolResult {
+	return {
+		content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
+		isError: true
+	};
+}
+
+function buildServer(): McpServer {
+	const server = new McpServer({ name: 'nazu-memory', version: '0.2.0' });
+
+	server.registerTool(
+		'recall',
+		{
+			description:
+				"Search nazu's knowledge base for previously stored facts, notes, decisions, and documents. Use this to retrieve what you (or the user) have saved before.",
+			inputSchema: recallSchema
+		},
+		async ({ query, limit }) => {
+			try {
+				const q = query.trim();
+				if (!q) throw new Error('query is required');
+				const n = typeof limit === 'number' && limit > 0 ? Math.floor(limit) : 10;
+				return textResult(await recall(q, n));
+			} catch (err) {
+				return errorResult(err);
+			}
+		}
+	);
+
+	server.registerTool(
+		'remember',
+		{
+			description:
+				"Store a fact, note, decision, or document into nazu's knowledge base so it can be recalled in future sessions. Title is optional — it is derived from the content when omitted.",
+			inputSchema: rememberSchema
+		},
+		async ({ content, title, type, tags, source_url }) => {
+			try {
+				const body = content.trim();
+				if (!body) throw new Error('content is required');
+				return textResult(
+					await remember({
+						content: body,
+						title,
+						type,
+						tags: tags?.filter(Boolean),
+						source_url
+					})
+				);
+			} catch (err) {
+				return errorResult(err);
+			}
+		}
+	);
+
+	return server;
+}
+
+const handle = serveStdio(() => buildServer());
+process.on('SIGINT', () => {
+	void handle.close();
+});

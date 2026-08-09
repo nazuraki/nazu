@@ -5,6 +5,10 @@ an AI agent (Claude Code, the Gemini mobile surface, etc.) a durable **store and
 recall** loop over nazu's knowledge base. It wraps nazu's REST API — no direct DB
 access — so it works against a nazu running anywhere reachable.
 
+Built on the v2 TypeScript SDK (`@modelcontextprotocol/server`); `serveStdio`
+negotiates per connection, serving both the 2026-07-28 spec revision and
+legacy-era (2025-xx) clients.
+
 | Tool | Wraps | Purpose |
 |---|---|---|
 | `recall` | `GET /api/search` | Full-text search the KB for stored knowledge |
