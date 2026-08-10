@@ -31,6 +31,12 @@ jobs:
         run: pnpm --filter @nazu/discord run check
       - name: Discord sidecar unit tests
         run: pnpm --filter @nazu/discord run test
+      - name: Backplane lint
+        run: pnpm --filter @nazu/backplane run lint
+      - name: Backplane type-check
+        run: pnpm --filter @nazu/backplane run check
+      - name: Backplane unit tests
+        run: pnpm --filter @nazu/backplane run test
 
   test-functional:
     runs-on: ubuntu-latest
