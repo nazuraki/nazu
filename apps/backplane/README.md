@@ -49,9 +49,25 @@ UI at `http://localhost:8430` (loopback-only), Prometheus at `:9090`, Grafana
 at `:3001` (deep-dive/ad-hoc; inline UI charts come straight from Prometheus's
 `query_range` through the API).
 
-Env (all optional): `BACKPLANE_API_KEY` (bearer auth; open when unset),
+Env (all optional): `BACKPLANE_API_KEY` (static bearer key for agents/MCP),
 `BACKPLANE_POLL_INTERVAL` (digest poll seconds, default 300, `0` = off),
 `PROMETHEUS_URL`, `PORT`, `BACKPLANE_DATA_DIR`.
+
+### Auth
+
+Zero-conf open by default. Two independent gates; configuring either one
+locks down every `/api/*` route (except health and the login endpoints):
+
+- **Local admin account** — set in the UI under **Settings** (stored
+  scrypt-hashed in the registry DB). Browsers log in via a session cookie
+  (HttpOnly/Secure, 30 days, survives restarts); scripts can send an HTTP
+  `Basic` header over HTTPS. Changing or clearing the account revokes all
+  sessions.
+- **`BACKPLANE_API_KEY`** — static bearer key for non-interactive clients
+  (MCP, curl); the UI can also store it in localStorage.
+
+Use with the tls profile — cookies are `Secure`-flagged and Basic/bearer
+credentials shouldn't travel over plain LAN HTTP.
 
 ### HTTPS (tls profile)
 
@@ -107,6 +123,9 @@ the host remains equivalent.
 | Route | What |
 |---|---|
 | `GET /api/health` | liveness (unauthenticated) |
+| `GET /api/auth/status` | auth modes + whether this request authenticates (unauthenticated) |
+| `POST /api/auth/login` / `logout` | session cookie mint / revoke (unauthenticated) |
+| `PUT`/`DELETE /api/auth/account` | set/replace or remove the local admin account |
 | `GET`/`POST /api/projects`, `GET`/`DELETE /api/projects/:name` | registry CRUD (POST upserts) |
 | `GET /api/projects/:name/status` | compose services state |
 | `GET /api/projects/:name/updates` | remote vs running image digests |

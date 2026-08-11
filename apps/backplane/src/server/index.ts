@@ -4,6 +4,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 
 import { createApp } from './app.js';
+import { AuthService } from './lib/auth.js';
 import { Deployer } from './lib/deployer.js';
 import * as docker from './lib/docker.js';
 import { createPromClient } from './lib/prometheus.js';
@@ -19,6 +20,7 @@ const API_KEY = process.env.BACKPLANE_API_KEY?.trim() || undefined;
 const POLL_INTERVAL_MS = Number(process.env.BACKPLANE_POLL_INTERVAL ?? 300) * 1000;
 
 const registry = new Registry(join(DATA_DIR, 'backplane.db'));
+const auth = new AuthService(registry, API_KEY);
 const target = new ComposeTarget({ workdirRoot: join(DATA_DIR, 'workdirs') });
 const deployer = new Deployer(registry, target);
 
@@ -30,7 +32,7 @@ const app = createApp({
 	self: new SelfUpdater(),
 	prom: createPromClient(PROMETHEUS_URL),
 	checkProjectUpdates: async (images) => checkImages(images, await docker.runningImageDigests()),
-	apiKey: API_KEY,
+	auth,
 });
 
 // Static SPA (built by vite into dist/ui), with an index.html fallback for
@@ -58,5 +60,6 @@ if (POLL_INTERVAL_MS > 0) {
 }
 
 serve({ fetch: app.fetch, port: PORT }, (info) => {
-	console.log(`backplane listening on :${info.port} (auth: ${API_KEY ? 'api-key' : 'open'})`);
+	const modes = [API_KEY && 'api-key', auth.localConfigured() && 'local'].filter(Boolean);
+	console.log(`backplane listening on :${info.port} (auth: ${modes.join('+') || 'open'})`);
 });

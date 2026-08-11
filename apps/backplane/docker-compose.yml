@@ -18,7 +18,8 @@ services:
     ports:
       - "127.0.0.1:8430:8430"
     environment:
-      # Static bearer key for the API/MCP/UI. Open (no auth) when empty.
+      # Static bearer key for agents/MCP. The API is open only when this is
+      # empty AND no local admin account is set in the UI (Settings).
       BACKPLANE_API_KEY: ${BACKPLANE_API_KEY:-}
       # Image digest poll interval in seconds; 0 disables the poller.
       BACKPLANE_POLL_INTERVAL: ${BACKPLANE_POLL_INTERVAL:-300}

@@ -34,6 +34,44 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 	return res.json() as Promise<T>;
 }
 
+export interface AuthStatus {
+	localAuth: boolean;
+	apiKeyAuth: boolean;
+	authenticated: boolean;
+	method: 'api-key' | 'session' | 'basic' | 'open' | null;
+	username: string | null;
+}
+
+const JSON_HEADERS = { 'content-type': 'application/json' };
+
+export async function fetchAuthStatus(): Promise<AuthStatus> {
+	return api<AuthStatus>('/api/auth/status');
+}
+
+export async function login(username: string, password: string): Promise<void> {
+	await api('/api/auth/login', {
+		method: 'POST',
+		headers: JSON_HEADERS,
+		body: JSON.stringify({ username, password }),
+	});
+}
+
+export async function logout(): Promise<void> {
+	await api('/api/auth/logout', { method: 'POST' });
+}
+
+export async function saveAccount(username: string, password: string): Promise<void> {
+	await api('/api/auth/account', {
+		method: 'PUT',
+		headers: JSON_HEADERS,
+		body: JSON.stringify({ username, password }),
+	});
+}
+
+export async function clearAccount(): Promise<void> {
+	await api('/api/auth/account', { method: 'DELETE' });
+}
+
 export interface Project {
 	name: string;
 	gitUrl: string;

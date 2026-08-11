@@ -101,7 +101,66 @@ export class Registry {
 				finished_at TEXT
 			);
 			CREATE INDEX IF NOT EXISTS deploys_project ON deploys (project, id DESC);
+			CREATE TABLE IF NOT EXISTS settings (
+				key TEXT PRIMARY KEY,
+				value TEXT NOT NULL
+			);
+			CREATE TABLE IF NOT EXISTS sessions (
+				token_hash TEXT PRIMARY KEY,
+				username TEXT NOT NULL,
+				created_at TEXT NOT NULL,
+				expires_at TEXT NOT NULL
+			);
 		`);
+	}
+
+	// ── Settings (generic key/value; used for local auth credentials) ─────────
+
+	getSetting(key: string): string | undefined {
+		const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
+			| { value: string }
+			| undefined;
+		return row?.value;
+	}
+
+	setSetting(key: string, value: string): void {
+		this.db
+			.prepare(
+				`INSERT INTO settings (key, value) VALUES (?, ?)
+				 ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+			)
+			.run(key, value);
+	}
+
+	deleteSetting(key: string): void {
+		this.db.prepare('DELETE FROM settings WHERE key = ?').run(key);
+	}
+
+	// ── Sessions (browser login cookies; token stored hashed) ─────────────────
+
+	insertSession(tokenHash: string, username: string, expiresAt: string): void {
+		this.db
+			.prepare('INSERT INTO sessions (token_hash, username, created_at, expires_at) VALUES (?, ?, ?, ?)')
+			.run(tokenHash, username, new Date().toISOString(), expiresAt);
+	}
+
+	getSession(tokenHash: string): { username: string; expiresAt: string } | undefined {
+		const row = this.db
+			.prepare('SELECT username, expires_at FROM sessions WHERE token_hash = ?')
+			.get(tokenHash) as { username: string; expires_at: string } | undefined;
+		return row ? { username: row.username, expiresAt: row.expires_at } : undefined;
+	}
+
+	deleteSession(tokenHash: string): void {
+		this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
+	}
+
+	deleteAllSessions(): void {
+		this.db.prepare('DELETE FROM sessions').run();
+	}
+
+	deleteExpiredSessions(): void {
+		this.db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString());
 	}
 
 	listProjects(): Project[] {
