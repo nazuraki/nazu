@@ -25,12 +25,17 @@ nazu is a personal second-brain and home control panel. It consists of:
 
 ## Running
 
-### Prerequisites
+### One-line install (needs only Docker)
 
-- Docker + Docker Compose
-- A `.env` file (copy `.env.example` and fill in values)
+```sh
+curl -fsSL https://raw.githubusercontent.com/nazuraki/nazu/main/install.sh | sh
+```
 
-### Start
+This downloads the compose file, pulls the published images, starts the core stack, and prints the URL. It prompts for the install directory (Enter accepts `~/nazu`); non-interactive runs take the default — seed it with `NAZU_HOME`. No configuration files: everything (auth, GitHub, the Anthropic key, optional services) is set up in the in-app **Settings** UI and stored in the database. Re-running the installer updates to the latest images. The installer overwrites `docker-compose.yml` on each run — put customizations in `docker-compose.override.yml`.
+
+### From a checkout
+
+Prerequisites: Docker + Docker Compose. No `.env` needed (zero-conf) — `.env.example` documents the optional host-coupled overrides.
 
 ```sh
 just up
