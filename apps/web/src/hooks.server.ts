@@ -9,6 +9,7 @@ import {
 	localUser,
 } from '$lib/auth';
 import { validateApiKey, parseApiKeys } from '$lib/server/api-key';
+import { validateLocalSession, LOCAL_SESSION_COOKIE } from '$lib/server/local-session';
 import { featureForPath } from '$lib/config/settings';
 import { isFeatureEnabled } from '$lib/server/settings';
 import { runMigrations } from '$lib/server/migrate';
@@ -54,11 +55,17 @@ const authFlow: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// 3. Local admin credentials via HTTP Basic (zero-dependency LAN gate).
+	// 3. Local admin credentials: HTTP Basic header (curl, scripts) or the
+	//    signed session cookie issued by the /login form.
 	if (await localAuthConfigured()) {
 		const basicUser = await validateBasicAuth(event.request);
 		if (basicUser) {
 			event.locals.user = basicUser;
+			return resolve(event);
+		}
+		const sessionUser = await validateLocalSession(event.cookies.get(LOCAL_SESSION_COOKIE));
+		if (sessionUser) {
+			event.locals.user = sessionUser;
 			return resolve(event);
 		}
 	}
@@ -66,20 +73,23 @@ const authFlow: Handle = async ({ event, resolve }) => {
 	// 4. Request is unauthenticated. Which gate applies depends on what's
 	//    configured. CF Access only protects the tunnel, so it never blocks LAN
 	//    access on its own — only OAuth or local credentials gate the LAN.
-	if (await oauthConfigured()) {
-		// Interactive login UI takes precedence (works with OAuth callbacks).
+	if ((await oauthConfigured()) || (await localAuthConfigured())) {
 		const { pathname } = event.url;
-		if (!pathname.startsWith('/login') && !pathname.startsWith('/auth')) {
+		// The login page and OAuth callback routes must stay reachable.
+		if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
+			event.locals.user = null;
+			return resolve(event);
+		}
+		// Browsers get the login page; non-HTML clients get a 401 (with a Basic
+		// challenge when local credentials can satisfy it).
+		if (event.request.headers.get('accept')?.includes('text/html')) {
 			return Response.redirect(new URL('/login', event.url));
 		}
-		event.locals.user = null;
-		return resolve(event);
-	}
-	if (await localAuthConfigured()) {
-		// No valid Basic credentials — challenge.
 		return new Response('Authentication required', {
 			status: 401,
-			headers: { 'WWW-Authenticate': 'Basic realm="nazu", charset="UTF-8"' },
+			headers: (await localAuthConfigured())
+				? { 'WWW-Authenticate': 'Basic realm="nazu", charset="UTF-8"' }
+				: {},
 		});
 	}
 
