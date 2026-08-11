@@ -1,0 +1,69 @@
+# The backplane's own compose project — deliberately SEPARATE from any stack it
+# manages (it can't be updated by the thing it updates). Run from apps/backplane:
+#
+#   docker compose -p backplane up -d --build
+#
+# Self-update is the one manual step: re-run the command above after pulling.
+services:
+  backplane:
+    build:
+      context: ../..
+      dockerfile: apps/backplane/Dockerfile
+    ports:
+      - "8430:8430"
+    environment:
+      # Static bearer key for the API/MCP/UI. Open (no auth) when empty.
+      BACKPLANE_API_KEY: ${BACKPLANE_API_KEY:-}
+      # Image digest poll interval in seconds; 0 disables the poller.
+      BACKPLANE_POLL_INTERVAL: ${BACKPLANE_POLL_INTERVAL:-300}
+      PROMETHEUS_URL: http://prometheus:9090
+    volumes:
+      # Read-write: the backplane starts/stops containers in target stacks.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Registry DB + per-project git checkouts.
+      - backplane_data:/data
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    # Reach targets published on the host (e.g. nazu's caddy metrics port),
+    # which live in other compose projects/networks. No-op on Docker Desktop.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    ports:
+      - "3001:3000"
+    environment:
+      # Internal-only dev server; keep the default admin/admin login flow.
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+volumes:
+  backplane_data:
+  prometheus_data:
+  grafana_data:

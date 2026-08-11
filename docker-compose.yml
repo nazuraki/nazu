@@ -14,6 +14,8 @@ services:
     profiles: ["tls"]
     ports:
       - "443:443"
+      # Prometheus metrics (plain HTTP) — scraped by the backplane stack (#75).
+      - "2020:2020"
     environment:
       NAZU_HOSTNAME: ${NAZU_HOSTNAME:-}
       NAZU_TLS_CERT: ${NAZU_TLS_CERT:-}

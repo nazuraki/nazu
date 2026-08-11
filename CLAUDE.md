@@ -30,6 +30,7 @@ Repo layout:
 | `apps/indexer/` | Code-graph indexer (TS + Rust + Go binaries) + the `code-graph` MCP. Builds per-project graphs in FalkorDB. |
 | `apps/graphiti/` | **Graphiti sidecar** — a thin Python (FastAPI) wrapper over `graphiti-core` for temporal-knowledge recall (#53). Owns no config; the web app passes credentials per request. Off by default; a profile-gated optional service (`profiles: ["graph"]`). |
 | `apps/discord/` | **Discord ingest sidecar** — a thin TypeScript bot (#34) that watches channels for YouTube/TikTok links and ingests transcripts via the web app's `POST /api/ingest/url`. Owns no logic; pulls config from `GET /api/discord/config`. Off by default; a profile-gated optional service (`profiles: ["discord"]`). See [ADR 0002](docs/adr/0002-discord-transcript-ingest.md). |
+| `apps/backplane/` | **Deploy backplane** (#75) — control plane for the dev server: project registry, git-driven `docker compose` deploys, image-update polling, container status/logs, Prometheus metrics proxy. Hono API + React SPA + stdio MCP as equal clients. Runs as its **own compose project** (`just backplane-up`) with Prometheus + cAdvisor + Grafana — never inside a stack it manages. |
 | `infra/` | DB migrations, Caddy/Cloudflare config, git hooks. |
 
 > **Partially built:** the Graphiti temporal knowledge graph (semantic/relationship
@@ -92,6 +93,11 @@ Repo layout:
   Model is `ai.chatModel` (default `claude-sonnet-4-6`); needs `ai.anthropicApiKey`.
 - **Memory MCP:** `apps/mcp` is a thin stdio MCP over the REST API. Keep it thin —
   all logic stays in `apps/web` server code.
+- **Backplane:** `apps/backplane` is API-first — all logic in `src/server/lib/`,
+  Hono routes only translate HTTP; the React UI and the backplane MCP are equal
+  REST clients. Registry state is SQLite via `node:sqlite` (no DB service).
+  Caddy publishes Prometheus metrics on host port 2020 (plain HTTP, `tls`
+  profile) for the backplane's Prometheus to scrape.
 - **Data model:** `tasks`, `kb_index`, `documents`, `document_chunks`,
   `graph_episodes`, `app_settings`, `service_config` (+ `schema_migrations`).
   `document_chunks` holds passage-sized slices of a document body (one FTS

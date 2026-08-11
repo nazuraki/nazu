@@ -25,9 +25,23 @@ interface OptionalService {
 	prepare?: () => Promise<void>;
 }
 
-const CADDYFILE = `{$NAZU_HOSTNAME} {
+// The plain-HTTP :2020 listener serves Prometheus metrics (request rate/latency)
+// for the backplane's observability stack (#75), which scrapes it via the host
+// port published in docker-compose.yml. The `servers metrics` global enables
+// per-request metrics collection.
+const CADDYFILE = `{
+	servers {
+		metrics
+	}
+}
+
+{$NAZU_HOSTNAME} {
 	tls {$NAZU_TLS_CERT} {$NAZU_TLS_KEY}
 	reverse_proxy web:3000
+}
+
+http://:2020 {
+	metrics /metrics
 }
 `;
 

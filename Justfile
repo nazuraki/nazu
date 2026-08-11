@@ -18,12 +18,12 @@ dev:
 build:
     pnpm --filter @nazu/web build
 
-check: typecheck lint test-unit discord-check discord-test
+check: typecheck lint test-unit discord-check discord-test backplane-check backplane-lint backplane-test
 
 # Run exactly what CI runs (.github/workflows/ci.yml): the core suite (lint,
 # typecheck, unit, functional) then the gated optional pieces. Needs Docker. Use
 # `check` for the fast inner loop; use this before pushing to mirror CI.
-ci: lint typecheck test-unit discord-check discord-test test-functional test-optional
+ci: lint typecheck test-unit discord-check discord-test backplane-check backplane-lint backplane-test test-functional test-optional
 
 # Type-check the web app
 typecheck:
@@ -50,6 +50,28 @@ discord-check:
 # Run the Discord sidecar unit tests (pure logic — no live gateway/network)
 discord-test:
     pnpm --filter @nazu/discord test
+
+# ─── Backplane (deploy control plane, #75) ────────────────────────
+
+# Type-check the backplane (server + UI)
+backplane-check:
+    pnpm --filter @nazu/backplane check
+
+# Lint the backplane
+backplane-lint:
+    pnpm --filter @nazu/backplane lint
+
+# Run the backplane unit tests
+backplane-test:
+    pnpm --filter @nazu/backplane test
+
+# Build + start the backplane's own compose project (separate from nazu's stack)
+backplane-up:
+    docker compose -p backplane -f apps/backplane/docker-compose.yml up -d --build
+
+# Stop the backplane stack
+backplane-down:
+    docker compose -p backplane -f apps/backplane/docker-compose.yml down
 
 # ─── Infrastructure ───────────────────────────────────────────────
 
