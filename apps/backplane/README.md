@@ -24,6 +24,23 @@ socket and drives `docker compose` from outside.
 
 ## Running
 
+### One-line install (needs only Docker)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/nazuraki/nazu/main/apps/backplane/install.sh | sh
+```
+
+Downloads the compose + Prometheus/Grafana config files, pulls the published
+images, and starts the stack as compose project `backplane`. Prompts for the
+install directory (Enter accepts `~/nazu-backplane`); non-interactive runs take
+the default — seed it with `BACKPLANE_HOME`. Re-running updates to the latest
+images — this **is** the self-update path on a machine installed this way. The
+installer overwrites the downloaded files on each run — put customizations in
+`docker-compose.override.yml`; `.env` (`BACKPLANE_API_KEY`, poll interval) is
+never overwritten.
+
+### From a checkout (local dev)
+
 ```sh
 just backplane-up      # docker compose -p backplane -f apps/backplane/docker-compose.yml up -d --build
 ```

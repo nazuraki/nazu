@@ -138,7 +138,7 @@ The compose files declare both `image:` (these GHCR images) and `build:`. Plain 
 The server runs entirely from published images — no source checkouts:
 
 - **nazu stack** — deployed by the backplane, which keeps its own git workdir purely for the compose files and runs `docker compose pull && up -d`. Alternatively, `just update` does the same by hand.
-- **backplane stack** — self-update is manual by design: `just backplane-update` (pull + `up -d`).
+- **backplane stack** — self-update is manual by design: `just backplane-update` (pull + `up -d`) from a checkout, or re-run its one-line installer (`apps/backplane/install.sh`) on a machine installed that way.
 
 A former build checkout on the server can be deleted once both stacks are cut over.
 
