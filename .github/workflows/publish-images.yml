@@ -1,7 +1,6 @@
-# Publishes container images for the server-deployable apps to GHCR (#72).
+# Publishes container images for the server-deployable apps to GHCR.
 # Runs on every push to main (`latest` + `sha-<short>` tags) and on version
-# tags (`vX.Y.Z` → semver tags). Prerequisite for running the dev server from
-# published images instead of source checkouts.
+# tags (`vX.Y.Z` → semver tags).
 name: Publish images
 
 on:
