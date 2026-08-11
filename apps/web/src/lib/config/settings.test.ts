@@ -19,7 +19,7 @@ describe('featureForPath', () => {
 	});
 
 	it('matches gated API routes', () => {
-		expect(featureForPath('/api/docker')?.key).toBe('dashboard');
+		expect(featureForPath('/api/repos')?.key).toBe('dashboard');
 		expect(featureForPath('/api/ingest')?.key).toBe('ingest');
 	});
 
@@ -60,7 +60,6 @@ describe('section schema', () => {
 		const dashboard = getSectionDef('dashboard')!;
 		const defaults = sectionDefaults(dashboard);
 		expect(defaults.stewardMonthlyBudget).toBe(50);
-		expect(defaults.dockerContainers).toEqual([]);
 		expect(defaults.statusWorkflow).toBe('ci.yml');
 		expect(defaults.pagesWorkflows).toEqual([]);
 		// Fields without a declared default are omitted.
