@@ -13,8 +13,10 @@ services:
     build:
       context: ../..
       dockerfile: apps/backplane/Dockerfile
+    # Loopback-only: plain HTTP stays available on the host for local dev, but
+    # LAN clients go through caddy (HTTPS on 8443, tls profile).
     ports:
-      - "8430:8430"
+      - "127.0.0.1:8430:8430"
     environment:
       # Static bearer key for the API/MCP/UI. Open (no auth) when empty.
       BACKPLANE_API_KEY: ${BACKPLANE_API_KEY:-}
@@ -29,6 +31,36 @@ services:
     restart: unless-stopped
     depends_on:
       - prometheus
+
+  # HTTPS front door for the UI/API (mirrors the nazu stack's tls profile).
+  # Certs are user-provided absolute host paths, mirrored into the container
+  # so the path is valid as-is. The :- defaults keep compose parseable when
+  # tls is unconfigured. Enable with COMPOSE_PROFILES=tls in .env.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["tls"]
+    ports:
+      - "8443:8443"
+    environment:
+      BACKPLANE_HOSTNAME: ${BACKPLANE_HOSTNAME:-}
+      BACKPLANE_TLS_CERT: ${BACKPLANE_TLS_CERT:-}
+      BACKPLANE_TLS_KEY: ${BACKPLANE_TLS_KEY:-}
+    command:
+      - sh
+      - -c
+      - |
+        : "$${BACKPLANE_HOSTNAME:?BACKPLANE_HOSTNAME is required when the tls profile is active}"
+        : "$${BACKPLANE_TLS_CERT:?BACKPLANE_TLS_CERT is required when the tls profile is active}"
+        : "$${BACKPLANE_TLS_KEY:?BACKPLANE_TLS_KEY is required when the tls profile is active}"
+        exec caddy run --config /config/Caddyfile --adapter caddyfile
+    volumes:
+      - ./caddy/Caddyfile:/config/Caddyfile:ro
+      - ${BACKPLANE_TLS_CERT:-/etc/ssl/backplane/cert.pem}:${BACKPLANE_TLS_CERT:-/etc/ssl/backplane/cert.pem}:ro
+      - ${BACKPLANE_TLS_KEY:-/etc/ssl/backplane/key.pem}:${BACKPLANE_TLS_KEY:-/etc/ssl/backplane/key.pem}:ro
+      - caddy_data:/data
+    restart: unless-stopped
+    depends_on:
+      - backplane
 
   prometheus:
     image: prom/prometheus:latest
@@ -69,5 +101,6 @@ services:
 
 volumes:
   backplane_data:
+  caddy_data:
   prometheus_data:
   grafana_data:

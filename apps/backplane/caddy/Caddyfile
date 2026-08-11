@@ -1,0 +1,4 @@
+{$BACKPLANE_HOSTNAME}:8443 {
+	tls {$BACKPLANE_TLS_CERT} {$BACKPLANE_TLS_KEY}
+	reverse_proxy backplane:8430
+}

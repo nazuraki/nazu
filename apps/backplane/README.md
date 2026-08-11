@@ -45,13 +45,21 @@ never overwritten.
 just backplane-up      # docker compose -p backplane -f apps/backplane/docker-compose.yml up -d --build
 ```
 
-UI at `http://localhost:8430`, Prometheus at `:9090`, Grafana at `:3001`
-(deep-dive/ad-hoc; inline UI charts come straight from Prometheus's
+UI at `http://localhost:8430` (loopback-only), Prometheus at `:9090`, Grafana
+at `:3001` (deep-dive/ad-hoc; inline UI charts come straight from Prometheus's
 `query_range` through the API).
 
 Env (all optional): `BACKPLANE_API_KEY` (bearer auth; open when unset),
 `BACKPLANE_POLL_INTERVAL` (digest poll seconds, default 300, `0` = off),
 `PROMETHEUS_URL`, `PORT`, `BACKPLANE_DATA_DIR`.
+
+### HTTPS (tls profile)
+
+The plain-HTTP listener binds to localhost only; LAN access goes through a
+profile-gated caddy that serves `https://<host>:8443` (mirrors the nazu
+stack's tls profile). In `.env` set `BACKPLANE_HOSTNAME`, plus
+`BACKPLANE_TLS_CERT` / `BACKPLANE_TLS_KEY` (absolute host paths, e.g. from
+mkcert), and `COMPOSE_PROFILES=tls`, then `up -d` (or re-run the installer).
 
 **Self-update** is the known chicken-and-egg: after pulling new backplane code,
 re-run `just backplane-up` manually.

@@ -87,6 +87,7 @@ fetch() {
 }
 
 fetch docker-compose.yml
+fetch caddy/Caddyfile
 fetch prometheus/prometheus.yml
 fetch grafana/provisioning/datasources/prometheus.yml
 
@@ -103,6 +104,10 @@ echo "  Prometheus:  http://localhost:9090"
 echo
 echo "  The API is open (no auth) by default. To require a bearer key, set"
 echo "  BACKPLANE_API_KEY in $DIR/.env and re-run this installer."
+echo
+echo "  The UI/API listens on localhost only. For HTTPS on the LAN (port 8443),"
+echo "  set BACKPLANE_HOSTNAME, BACKPLANE_TLS_CERT, BACKPLANE_TLS_KEY, and"
+echo "  COMPOSE_PROFILES=tls in $DIR/.env and re-run this installer."
 echo
 echo "  Installed in: $DIR"
 echo "  Update with:  re-run this installer"
