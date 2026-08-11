@@ -14,6 +14,8 @@ services:
     profiles: ["tls"]
     ports:
       - "443:443"
+      # Caddy auto-redirects HTTP→HTTPS for the configured hostname.
+      - "80:80"
       # Prometheus metrics (plain HTTP) — scraped by the backplane stack (#75).
       - "2020:2020"
     environment:
@@ -62,10 +64,12 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    # Host port 8420 → container 3000. The internal port stays 3000 so caddy /
-    # cloudflared (same docker network) keep reaching `web:3000` unchanged.
+    # Loopback-only: plain HTTP stays available on the host for local dev, but
+    # LAN clients must use HTTPS (caddy :443, tls profile) or the CF tunnel.
+    # The internal port stays 3000 so caddy / cloudflared keep reaching
+    # `web:3000` unchanged.
     ports:
-      - "8420:3000"
+      - "127.0.0.1:8420:3000"
     env_file:
       - path: .env
         required: false
