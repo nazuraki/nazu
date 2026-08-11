@@ -1,11 +1,5 @@
 {
   "name": "nazu",
   "private": true,
-  "packageManager": "pnpm@10.33.2",
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"],
-    "overrides": {
-      "@vite-pwa/sveltekit>vite": "^6.0.0"
-    }
-  }
+  "packageManager": "pnpm@10.33.2"
 }
