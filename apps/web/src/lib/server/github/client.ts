@@ -1,4 +1,16 @@
 const DEFAULT_GITHUB_API = "https://api.github.com";
+
+/** Error from a non-ok GitHub response, carrying the HTTP status for callers
+ * that branch on it (e.g. 404 = branch protection absent, 403 = no admin). */
+export class GitHubApiError extends Error {
+	constructor(
+		public readonly status: number,
+		message: string
+	) {
+		super(message);
+		this.name = "GitHubApiError";
+	}
+}
 const GITHUB_HEADERS = {
 	Accept: "application/vnd.github+json",
 	"X-GitHub-Api-Version": "2022-11-28",
@@ -67,7 +79,7 @@ export class GitHubClient {
 
 		const res = await fetchWithRetry(url, { headers: this.headers(owner) });
 		if (!res.ok) {
-			throw new Error(`GitHub API ${res.status} on ${path}: ${await res.text()}`);
+			throw new GitHubApiError(res.status, `GitHub API ${res.status} on ${path}: ${await res.text()}`);
 		}
 		return res.json() as Promise<T>;
 	}
