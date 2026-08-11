@@ -16,6 +16,7 @@ export interface ComposeServiceStatus {
 
 export interface DeployTarget {
 	deploy(project: Project, log: LogFn): Promise<void>;
+	update(project: Project, log: LogFn): Promise<void>;
 	restart(project: Project, log: LogFn): Promise<void>;
 	status(project: Project): Promise<ComposeServiceStatus[]>;
 }
@@ -76,6 +77,18 @@ export class ComposeTarget implements DeployTarget {
 
 	async deploy(project: Project, log: LogFn): Promise<void> {
 		await this.syncRepo(project, log);
+		await this.pullAndUp(project, log);
+	}
+
+	/** Roll containers to the newest pushed images without git-syncing the checkout. */
+	async update(project: Project, log: LogFn): Promise<void> {
+		if (!existsSync(join(this.workdir(project), '.git'))) {
+			await this.syncRepo(project, log);
+		}
+		await this.pullAndUp(project, log);
+	}
+
+	private async pullAndUp(project: Project, log: LogFn): Promise<void> {
 		const cwd = this.workdir(project);
 		const compose = this.composeArgs(project);
 		log('# docker compose pull');

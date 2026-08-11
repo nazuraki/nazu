@@ -24,6 +24,7 @@ describe('Deployer', () => {
 				log('pulling');
 				log('up');
 			},
+			async update() {},
 			async restart() {},
 			async status() {
 				return [];
@@ -46,6 +47,7 @@ describe('Deployer', () => {
 			async deploy() {
 				throw new Error('compose exploded');
 			},
+			async update() {},
 			async restart() {},
 			async status() {
 				return [];
@@ -72,6 +74,9 @@ describe('Deployer', () => {
 				order.push('deploy-end');
 				throw new Error('boom');
 			},
+			async update() {
+				order.push('update');
+			},
 			async restart() {
 				order.push('restart');
 			},
@@ -82,11 +87,13 @@ describe('Deployer', () => {
 		const deployer = new Deployer(registry, target);
 
 		const first = deployer.start(project(), 'deploy', 'manual');
-		const second = deployer.start(project(), 'restart', 'manual');
+		const second = deployer.start(project(), 'update', 'manual');
+		const third = deployer.start(project(), 'restart', 'manual');
 		await deployer.settled('nazu');
 
-		expect(order).toEqual(['deploy-start', 'deploy-end', 'restart']);
+		expect(order).toEqual(['deploy-start', 'deploy-end', 'update', 'restart']);
 		expect(registry.getDeploy(first.id)?.status).toBe('failed');
 		expect(registry.getDeploy(second.id)?.status).toBe('succeeded');
+		expect(registry.getDeploy(third.id)?.status).toBe('succeeded');
 	});
 });

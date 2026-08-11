@@ -65,6 +65,35 @@ describe('ComposeTarget', () => {
 		);
 	});
 
+	it('update pulls and ups without touching git on an existing checkout', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'bp-'));
+		mkdirSync(join(root, 'nazu', '.git'), { recursive: true });
+		const exec = vi.fn(async () => ({ stdout: '', stderr: '' })) as unknown as ExecFn;
+		const target = new ComposeTarget({ workdirRoot: root, exec });
+
+		await target.update(project(), () => {});
+
+		const cmds = calls(exec as ReturnType<typeof vi.fn>);
+		expect(cmds).toEqual([
+			'docker compose -p nazu pull',
+			'docker compose -p nazu up -d --remove-orphans',
+		]);
+	});
+
+	it('update clones first when there is no checkout yet', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'bp-'));
+		const exec = vi.fn(async () => ({ stdout: '', stderr: '' })) as unknown as ExecFn;
+		const target = new ComposeTarget({ workdirRoot: root, exec });
+
+		await target.update(project(), () => {});
+
+		const cmds = calls(exec as ReturnType<typeof vi.fn>);
+		expect(cmds[0]).toBe(
+			`git clone --branch main --single-branch https://github.com/nazuraki/nazu.git ${join(root, 'nazu')}`,
+		);
+		expect(cmds[1]).toBe('docker compose -p nazu pull');
+	});
+
 	it('status returns [] when the project was never synced', async () => {
 		const root = mkdtempSync(join(tmpdir(), 'bp-'));
 		const exec = vi.fn() as unknown as ExecFn;
