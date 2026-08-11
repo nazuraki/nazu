@@ -203,3 +203,16 @@ pre.log {
 		grid-template-columns: 1fr;
 	}
 }
+
+.login {
+	max-width: 340px;
+	margin: 15vh auto 0;
+}
+
+.login form .row {
+	margin: 0.5rem 0;
+}
+
+.login input {
+	width: 100%;
+}
