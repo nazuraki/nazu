@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createApp, type AppDeps } from './app.js';
+import { AuthService } from './lib/auth.js';
 import { Deployer } from './lib/deployer.js';
 import { Registry } from './lib/registry.js';
 import { SelfUpdateInProgressError, SelfUpdateUnavailableError } from './lib/self-update.js';
 import type { DeployTarget } from './lib/targets/compose.js';
 
-function makeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
+function makeDeps(overrides: Partial<AppDeps> = {}, apiKey?: string): AppDeps {
 	const registry = new Registry(':memory:');
 	const target: DeployTarget = {
 		deploy: vi.fn(async () => {}),
@@ -50,8 +51,17 @@ function makeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
 			query: vi.fn(async () => ({ status: 200, body: { status: 'success' } })),
 		},
 		checkProjectUpdates: vi.fn(async () => []),
+		auth: new AuthService(registry, apiKey),
 		...overrides,
 	};
+}
+
+/** Extract the session token from a login response's Set-Cookie header. */
+function sessionCookie(res: Response): string {
+	const setCookie = res.headers.get('set-cookie') ?? '';
+	const match = setCookie.match(/backplane_session=([^;]+)/);
+	if (!match) throw new Error(`no session cookie in: ${setCookie}`);
+	return `backplane_session=${match[1]}`;
 }
 
 const PROJECT = {
@@ -65,7 +75,7 @@ const PROJECT = {
 
 describe('auth', () => {
 	it('rejects API calls without the key when one is configured', async () => {
-		const app = createApp(makeDeps({ apiKey: 'sekrit' }));
+		const app = createApp(makeDeps({}, 'sekrit'));
 		expect((await app.request('/api/projects')).status).toBe(401);
 		expect(
 			(await app.request('/api/projects', { headers: { Authorization: 'Bearer wrong' } })).status,
@@ -75,12 +85,111 @@ describe('auth', () => {
 		).toBe(200);
 	});
 
-	it('leaves health open and everything open when no key is set', async () => {
-		const withKey = createApp(makeDeps({ apiKey: 'sekrit' }));
+	it('leaves health open and everything open when nothing is configured', async () => {
+		const withKey = createApp(makeDeps({}, 'sekrit'));
 		expect((await withKey.request('/api/health')).status).toBe(200);
 
 		const open = createApp(makeDeps());
 		expect((await open.request('/api/projects')).status).toBe(200);
+	});
+
+	it('gates the API once local credentials are set, via login cookie or Basic', async () => {
+		const deps = makeDeps();
+		deps.auth.setAccount('admin', 'hunter2hunter2');
+		const app = createApp(deps);
+
+		expect((await app.request('/api/projects')).status).toBe(401);
+		expect((await app.request('/api/health')).status).toBe(200);
+
+		// Bad then good login.
+		const bad = await app.request('/api/auth/login', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ username: 'admin', password: 'wrong' }),
+		});
+		expect(bad.status).toBe(401);
+
+		const login = await app.request('/api/auth/login', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ username: 'admin', password: 'hunter2hunter2' }),
+		});
+		expect(login.status).toBe(200);
+		const cookie = sessionCookie(login);
+
+		expect((await app.request('/api/projects', { headers: { cookie } })).status).toBe(200);
+
+		// Basic header works too (curl over HTTPS).
+		const basic = `Basic ${Buffer.from('admin:hunter2hunter2').toString('base64')}`;
+		expect((await app.request('/api/projects', { headers: { Authorization: basic } })).status).toBe(
+			200,
+		);
+
+		// Logout revokes the session.
+		await app.request('/api/auth/logout', { method: 'POST', headers: { cookie } });
+		expect((await app.request('/api/projects', { headers: { cookie } })).status).toBe(401);
+	});
+
+	it('reports status and manages the account over the API', async () => {
+		const app = createApp(makeDeps());
+
+		let status = (await (await app.request('/api/auth/status')).json()) as {
+			localAuth: boolean;
+			authenticated: boolean;
+			method: string | null;
+		};
+		expect(status).toMatchObject({ localAuth: false, authenticated: true, method: 'open' });
+
+		// Set the account while open (bootstrap), which returns a session cookie.
+		const put = await app.request('/api/auth/account', {
+			method: 'PUT',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ username: 'admin', password: 'hunter2hunter2' }),
+		});
+		expect(put.status).toBe(200);
+		const cookie = sessionCookie(put);
+
+		// Now gated: anonymous requests fail, the fresh cookie works.
+		expect((await app.request('/api/projects')).status).toBe(401);
+		status = (await (
+			await app.request('/api/auth/status', { headers: { cookie } })
+		).json()) as typeof status;
+		expect(status).toMatchObject({ localAuth: true, authenticated: true, method: 'session' });
+
+		// Weak password rejected; unauthenticated account change rejected.
+		const weak = await app.request('/api/auth/account', {
+			method: 'PUT',
+			headers: { 'content-type': 'application/json', cookie },
+			body: JSON.stringify({ username: 'admin', password: 'short' }),
+		});
+		expect(weak.status).toBe(400);
+		expect(
+			(
+				await app.request('/api/auth/account', {
+					method: 'PUT',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ username: 'evil', password: 'evilevilevil' }),
+				})
+			).status,
+		).toBe(401);
+
+		// Changing credentials revokes older sessions but keeps the caller's new one.
+		const rotate = await app.request('/api/auth/account', {
+			method: 'PUT',
+			headers: { 'content-type': 'application/json', cookie },
+			body: JSON.stringify({ username: 'admin', password: 'correct-horse-battery' }),
+		});
+		const newCookie = sessionCookie(rotate);
+		expect((await app.request('/api/projects', { headers: { cookie } })).status).toBe(401);
+		expect((await app.request('/api/projects', { headers: { cookie: newCookie } })).status).toBe(200);
+
+		// Clearing the account returns to open mode.
+		expect(
+			(
+				await app.request('/api/auth/account', { method: 'DELETE', headers: { cookie: newCookie } })
+			).status,
+		).toBe(200);
+		expect((await app.request('/api/projects')).status).toBe(200);
 	});
 });
 
