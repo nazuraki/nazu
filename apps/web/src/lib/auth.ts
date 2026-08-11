@@ -34,6 +34,18 @@ export async function localAuthConfigured(): Promise<boolean> {
 	return Boolean((a.localUser as string)?.trim() && (a.localPassword as string)?.trim());
 }
 
+/**
+ * True when OAuth redirects can plausibly work for this hostname. Providers
+ * only accept localhost or a registered public callback URL, so single-label
+ * LAN hostnames and bare IPs can never complete an OAuth flow.
+ */
+export function oauthViableHost(hostname: string): boolean {
+	if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+	if (!hostname.includes('.')) return false;
+	if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return false;
+	return true;
+}
+
 function safeEqual(a: string, b: string): boolean {
 	const ab = Buffer.from(a);
 	const bb = Buffer.from(b);
@@ -43,16 +55,29 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Validate an HTTP Basic Authorization header against the configured local
- * admin credentials (username plain, password scrypt-hashed). Returns the local
- * user on match, null otherwise.
+ * Validate a username + password pair against the configured local admin
+ * credentials (username plain, password scrypt-hashed). Returns the local user
+ * on match, null otherwise. Shared by HTTP Basic and the /login form.
  */
-export async function validateBasicAuth(request: Request): Promise<User | null> {
+export async function validateLocalCredentials(
+	gotUser: string,
+	gotPass: string,
+): Promise<User | null> {
 	const a = await getSection('auth');
 	const user = (a.localUser as string)?.trim();
 	const passHash = a.localPassword as string;
 	if (!user || !passHash) return null;
 
+	if (!safeEqual(gotUser, user) || !verifyPassword(gotPass, passHash)) return null;
+
+	return { id: user, email: localEmail(), source: 'local' };
+}
+
+/**
+ * Validate an HTTP Basic Authorization header against the configured local
+ * admin credentials. Returns the local user on match, null otherwise.
+ */
+export async function validateBasicAuth(request: Request): Promise<User | null> {
 	const header = request.headers.get('Authorization');
 	if (!header?.startsWith('Basic ')) return null;
 
@@ -64,15 +89,11 @@ export async function validateBasicAuth(request: Request): Promise<User | null> 
 	}
 	const sep = decoded.indexOf(':');
 	if (sep < 0) return null;
-	const gotUser = decoded.slice(0, sep);
-	const gotPass = decoded.slice(sep + 1);
 
-	if (!safeEqual(gotUser, user) || !verifyPassword(gotPass, passHash)) return null;
-
-	return { id: user, email: localEmail(), source: 'local' };
+	return validateLocalCredentials(decoded.slice(0, sep), decoded.slice(sep + 1));
 }
 
-function localEmail(): string {
+export function localEmail(): string {
 	return env.NAZU_LOCAL_USER_EMAIL?.trim() || LOCAL_USER_EMAIL;
 }
 
