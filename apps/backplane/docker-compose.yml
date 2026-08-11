@@ -40,9 +40,16 @@ services:
     image: caddy:2-alpine
     profiles: ["tls"]
     ports:
-      - "8443:8443"
+      # HTTP→HTTPS redirect. Override when :80 is taken on a shared host —
+      # a failed port bind aborts the whole `up`.
+      - "${BACKPLANE_HTTP_PORT:-80}:80"
+      # Mirrored (host port = container port): the Caddyfile site address
+      # includes BACKPLANE_HTTPS_PORT so redirect Locations stay correct on
+      # non-standard ports.
+      - "${BACKPLANE_HTTPS_PORT:-443}:${BACKPLANE_HTTPS_PORT:-443}"
     environment:
       BACKPLANE_HOSTNAME: ${BACKPLANE_HOSTNAME:-}
+      BACKPLANE_HTTPS_PORT: ${BACKPLANE_HTTPS_PORT:-443}
       BACKPLANE_TLS_CERT: ${BACKPLANE_TLS_CERT:-}
       BACKPLANE_TLS_KEY: ${BACKPLANE_TLS_KEY:-}
     command:

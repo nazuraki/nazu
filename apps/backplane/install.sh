@@ -37,9 +37,12 @@ docker info >/dev/null 2>&1 || fail "the Docker daemon isn't running (or you lac
 # Under `curl | sh` stdin is the script, so prompts must use the terminal
 # directly. No terminal (CI, automation) = take defaults silently.
 # test -r/-w only checks permission bits; actually opening /dev/tty is what
-# fails when there is no controlling terminal.
+# fails when there is no controlling terminal. The open must happen in a
+# subshell: POSIX shells (dash) treat a redirection error on a compound
+# command as fatal under `set -e`, killing the script silently despite the
+# 2>/dev/null — a subshell contains the failure.
 HAVE_TTY=0
-if { : < /dev/tty; } 2>/dev/null; then
+if ( : < /dev/tty ) 2>/dev/null; then
   HAVE_TTY=1
 fi
 
@@ -105,9 +108,11 @@ echo
 echo "  The API is open (no auth) by default. To require a bearer key, set"
 echo "  BACKPLANE_API_KEY in $DIR/.env and re-run this installer."
 echo
-echo "  The UI/API listens on localhost only. For HTTPS on the LAN (port 8443),"
-echo "  set BACKPLANE_HOSTNAME, BACKPLANE_TLS_CERT, BACKPLANE_TLS_KEY, and"
+echo "  The UI/API listens on localhost only. For HTTPS on the LAN, set"
+echo "  BACKPLANE_HOSTNAME, BACKPLANE_TLS_CERT, BACKPLANE_TLS_KEY, and"
 echo "  COMPOSE_PROFILES=tls in $DIR/.env and re-run this installer."
+echo "  Ports default to 443/80; override with BACKPLANE_HTTPS_PORT /"
+echo "  BACKPLANE_HTTP_PORT if those are taken."
 echo
 echo "  Installed in: $DIR"
 echo "  Update with:  re-run this installer"

@@ -35,7 +35,7 @@ const CADDYFILE = `{
 	}
 }
 
-{$NAZU_HOSTNAME} {
+{$NAZU_HOSTNAME}:{$NAZU_HTTPS_PORT} {
 	tls {$NAZU_TLS_CERT} {$NAZU_TLS_KEY}
 	reverse_proxy web:3000
 }

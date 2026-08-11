@@ -13,13 +13,18 @@ services:
     image: caddy:2-alpine
     profiles: ["tls"]
     ports:
-      - "443:443"
-      # Caddy auto-redirects HTTP→HTTPS for the configured hostname.
-      - "80:80"
+      # HTTP→HTTPS redirect. Override when :80 is taken on a shared host —
+      # a failed port bind aborts the whole `up`.
+      - "${NAZU_HTTP_PORT:-80}:80"
+      # The HTTPS publish is mirrored (host port = container port) because the
+      # Caddyfile site address includes NAZU_HTTPS_PORT — that keeps redirect
+      # Locations correct on non-standard ports.
+      - "${NAZU_HTTPS_PORT:-443}:${NAZU_HTTPS_PORT:-443}"
       # Prometheus metrics (plain HTTP) — scraped by the backplane stack (#75).
       - "2020:2020"
     environment:
       NAZU_HOSTNAME: ${NAZU_HOSTNAME:-}
+      NAZU_HTTPS_PORT: ${NAZU_HTTPS_PORT:-443}
       NAZU_TLS_CERT: ${NAZU_TLS_CERT:-}
       NAZU_TLS_KEY: ${NAZU_TLS_KEY:-}
     command:
