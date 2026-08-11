@@ -31,7 +31,7 @@ describe('getSection', () => {
 	it('returns schema defaults when nothing is stored', async () => {
 		const d = await getSection('dashboard');
 		expect(d.stewardMonthlyBudget).toBe(50);
-		expect(d.dockerContainers).toEqual([]);
+		expect(d.pagesWorkflows).toEqual([]);
 	});
 
 	it('overlays stored values on defaults', async () => {
@@ -73,17 +73,17 @@ describe('setSection validation', () => {
 	});
 
 	it('rejects a non-string list', async () => {
-		await expect(setSection('dashboard', { dockerContainers: 'web' })).rejects.toMatchObject({
+		await expect(setSection('dashboard', { pagesWorkflows: 'me/site=deploy.yml' })).rejects.toMatchObject({
 			status: 400,
 		});
-		await expect(setSection('dashboard', { dockerContainers: [1, 2] })).rejects.toMatchObject({
+		await expect(setSection('dashboard', { pagesWorkflows: [1, 2] })).rejects.toMatchObject({
 			status: 400,
 		});
 	});
 
 	it('accepts a valid list', async () => {
-		await setSection('dashboard', { dockerContainers: ['web', 'postgres'] });
-		expect((await getSection('dashboard')).dockerContainers).toEqual(['web', 'postgres']);
+		await setSection('dashboard', { pagesWorkflows: ['me/site=deploy.yml'] });
+		expect((await getSection('dashboard')).pagesWorkflows).toEqual(['me/site=deploy.yml']);
 	});
 });
 

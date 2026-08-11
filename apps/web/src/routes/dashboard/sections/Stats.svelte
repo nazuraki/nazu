@@ -1,19 +1,17 @@
 <script lang="ts">
 import Gauge from '../components/Gauge.svelte';
 import LineChart from '../components/LineChart.svelte';
-import { type NazuTopic, type StewardStats, type DockerContainer, api } from '$lib/dashboard/api.js';
+import { type NazuTopic, type StewardStats, api } from '$lib/dashboard/api.js';
 
 let stats = $state<StewardStats | null>(null);
 let topics = $state<NazuTopic[]>([]);
-let containers = $state<DockerContainer[]>([]);
 let error = $state<string | null>(null);
 
 async function load() {
 	try {
-		const [s, t, d] = await Promise.all([api.stewardStats(), api.nazuProjects(), api.docker()]);
+		const [s, t] = await Promise.all([api.stewardStats(), api.nazuProjects()]);
 		stats = s;
 		topics = t;
-		containers = d;
 		error = null;
 	} catch (e) {
 		error = e instanceof Error ? e.message : "Failed to load";
@@ -91,21 +89,6 @@ function budgetColor(cost: number, budget: number): string {
           </div>
         {/each}
       </div>
-
-      {#if containers.length > 0}
-        <header class="containers-header">
-          <span class="label">Containers</span>
-        </header>
-        <div class="containers">
-          {#each containers as c (c.name)}
-            <a class="container-row" href="/logs/{c.id}">
-              <span class="container-dot" class:running={c.state === 'running'} class:stopped={c.state !== 'running'}></span>
-              <span class="container-name">{c.name}</span>
-              <span class="container-status">{c.status}</span>
-            </a>
-          {/each}
-        </div>
-      {/if}
     </div>
   {:else}
     <p class="state-msg">Loading...</p>
@@ -166,53 +149,6 @@ function budgetColor(cost: number, budget: number): string {
     flex-direction: column;
     gap: 0.75rem;
     margin-bottom: 1.5rem;
-  }
-
-  .containers-header { margin-bottom: 0.5rem; }
-
-  .containers {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-  }
-
-  .container-row {
-    display: grid;
-    grid-template-columns: 0.5rem 1fr auto;
-    text-decoration: none;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.2rem 0.25rem;
-    border-radius: 4px;
-  }
-
-  .container-row:hover { background: var(--surface-3); }
-
-  .container-dot {
-    width: 0.3rem;
-    height: 0.3rem;
-    border-radius: 50%;
-    background: var(--outline);
-    flex-shrink: 0;
-  }
-
-  .container-dot.running { background: var(--success); }
-  .container-dot.stopped { background: var(--error); }
-
-  .container-name {
-    font-size: 0.6875rem;
-    color: var(--on-surface);
-    font-family: var(--font-mono, monospace);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .container-status {
-    font-size: 0.5625rem;
-    color: var(--on-surface-dim);
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
   }
 
   .topic { display: flex; flex-direction: column; gap: 0.125rem; }

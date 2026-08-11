@@ -42,14 +42,7 @@ export const APP_FEATURES: AppFeature[] = [
 		label: 'Dashboard',
 		description: 'System metrics and monitoring',
 		href: '/dashboard',
-		routes: [
-			'/dashboard',
-			'/api/docker',
-			'/api/repos',
-			'/api/steward',
-			'/api/code-graph',
-			'/api/containers',
-		],
+		routes: ['/dashboard', '/api/repos', '/api/steward', '/api/code-graph'],
 		defaultEnabled: true,
 	},
 	{
@@ -209,13 +202,6 @@ export const SECTIONS: SectionDef[] = [
 		label: 'Dashboard',
 		description: 'Behavior of the dashboard views.',
 		fields: [
-			{
-				key: 'dockerContainers',
-				label: 'Docker container allowlist',
-				type: 'list',
-				default: [],
-				help: 'Container names to show. Empty shows all.',
-			},
 			{
 				key: 'stewardMonthlyBudget',
 				label: 'Steward monthly budget (USD)',
