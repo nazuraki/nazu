@@ -51,7 +51,7 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 	});
 
 	const run = useMutation({
-		mutationFn: (action: 'deploy' | 'restart') =>
+		mutationFn: (action: 'deploy' | 'update' | 'restart') =>
 			api<{ deploy: DeploySummary }>(`/api/projects/${name}/${action}`, { method: 'POST' }),
 		onSuccess: (res) => {
 			setOpenLog(res.deploy.id);
@@ -69,6 +69,7 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 	if (project.isLoading) return <p className="muted">Loading…</p>;
 	if (project.error) return <p className="error">{(project.error as Error).message}</p>;
 	const p = project.data!.project;
+	const updateAvailable = (updates.data?.updates ?? []).some((u) => u.updateAvailable);
 
 	return (
 		<>
@@ -76,6 +77,13 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 				<h1 style={{ flex: 1 }}>{p.name}</h1>
 				<button onClick={() => run.mutate('deploy')} disabled={run.isPending}>
 					Deploy
+				</button>
+				<button
+					onClick={() => run.mutate('update')}
+					disabled={run.isPending}
+					title="Pull newest images and recreate changed containers (no git sync)"
+				>
+					{updateAvailable ? 'Update ⬆' : 'Update'}
 				</button>
 				<button onClick={() => run.mutate('restart')} disabled={run.isPending}>
 					Restart

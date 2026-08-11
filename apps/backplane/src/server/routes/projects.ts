@@ -1,7 +1,12 @@
 import { Hono, type Context } from 'hono';
 
 import type { AppDeps } from '../app.js';
-import { ValidationError, type DeployTrigger, type ProjectInput } from '../lib/registry.js';
+import {
+	ValidationError,
+	type DeployAction,
+	type DeployTrigger,
+	type ProjectInput,
+} from '../lib/registry.js';
 
 export function projectRoutes(deps: AppDeps): Hono {
 	const app = new Hono();
@@ -57,6 +62,8 @@ export function projectRoutes(deps: AppDeps): Hono {
 
 	// Doubles as the CI webhook: POST with the API key when a new image is pushed.
 	app.post('/:name/deploy', (c) => startRun(c.req.param('name'), 'deploy', c, deps));
+	// Pull + up to the newest images without git-syncing the checkout.
+	app.post('/:name/update', (c) => startRun(c.req.param('name'), 'update', c, deps));
 	app.post('/:name/restart', (c) => startRun(c.req.param('name'), 'restart', c, deps));
 
 	app.get('/:name/deploys', (c) => {
@@ -80,7 +87,7 @@ export function projectRoutes(deps: AppDeps): Hono {
 	return app;
 }
 
-function startRun(name: string, action: 'deploy' | 'restart', c: Context, deps: AppDeps): Response {
+function startRun(name: string, action: DeployAction, c: Context, deps: AppDeps): Response {
 	const project = deps.registry.getProject(name);
 	if (!project) return c.json({ error: 'unknown project' }, 404);
 	const trigger = (c.req.query('trigger') as DeployTrigger) || 'manual';

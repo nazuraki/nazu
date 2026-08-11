@@ -84,6 +84,23 @@ function buildServer(): McpServer {
 	);
 
 	server.registerTool(
+		'update_project',
+		{
+			description:
+				"Update a project's deployment to the newest pushed images: pull and `docker compose up` without git-syncing the checkout. Returns the queued deploy id; follow with deploy_status.",
+			inputSchema: nameSchema,
+		},
+		async ({ name }) => {
+			try {
+				const res = await api<{ deploy: { id: number } }>(`/api/projects/${name}/update`, 'POST');
+				return textResult(`Update #${res.deploy.id} queued for ${name}.`);
+			} catch (err) {
+				return errorResult(err);
+			}
+		},
+	);
+
+	server.registerTool(
 		'restart_project',
 		{
 			description: "Restart a project's compose stack without pulling new images.",

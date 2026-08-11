@@ -9,6 +9,7 @@ function makeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
 	const registry = new Registry(':memory:');
 	const target: DeployTarget = {
 		deploy: vi.fn(async () => {}),
+		update: vi.fn(async () => {}),
 		restart: vi.fn(async () => {}),
 		status: vi.fn(async () => [
 			{ service: 'web', name: 'nazu-web-1', image: 'nazu-web', state: 'running', status: 'Up' },
@@ -123,6 +124,26 @@ describe('project routes', () => {
 		expect(detail.status).toBe(200);
 
 		expect((await app.request('/api/projects/nope/deploy', { method: 'POST' })).status).toBe(404);
+	});
+
+	it('updates via POST without git-syncing', async () => {
+		const deps = makeDeps();
+		const app = createApp(deps);
+		await app.request('/api/projects', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(PROJECT),
+		});
+
+		const res = await app.request('/api/projects/nazu/update', { method: 'POST' });
+		expect(res.status).toBe(202);
+		const { deploy } = (await res.json()) as { deploy: { action: string } };
+		expect(deploy.action).toBe('update');
+		await deps.deployer.settled('nazu');
+
+		expect(deps.target.update).toHaveBeenCalledTimes(1);
+		expect(deps.target.deploy).not.toHaveBeenCalled();
+		expect((await app.request('/api/projects/nope/update', { method: 'POST' })).status).toBe(404);
 	});
 
 	it('serves status and updates for known projects', async () => {

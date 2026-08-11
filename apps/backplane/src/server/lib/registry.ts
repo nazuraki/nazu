@@ -30,7 +30,7 @@ export type ProjectInput = Omit<Project, 'createdAt'>;
 
 export type DeployTrigger = 'manual' | 'webhook' | 'poll';
 export type DeployStatus = 'running' | 'succeeded' | 'failed';
-export type DeployAction = 'deploy' | 'restart';
+export type DeployAction = 'deploy' | 'update' | 'restart';
 
 export interface DeployRecord {
 	id: number;

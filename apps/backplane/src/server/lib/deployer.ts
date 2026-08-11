@@ -31,6 +31,7 @@ export class Deployer {
 		const log = (line: string): void => this.registry.appendDeployLog(deployId, line);
 		try {
 			if (action === 'deploy') await this.target.deploy(project, log);
+			else if (action === 'update') await this.target.update(project, log);
 			else await this.target.restart(project, log);
 			this.registry.finishDeploy(deployId, 'succeeded');
 		} catch (err) {

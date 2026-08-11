@@ -66,7 +66,10 @@ target (optional compose files/profiles/project name). Deploying:
 3. `… up -d --remove-orphans`
 
 Git-driven rather than recreate-in-place so compose-file changes deploy too.
-Runs are serialized per project and recorded (status + full log) in history.
+**Update** is the lighter sibling: pull + `up -d` against the existing checkout
+(no git sync) — rolls containers to the newest pushed images without picking up
+repo changes. Runs are serialized per project and recorded (status + full log)
+in history.
 
 Updates: the poller compares each watched image's remote manifest digest
 (anonymous OCI token flow — public images) against the digests of running
@@ -83,7 +86,7 @@ credentials into the image's git config.
 | `GET`/`POST /api/projects`, `GET`/`DELETE /api/projects/:name` | registry CRUD (POST upserts) |
 | `GET /api/projects/:name/status` | compose services state |
 | `GET /api/projects/:name/updates` | remote vs running image digests |
-| `POST /api/projects/:name/deploy` / `restart` | queue a run (202 + history record) |
+| `POST /api/projects/:name/deploy` / `update` / `restart` | queue a run (202 + history record) |
 | `GET /api/projects/:name/deploys[/:id]` | history / record incl. log |
 | `GET /api/containers` | all containers on the host |
 | `GET /api/containers/:id/logs?tail=&follow=1` | text tail or chunked live stream |
@@ -92,8 +95,9 @@ credentials into the image's git config.
 ## MCP
 
 `node dist/mcp/server.js` (env `BACKPLANE_URL`, `BACKPLANE_API_KEY`). Tools:
-`list_projects`, `project_status`, `deploy_project`, `restart_project`,
-`deploy_status`, `list_containers`, `container_logs`, `query_metrics`.
+`list_projects`, `project_status`, `deploy_project`, `update_project`,
+`restart_project`, `deploy_status`, `list_containers`, `container_logs`,
+`query_metrics`.
 
 ## Observability stack
 

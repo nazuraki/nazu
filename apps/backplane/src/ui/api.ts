@@ -63,7 +63,7 @@ export interface ImageUpdate {
 export interface DeploySummary {
 	id: number;
 	project: string;
-	action: 'deploy' | 'restart';
+	action: 'deploy' | 'update' | 'restart';
 	trigger: string;
 	status: 'running' | 'succeeded' | 'failed';
 	startedAt: string;
