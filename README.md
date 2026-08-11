@@ -107,6 +107,25 @@ nazu is **zero-conf**: a fresh `docker compose up` runs with no `.env`. Almost a
 | `NAZU_TLS_CERT` / `NAZU_TLS_KEY` | Absolute host paths to the TLS cert/key, bind-mounted into caddy at the same path — required with the `tls` profile |
 | `COMPOSE_PROJECT_NAME` | Compose project name (default `nazu`); pins the web app's in-container `docker compose` to the same project/network |
 
+## Container images
+
+CI publishes multi-arch (`linux/amd64` + `linux/arm64`) images for the server-deployable apps to GHCR on every push to `main` and on `v*` release tags ([`publish-images.yml`](.github/workflows/publish-images.yml)):
+
+| Image | Source |
+|---|---|
+| `ghcr.io/nazuraki/nazu-web` | `apps/web` — the SvelteKit app (UI + REST API) |
+| `ghcr.io/nazuraki/nazu-discord` | `apps/discord` — Discord ingest sidecar |
+| `ghcr.io/nazuraki/nazu-graphiti` | `apps/graphiti` — Graphiti temporal-recall sidecar |
+| `ghcr.io/nazuraki/nazu-backplane` | `apps/backplane` — deploy backplane |
+
+Tags: `latest` (tip of `main`), `sha-<short>` (every build, immutable), and `X.Y.Z` / `X.Y` semver tags on releases.
+
+```sh
+docker pull ghcr.io/nazuraki/nazu-web:latest
+```
+
+`apps/mcp` (stdio, runs client-side) and `apps/indexer` (host CLI tooling) are not server-deployable and have no images. The local compose files still build from source; switching deploys to these images is follow-up work.
+
 ## Remote Access
 
 The `cloudflared` service in Docker Compose connects outbound to the CF edge — no inbound firewall ports needed.
