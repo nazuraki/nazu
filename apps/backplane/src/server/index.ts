@@ -8,6 +8,7 @@ import { Deployer } from './lib/deployer.js';
 import * as docker from './lib/docker.js';
 import { createPromClient } from './lib/prometheus.js';
 import { Registry } from './lib/registry.js';
+import { SelfUpdater } from './lib/self-update.js';
 import { ComposeTarget } from './lib/targets/compose.js';
 import { checkImages } from './lib/updates.js';
 
@@ -26,6 +27,7 @@ const app = createApp({
 	deployer,
 	target,
 	docker,
+	self: new SelfUpdater(),
 	prom: createPromClient(PROMETHEUS_URL),
 	checkProjectUpdates: async (images) => checkImages(images, await docker.runningImageDigests()),
 	apiKey: API_KEY,

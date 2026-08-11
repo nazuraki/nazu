@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createApp, type AppDeps } from './app.js';
 import { Deployer } from './lib/deployer.js';
 import { Registry } from './lib/registry.js';
+import { SelfUpdateInProgressError, SelfUpdateUnavailableError } from './lib/self-update.js';
 import type { DeployTarget } from './lib/targets/compose.js';
 
 function makeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
@@ -23,6 +24,26 @@ function makeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
 			listContainers: vi.fn(async () => []),
 			logsTail: vi.fn(async () => ['line1', 'line2']),
 			streamLogs: vi.fn(),
+		},
+		self: {
+			inspect: vi.fn(async () => ({
+				image: 'ghcr.io/nazuraki/nazu-backplane:latest',
+				service: 'backplane',
+				composeProject: 'backplane',
+				workingDir: '/opt/backplane',
+				configFiles: ['/opt/backplane/docker-compose.yml'],
+			})),
+			helperStatus: vi.fn(async () => null),
+			update: vi.fn(async () => ({
+				helperId: 'abc123',
+				info: {
+					image: 'ghcr.io/nazuraki/nazu-backplane:latest',
+					service: 'backplane',
+					composeProject: 'backplane',
+					workingDir: '/opt/backplane',
+					configFiles: ['/opt/backplane/docker-compose.yml'],
+				},
+			})),
 		},
 		prom: {
 			queryRange: vi.fn(async () => ({ status: 200, body: { status: 'success' } })),
@@ -211,5 +232,41 @@ describe('container and metrics routes', () => {
 		const app = createApp(deps);
 		const res = await app.request('/api/metrics/query_range?query=up&start=1&end=2&step=15');
 		expect(res.status).toBe(502);
+	});
+});
+
+describe('self routes', () => {
+	it('reports own image update status and helper state', async () => {
+		const deps = makeDeps({
+			checkProjectUpdates: vi.fn(async (images: string[]) => [
+				{ image: images[0], remoteDigest: 'sha256:new', runningDigest: 'sha256:old', updateAvailable: true },
+			]),
+		});
+		const app = createApp(deps);
+		const res = await app.request('/api/self');
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { self: { updateAvailable: boolean }; helper: null };
+		expect(body.self.updateAvailable).toBe(true);
+		expect(body.helper).toBeNull();
+	});
+
+	it('degrades to self:null when not running under compose', async () => {
+		const deps = makeDeps();
+		vi.mocked(deps.self.inspect).mockRejectedValue(new SelfUpdateUnavailableError('not in docker'));
+		const res = await createApp(deps).request('/api/self');
+		expect(res.status).toBe(200);
+		expect(((await res.json()) as { self: null }).self).toBeNull();
+	});
+
+	it('starts a self-update and 409s while one is running', async () => {
+		const deps = makeDeps();
+		const app = createApp(deps);
+
+		const started = await app.request('/api/self/update', { method: 'POST' });
+		expect(started.status).toBe(202);
+		expect(((await started.json()) as { helper: string }).helper).toBe('abc123');
+
+		vi.mocked(deps.self.update).mockRejectedValue(new SelfUpdateInProgressError('busy'));
+		expect((await app.request('/api/self/update', { method: 'POST' })).status).toBe(409);
 	});
 });

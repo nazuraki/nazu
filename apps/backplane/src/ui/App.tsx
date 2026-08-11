@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { getApiKey, setApiKey } from './api';
+import { SelfUpdate } from './components/SelfUpdate';
 import { ContainersPage } from './pages/ContainersPage';
 import { ProjectPage } from './pages/ProjectPage';
 import { ProjectsPage } from './pages/ProjectsPage';
@@ -43,6 +44,7 @@ export function App(): React.JSX.Element {
 				<a href="#/projects">Projects</a>
 				<a href="#/containers">Containers</a>
 				<span className="spacer" />
+				<SelfUpdate />
 				<KeyInput />
 			</nav>
 			<main>
