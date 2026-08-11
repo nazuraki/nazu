@@ -11,7 +11,7 @@
 import { McpServer, fromJsonSchema, type CallToolResult } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 
-import { api, formatDeploy, formatProjects, formatStatus, formatUpdates } from './client.js';
+import { api, formatDeploy, formatProjects, formatSelf, formatStatus, formatUpdates } from './client.js';
 
 function textResult(text: string): CallToolResult {
 	return { content: [{ type: 'text', text }] };
@@ -177,6 +177,41 @@ function buildServer(): McpServer {
 			try {
 				const n = typeof tail === 'number' && tail > 0 ? Math.floor(tail) : 100;
 				return textResult(await api<string>(`/api/containers/${id}/logs?tail=${n}`, 'GET', true));
+			} catch (err) {
+				return errorResult(err);
+			}
+		},
+	);
+
+	server.registerTool(
+		'self_status',
+		{
+			description:
+				"The backplane's own update status: whether a newer backplane image is published, plus the outcome of the last self-update.",
+			inputSchema: fromJsonSchema<Record<string, never>>({ type: 'object', properties: {} }),
+		},
+		async () => {
+			try {
+				return textResult(await formatSelf());
+			} catch (err) {
+				return errorResult(err);
+			}
+		},
+	);
+
+	server.registerTool(
+		'self_update',
+		{
+			description:
+				'Update the backplane itself to the newest published image. Spawns a detached helper container that pulls and recreates the backplane stack — the API restarts briefly. Check the result afterwards with self_status.',
+			inputSchema: fromJsonSchema<Record<string, never>>({ type: 'object', properties: {} }),
+		},
+		async () => {
+			try {
+				const res = await api<{ helper: string }>('/api/self/update', 'POST');
+				return textResult(
+					`Self-update helper ${res.helper} started. The backplane API will restart shortly; verify with self_status.`,
+				);
 			} catch (err) {
 				return errorResult(err);
 			}

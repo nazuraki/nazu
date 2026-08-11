@@ -78,6 +78,20 @@ deploys via webhook: `POST /api/projects/<name>/deploy?trigger=webhook` with the
 API key. Private git repos aren't wired up yet — use public repos or bake
 credentials into the image's git config.
 
+### Self-update
+
+The backplane can't `compose up` its own stack directly — recreating its own
+container would kill the compose process mid-update. Instead, `POST
+/api/self/update` (the "Update backplane" button in the UI, or the MCP
+`self_update` tool) spawns a **detached one-shot helper container** running the
+backplane's current image (which ships the docker CLI + compose plugin). The
+helper pulls the new image and runs `docker compose up -d` against the host
+paths recorded in the backplane container's own compose labels, so it survives
+the recreation and needs zero extra configuration. `GET /api/self` reports
+whether a newer image is published and the outcome (state, exit code, log tail)
+of the last helper run. Re-running `install.sh` or `just backplane-update` on
+the host remains equivalent.
+
 ## API
 
 | Route | What |
@@ -88,6 +102,8 @@ credentials into the image's git config.
 | `GET /api/projects/:name/updates` | remote vs running image digests |
 | `POST /api/projects/:name/deploy` / `update` / `restart` | queue a run (202 + history record) |
 | `GET /api/projects/:name/deploys[/:id]` | history / record incl. log |
+| `GET /api/self` | own image update status + last self-update outcome |
+| `POST /api/self/update` | self-update via detached helper (202; 409 if running) |
 | `GET /api/containers` | all containers on the host |
 | `GET /api/containers/:id/logs?tail=&follow=1` | text tail or chunked live stream |
 | `GET /api/metrics/query_range`, `/query` | Prometheus proxy |
@@ -96,8 +112,8 @@ credentials into the image's git config.
 
 `node dist/mcp/server.js` (env `BACKPLANE_URL`, `BACKPLANE_API_KEY`). Tools:
 `list_projects`, `project_status`, `deploy_project`, `update_project`,
-`restart_project`, `deploy_status`, `list_containers`, `container_logs`,
-`query_metrics`.
+`restart_project`, `deploy_status`, `self_status`, `self_update`,
+`list_containers`, `container_logs`, `query_metrics`.
 
 ## Observability stack
 

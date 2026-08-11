@@ -3,7 +3,10 @@
 # from the published image (`just backplane-update`, i.e. pull + up -d); for
 # local dev, `just backplane-up` builds from source.
 #
-# Self-update is the one manual step: re-run `just backplane-update`.
+# Self-update: the "Update backplane" button in the UI, `POST /api/self/update`,
+# or the MCP `self_update` tool — each spawns a detached helper container that
+# pulls + `up -d`'s this stack from outside, so it survives the backplane's own
+# recreation. `just backplane-update` / re-running install.sh still work too.
 services:
   backplane:
     image: ghcr.io/nazuraki/nazu-backplane:latest

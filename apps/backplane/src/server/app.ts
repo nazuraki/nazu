@@ -6,9 +6,11 @@ import type { Registry } from './lib/registry.js';
 import type { DeployTarget } from './lib/targets/compose.js';
 import type { ImageUpdate } from './lib/updates.js';
 import type { ContainerSummary, StreamLogsOptions } from './lib/docker.js';
+import type { HelperStatus, SelfInfo } from './lib/self-update.js';
 import { containerRoutes } from './routes/containers.js';
 import { metricsRoutes } from './routes/metrics.js';
 import { projectRoutes } from './routes/projects.js';
+import { selfRoutes } from './routes/self.js';
 
 /** Docker operations the routes need — injectable for tests. */
 export interface DockerOps {
@@ -17,11 +19,19 @@ export interface DockerOps {
 	streamLogs(id: string, opts: StreamLogsOptions): void;
 }
 
+/** Self-update operations — injectable for tests. */
+export interface SelfOps {
+	inspect(): Promise<SelfInfo>;
+	helperStatus(): Promise<HelperStatus | null>;
+	update(): Promise<{ helperId: string; info: SelfInfo }>;
+}
+
 export interface AppDeps {
 	registry: Registry;
 	deployer: Deployer;
 	target: DeployTarget;
 	docker: DockerOps;
+	self: SelfOps;
 	prom: PromClient;
 	checkProjectUpdates(images: string[]): Promise<ImageUpdate[]>;
 	/** Static bearer key; auth is disabled when empty (zero-conf LAN mode). */
@@ -43,6 +53,7 @@ export function createApp(deps: AppDeps): Hono {
 	app.route('/api/projects', projectRoutes(deps));
 	app.route('/api/containers', containerRoutes(deps));
 	app.route('/api/metrics', metricsRoutes(deps));
+	app.route('/api/self', selfRoutes(deps));
 
 	app.notFound((c) =>
 		c.req.path.startsWith('/api/') ? c.json({ error: 'not found' }, 404) : c.text('not found', 404),

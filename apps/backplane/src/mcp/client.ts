@@ -57,6 +57,26 @@ export async function formatUpdates(name: string): Promise<string> {
 		.join('\n');
 }
 
+export async function formatSelf(): Promise<string> {
+	const { self, helper, error } = await api<{
+		self: { image: string; updateAvailable: boolean; error?: string } | null;
+		helper: { state: string; exitCode: number | null; logs: string[] } | null;
+		error?: string;
+	}>('/api/self');
+	if (!self) return `Self-update unavailable: ${error ?? 'unknown reason'}`;
+	const lines = [
+		`backplane image ${self.image}: ${
+			self.error ? `check failed (${self.error})` : self.updateAvailable ? 'UPDATE AVAILABLE' : 'up to date'
+		}`,
+	];
+	if (helper) {
+		const outcome = helper.state === 'running' ? 'running' : `${helper.state} (exit ${helper.exitCode})`;
+		lines.push(`last self-update helper: ${outcome}`);
+		if (helper.logs.length) lines.push(...helper.logs.slice(-10).map((l) => `  ${l}`));
+	}
+	return lines.join('\n');
+}
+
 export async function formatDeploy(name: string, id: number): Promise<string> {
 	const { deploy } = await api<{
 		deploy: { id: number; action: string; status: string; startedAt: string; finishedAt: string | null; log: string };
