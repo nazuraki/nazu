@@ -1,0 +1,76 @@
+# Publishes container images for the server-deployable apps to GHCR.
+# Runs on every push to main (`latest` + `sha-<short>` tags) and on version
+# tags (`vX.Y.Z` → semver tags).
+name: Publish images
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+# One publish run per ref at a time; superseded main pushes are cancelled.
+concurrency:
+  group: publish-images-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: nazu-web
+            context: .
+            dockerfile: apps/web/Dockerfile
+          - image: nazu-discord
+            context: .
+            dockerfile: apps/discord/Dockerfile
+          - image: nazu-graphiti
+            context: apps/graphiti
+            dockerfile: apps/graphiti/Dockerfile
+          - image: nazu-backplane
+            context: .
+            dockerfile: apps/backplane/Dockerfile
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          # main → latest + sha-<short>; v-tags → semver (+ latest via semver).
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
