@@ -124,7 +124,18 @@ Tags: `latest` (tip of `main`), `sha-<short>` (every build, immutable), and `X.Y
 docker pull ghcr.io/nazuraki/nazu-web:latest
 ```
 
-`apps/mcp` (stdio, runs client-side) and `apps/indexer` (host CLI tooling) are not server-deployable and have no images. The local compose files still build from source; switching deploys to these images is follow-up work.
+`apps/mcp` (stdio, runs client-side) and `apps/indexer` (host CLI tooling) are not server-deployable and have no images.
+
+The compose files declare both `image:` (these GHCR images) and `build:`. Plain `docker compose up` therefore pulls the published image; pass `--build` (`just reup`, `just backplane-up`) to build from source for local dev. The packages must be **public** on GHCR — both anonymous `docker pull` and the backplane's digest poller depend on it.
+
+### Deploying (dev server)
+
+The server runs entirely from published images — no source checkouts:
+
+- **nazu stack** — deployed by the backplane, which keeps its own git workdir purely for the compose files and runs `docker compose pull && up -d`. Alternatively, `just update` does the same by hand.
+- **backplane stack** — self-update is manual by design: `just backplane-update` (pull + `up -d`).
+
+A former build checkout on the server can be deleted once both stacks are cut over.
 
 ## Remote Access
 

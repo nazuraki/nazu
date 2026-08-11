@@ -73,6 +73,11 @@ backplane-up:
 backplane-down:
     docker compose -p backplane -f apps/backplane/docker-compose.yml down
 
+# Update the backplane from the published image (server self-update, no build)
+backplane-update:
+    docker compose -p backplane -f apps/backplane/docker-compose.yml pull backplane
+    docker compose -p backplane -f apps/backplane/docker-compose.yml up -d
+
 # ─── Infrastructure ───────────────────────────────────────────────
 
 # Build Docker image for the web app (use --no-cache to force full rebuild)
@@ -90,6 +95,11 @@ up:
 # Start the core stack, rebuilding web
 reup:
     docker compose up -d --build
+
+# Update the core stack from published images (no build; what the backplane does)
+update:
+    docker compose pull
+    docker compose up -d --remove-orphans
 
 # Start only backing services (no web container)
 up-deps:

@@ -1,11 +1,12 @@
 # The backplane's own compose project — deliberately SEPARATE from any stack it
-# manages (it can't be updated by the thing it updates). Run from apps/backplane:
+# manages (it can't be updated by the thing it updates). On the server, run it
+# from the published image (`just backplane-update`, i.e. pull + up -d); for
+# local dev, `just backplane-up` builds from source.
 #
-#   docker compose -p backplane up -d --build
-#
-# Self-update is the one manual step: re-run the command above after pulling.
+# Self-update is the one manual step: re-run `just backplane-update`.
 services:
   backplane:
+    image: ghcr.io/nazuraki/nazu-backplane:latest
     build:
       context: ../..
       dockerfile: apps/backplane/Dockerfile
