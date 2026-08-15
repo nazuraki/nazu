@@ -21,9 +21,10 @@
 
 body {
 	margin: 0;
-	background: var(--bg);
-	background-image: radial-gradient(rgba(204, 195, 216, 0.08) 1px, transparent 1px);
-	background-size: 24px 24px;
+	min-height: 100vh;
+	background: var(--bg) url('/bg.jpg') center / cover fixed;
+	background-blend-mode: luminosity;
+	background-color: #1a2138;
 	color: var(--text);
 }
 
