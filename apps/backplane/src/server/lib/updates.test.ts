@@ -68,6 +68,36 @@ describe('fetchRemoteDigest', () => {
 		expect(retryHeaders.Authorization).toBe('Bearer tok123');
 	});
 
+	it('sends registry credentials on the token exchange when provided', async () => {
+		const fetchFn = vi
+			.fn()
+			.mockResolvedValueOnce(
+				new Response(null, {
+					status: 401,
+					headers: {
+						'www-authenticate':
+							'Bearer realm="https://ghcr.io/token",service="ghcr.io",scope="repository:nazuraki/switchboard:pull"',
+					},
+				}),
+			)
+			.mockResolvedValueOnce(new Response(JSON.stringify({ token: 'tok456' }), { status: 200 }))
+			.mockResolvedValueOnce(
+				new Response(null, { status: 200, headers: { 'docker-content-digest': DIGEST_A } }),
+			);
+
+		const digest = await fetchRemoteDigest(
+			'ghcr.io/nazuraki/switchboard:latest',
+			fetchFn as unknown as typeof fetch,
+			(registry) => (registry === 'ghcr.io' ? 'Basic abc123' : undefined),
+		);
+		expect(digest).toBe(DIGEST_A);
+
+		const tokenHeaders = (fetchFn.mock.calls[1][1] as RequestInit | undefined)?.headers as
+			| Record<string, string>
+			| undefined;
+		expect(tokenHeaders?.Authorization).toBe('Basic abc123');
+	});
+
 	it('throws on non-ok and missing digest header', async () => {
 		const notFound = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
 		await expect(fetchRemoteDigest('ghcr.io/x/y:z', notFound as unknown as typeof fetch)).rejects.toThrow(

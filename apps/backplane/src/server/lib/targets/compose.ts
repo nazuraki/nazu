@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import type { GitCredentials } from '../credentials.js';
 import { run, type ExecFn } from '../exec.js';
 import type { Project } from '../registry.js';
 
@@ -25,6 +26,10 @@ interface ComposeTargetOptions {
 	/** Root directory holding per-project git checkouts. */
 	workdirRoot: string;
 	exec?: ExecFn;
+	/** Git credential injection for private repos (see credentials.ts). */
+	git?: GitCredentials;
+	/** Extra env for `docker` invocations, e.g. DOCKER_CONFIG for registry auth. */
+	dockerEnv?: Record<string, string>;
 }
 
 /**
@@ -35,10 +40,14 @@ interface ComposeTargetOptions {
 export class ComposeTarget implements DeployTarget {
 	private readonly exec: ExecFn;
 	private readonly workdirRoot: string;
+	private readonly git?: GitCredentials;
+	private readonly dockerEnv?: Record<string, string>;
 
 	constructor(opts: ComposeTargetOptions) {
 		this.workdirRoot = opts.workdirRoot;
 		this.exec = opts.exec ?? run;
+		this.git = opts.git;
+		this.dockerEnv = opts.dockerEnv;
 	}
 
 	workdir(project: Project): string {
@@ -58,10 +67,16 @@ export class ComposeTarget implements DeployTarget {
 
 	private async syncRepo(project: Project, log: LogFn): Promise<void> {
 		const dir = this.workdir(project);
+		const gitArgs = this.git?.args ?? [];
+		const env = this.git?.env;
 		if (existsSync(join(dir, '.git'))) {
 			log(`# git sync ${project.branch}`);
-			await this.exec('git', ['fetch', 'origin', project.branch], { cwd: dir, onLine: log });
-			await this.exec('git', ['reset', '--hard', `origin/${project.branch}`], {
+			await this.exec('git', [...gitArgs, 'fetch', 'origin', project.branch], {
+				cwd: dir,
+				env,
+				onLine: log,
+			});
+			await this.exec('git', [...gitArgs, 'reset', '--hard', `origin/${project.branch}`], {
 				cwd: dir,
 				onLine: log,
 			});
@@ -69,8 +84,8 @@ export class ComposeTarget implements DeployTarget {
 			log(`# git clone ${project.gitUrl} (${project.branch})`);
 			await this.exec(
 				'git',
-				['clone', '--branch', project.branch, '--single-branch', project.gitUrl, dir],
-				{ onLine: log },
+				[...gitArgs, 'clone', '--branch', project.branch, '--single-branch', project.gitUrl, dir],
+				{ env, onLine: log },
 			);
 		}
 	}
@@ -92,9 +107,13 @@ export class ComposeTarget implements DeployTarget {
 		const cwd = this.workdir(project);
 		const compose = this.composeArgs(project);
 		log('# docker compose pull');
-		await this.exec('docker', [...compose, 'pull'], { cwd, onLine: log });
+		await this.exec('docker', [...compose, 'pull'], { cwd, env: this.dockerEnv, onLine: log });
 		log('# docker compose up -d');
-		await this.exec('docker', [...compose, 'up', '-d', '--remove-orphans'], { cwd, onLine: log });
+		await this.exec('docker', [...compose, 'up', '-d', '--remove-orphans'], {
+			cwd,
+			env: this.dockerEnv,
+			onLine: log,
+		});
 	}
 
 	async restart(project: Project, log: LogFn): Promise<void> {

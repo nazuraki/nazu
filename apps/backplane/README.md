@@ -51,7 +51,8 @@ at `:3001` (deep-dive/ad-hoc; inline UI charts come straight from Prometheus's
 
 Env (all optional): `BACKPLANE_API_KEY` (static bearer key for agents/MCP),
 `BACKPLANE_POLL_INTERVAL` (digest poll seconds, default 300, `0` = off),
-`PROMETHEUS_URL`, `PORT`, `BACKPLANE_DATA_DIR`.
+`BACKPLANE_GITHUB_TOKEN` (GitHub PAT for private repos/images — see
+"Private repos and images"), `PROMETHEUS_URL`, `PORT`, `BACKPLANE_DATA_DIR`.
 
 ### Auth
 
@@ -98,11 +99,20 @@ repo changes. Runs are serialized per project and recorded (status + full log)
 in history.
 
 Updates: the poller compares each watched image's remote manifest digest
-(anonymous OCI token flow — public images) against the digests of running
-containers; projects with `autoDeploy` redeploy automatically. CI can also push
-deploys via webhook: `POST /api/projects/<name>/deploy?trigger=webhook` with the
-API key. Private git repos aren't wired up yet — use public repos or bake
-credentials into the image's git config.
+(OCI token flow — anonymous unless `BACKPLANE_GITHUB_TOKEN` is set) against the
+digests of running containers; projects with `autoDeploy` redeploy
+automatically. CI can also push deploys via webhook: `POST
+/api/projects/<name>/deploy?trigger=webhook` with the API key.
+
+### Private repos and images
+
+Set `BACKPLANE_GITHUB_TOKEN` (a GitHub PAT with repo read + `read:packages`) to
+deploy projects whose git repo and/or GHCR image are private. The token feeds
+all three paths: git clone/fetch (via a credential helper scoped to
+`github.com`, so it never appears in argv or deploy logs), `docker compose
+pull` (a generated docker config under `$BACKPLANE_DATA_DIR/docker-config`),
+and the digest poller's ghcr.io token exchange. Unset, everything stays
+public-only/anonymous.
 
 ### Self-update
 

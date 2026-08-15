@@ -5,6 +5,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 
 import { createApp } from './app.js';
 import { AuthService } from './lib/auth.js';
+import { gitCredentials, registryAuthHeader, writeDockerConfig } from './lib/credentials.js';
 import { Deployer } from './lib/deployer.js';
 import * as docker from './lib/docker.js';
 import { createPromClient } from './lib/prometheus.js';
@@ -18,10 +19,16 @@ const DATA_DIR = process.env.BACKPLANE_DATA_DIR ?? './data';
 const PROMETHEUS_URL = process.env.PROMETHEUS_URL ?? 'http://prometheus:9090';
 const API_KEY = process.env.BACKPLANE_API_KEY?.trim() || undefined;
 const POLL_INTERVAL_MS = Number(process.env.BACKPLANE_POLL_INTERVAL ?? 300) * 1000;
+const GITHUB_TOKEN = process.env.BACKPLANE_GITHUB_TOKEN?.trim() || undefined;
 
 const registry = new Registry(join(DATA_DIR, 'backplane.db'));
 const auth = new AuthService(registry, API_KEY);
-const target = new ComposeTarget({ workdirRoot: join(DATA_DIR, 'workdirs') });
+const registryAuth = (host: string): string | undefined => registryAuthHeader(host, GITHUB_TOKEN);
+const target = new ComposeTarget({
+	workdirRoot: join(DATA_DIR, 'workdirs'),
+	git: gitCredentials(GITHUB_TOKEN),
+	dockerEnv: writeDockerConfig(DATA_DIR, GITHUB_TOKEN),
+});
 const deployer = new Deployer(registry, target);
 
 const app = createApp({
@@ -31,7 +38,8 @@ const app = createApp({
 	docker,
 	self: new SelfUpdater(),
 	prom: createPromClient(PROMETHEUS_URL),
-	checkProjectUpdates: async (images) => checkImages(images, await docker.runningImageDigests()),
+	checkProjectUpdates: async (images) =>
+		checkImages(images, await docker.runningImageDigests(), fetch, registryAuth),
 	auth,
 });
 
@@ -47,7 +55,7 @@ if (POLL_INTERVAL_MS > 0) {
 			const running = await docker.runningImageDigests();
 			for (const project of registry.listProjects()) {
 				if (!project.autoDeploy || project.images.length === 0) continue;
-				const updates = await checkImages(project.images, running);
+				const updates = await checkImages(project.images, running, fetch, registryAuth);
 				if (updates.some((u) => u.updateAvailable)) {
 					console.log(`[poller] update detected for ${project.name}; deploying`);
 					deployer.start(project, 'deploy', 'poll');
