@@ -16,7 +16,8 @@
 # The compose and config files are downloaded from the repo, not generated
 # here. Re-running overwrites them — put customizations in
 # docker-compose.override.yml, and settings (BACKPLANE_API_KEY,
-# BACKPLANE_POLL_INTERVAL) in .env, which is never overwritten.
+# BACKPLANE_POLL_INTERVAL, BACKPLANE_GITHUB_TOKEN) in .env, which is never
+# overwritten.
 
 set -eu
 
@@ -107,6 +108,9 @@ echo "  Prometheus:  http://localhost:9090"
 echo
 echo "  The API is open (no auth) by default. To require a bearer key, set"
 echo "  BACKPLANE_API_KEY in $DIR/.env and re-run this installer."
+echo
+echo "  To deploy private GitHub repos / GHCR images, set BACKPLANE_GITHUB_TOKEN"
+echo "  (PAT with repo read + read:packages) in $DIR/.env and re-run."
 echo
 echo "  The UI/API listens on localhost only. For HTTPS on the LAN, set"
 echo "  BACKPLANE_HOSTNAME, BACKPLANE_TLS_CERT, BACKPLANE_TLS_KEY, and"

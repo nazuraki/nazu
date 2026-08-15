@@ -23,6 +23,9 @@ services:
       BACKPLANE_API_KEY: ${BACKPLANE_API_KEY:-}
       # Image digest poll interval in seconds; 0 disables the poller.
       BACKPLANE_POLL_INTERVAL: ${BACKPLANE_POLL_INTERVAL:-300}
+      # Optional GitHub PAT (repo read + read:packages) enabling private git
+      # repos and private GHCR images. Empty = public-only, as before.
+      BACKPLANE_GITHUB_TOKEN: ${BACKPLANE_GITHUB_TOKEN:-}
       PROMETHEUS_URL: http://prometheus:9090
     volumes:
       # Read-write: the backplane starts/stops containers in target stacks.

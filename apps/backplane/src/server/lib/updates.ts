@@ -46,17 +46,29 @@ export function imageRepoKey(ref: string): string {
 }
 
 /**
- * Resolve the current manifest digest for an image ref via the OCI distribution
- * API (anonymous token flow — public images). Returns the `docker-content-digest`.
+ * Optional registry credentials for the token exchange: returns an
+ * `Authorization` header for the given registry host, or undefined for the
+ * anonymous flow (public images).
  */
-export async function fetchRemoteDigest(ref: string, fetchFn: typeof fetch = fetch): Promise<string> {
+export type RegistryAuthFn = (registry: string) => string | undefined;
+
+/**
+ * Resolve the current manifest digest for an image ref via the OCI distribution
+ * API (token flow; anonymous unless `authFor` supplies credentials for the
+ * registry). Returns the `docker-content-digest`.
+ */
+export async function fetchRemoteDigest(
+	ref: string,
+	fetchFn: typeof fetch = fetch,
+	authFor?: RegistryAuthFn,
+): Promise<string> {
 	const { registry, repo, tag } = parseImageRef(ref);
 	const url = `https://${registry}/v2/${repo}/manifests/${tag}`;
 
 	let res = await fetchFn(url, { method: 'HEAD', headers: { Accept: MANIFEST_ACCEPT } });
 	if (res.status === 401) {
 		const challenge = res.headers.get('www-authenticate') ?? '';
-		const token = await fetchToken(challenge, repo, fetchFn);
+		const token = await fetchToken(challenge, repo, fetchFn, authFor?.(registry));
 		res = await fetchFn(url, {
 			method: 'HEAD',
 			headers: { Accept: MANIFEST_ACCEPT, Authorization: `Bearer ${token}` },
@@ -69,7 +81,12 @@ export async function fetchRemoteDigest(ref: string, fetchFn: typeof fetch = fet
 	return digest;
 }
 
-async function fetchToken(challenge: string, repo: string, fetchFn: typeof fetch): Promise<string> {
+async function fetchToken(
+	challenge: string,
+	repo: string,
+	fetchFn: typeof fetch,
+	authHeader?: string,
+): Promise<string> {
 	const params = new Map<string, string>();
 	for (const [, k, v] of challenge.matchAll(/(\w+)="([^"]*)"/g)) params.set(k, v);
 	const realm = params.get('realm');
@@ -79,7 +96,7 @@ async function fetchToken(challenge: string, repo: string, fetchFn: typeof fetch
 	if (params.get('service')) url.searchParams.set('service', params.get('service')!);
 	url.searchParams.set('scope', params.get('scope') ?? `repository:${repo}:pull`);
 
-	const res = await fetchFn(url.toString());
+	const res = await fetchFn(url.toString(), authHeader ? { headers: { Authorization: authHeader } } : undefined);
 	if (!res.ok) throw new Error(`token fetch failed: HTTP ${res.status}`);
 	const body = (await res.json()) as { token?: string; access_token?: string };
 	const token = body.token ?? body.access_token;
@@ -95,12 +112,13 @@ export async function checkImages(
 	images: string[],
 	runningDigests: Map<string, string>,
 	fetchFn: typeof fetch = fetch,
+	authFor?: RegistryAuthFn,
 ): Promise<ImageUpdate[]> {
 	return Promise.all(
 		images.map(async (image) => {
 			const runningDigest = runningDigests.get(imageRepoKey(image)) ?? null;
 			try {
-				const remoteDigest = await fetchRemoteDigest(image, fetchFn);
+				const remoteDigest = await fetchRemoteDigest(image, fetchFn, authFor);
 				return {
 					image,
 					remoteDigest,

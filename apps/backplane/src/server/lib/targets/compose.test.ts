@@ -94,6 +94,34 @@ describe('ComposeTarget', () => {
 		expect(cmds[1]).toBe('docker compose -p nazu pull');
 	});
 
+	it('injects git credentials and DOCKER_CONFIG when configured', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'bp-'));
+		const exec = vi.fn(async () => ({ stdout: '', stderr: '' })) as unknown as ExecFn;
+		const target = new ComposeTarget({
+			workdirRoot: root,
+			exec,
+			git: {
+				args: ['-c', 'credential.https://github.com.helper=!helper'],
+				env: { BACKPLANE_GITHUB_TOKEN: 'tok' },
+			},
+			dockerEnv: { DOCKER_CONFIG: '/data/docker-config' },
+		});
+
+		await target.deploy(project(), () => {});
+
+		const mock = exec as ReturnType<typeof vi.fn>;
+		const cmds = calls(mock);
+		expect(cmds[0]).toBe(
+			`git -c credential.https://github.com.helper=!helper clone --branch main --single-branch https://github.com/nazuraki/nazu.git ${join(root, 'nazu')}`,
+		);
+		expect((mock.mock.calls[0][2] as { env?: Record<string, string> }).env).toEqual({
+			BACKPLANE_GITHUB_TOKEN: 'tok',
+		});
+		expect((mock.mock.calls[1][2] as { env?: Record<string, string> }).env).toEqual({
+			DOCKER_CONFIG: '/data/docker-config',
+		});
+	});
+
 	it('status returns [] when the project was never synced', async () => {
 		const root = mkdtempSync(join(tmpdir(), 'bp-'));
 		const exec = vi.fn() as unknown as ExecFn;
