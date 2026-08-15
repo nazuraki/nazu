@@ -11,6 +11,6 @@ export default defineConfig({
 	},
 	server: {
 		// Dev-only: the SPA proxies API calls to a locally running server.
-		proxy: { '/api': 'http://localhost:8430' },
+		proxy: { '^/api/': 'http://localhost:8430' },
 	},
 });

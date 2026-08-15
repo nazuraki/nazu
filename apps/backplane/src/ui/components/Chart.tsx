@@ -14,7 +14,7 @@ interface ChartProps {
 	formatY?: (v: number | null) => string;
 }
 
-const COLORS = ['#58a6ff', '#3fb950', '#d29922', '#f85149', '#bc8cff', '#39c5cf'];
+const COLORS = ['#d2bbff', '#39ff14', '#ffb784', '#ffb4ab', '#bcc7de', '#39c5cf'];
 
 /** Minimal uPlot wrapper: aligns all series onto the union of timestamps. */
 export function Chart({ title, series, formatY }: ChartProps): React.JSX.Element {
@@ -51,10 +51,10 @@ export function Chart({ title, series, formatY }: ChartProps): React.JSX.Element
 				})),
 			],
 			axes: [
-				{ stroke: '#8b949e', grid: { stroke: '#21262d' } },
+				{ stroke: '#958da1', grid: { stroke: 'rgba(255,255,255,0.06)' } },
 				{
-					stroke: '#8b949e',
-					grid: { stroke: '#21262d' },
+					stroke: '#958da1',
+					grid: { stroke: 'rgba(255,255,255,0.06)' },
 					values: formatY
 						? (_u: uPlot, vals: number[]): string[] => vals.map((v) => formatY(v))
 						: undefined,
