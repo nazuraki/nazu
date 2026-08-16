@@ -36,31 +36,52 @@ export function App(): React.JSX.Element {
 	if (!auth.data.authenticated) return <LoginPage status={auth.data} />;
 
 	return (
-		<>
-			<nav>
+		<div className="layout">
+			<aside className="sidebar">
 				<span className="brand">backplane</span>
-				<a href="#/projects">Projects</a>
-				<a href="#/containers">Containers</a>
-				<a href="#/settings">Settings</a>
-				<span className="spacer" />
-				<SelfUpdate />
-				{auth.data.method === 'session' && (
-					<button onClick={() => doLogout.mutate()} disabled={doLogout.isPending}>
-						Sign out
-					</button>
-				)}
-			</nav>
-			<main>
-				{projectMatch ? (
-					<ProjectPage name={decodeURIComponent(projectMatch[1])} />
-				) : route === '/containers' ? (
-					<ContainersPage />
-				) : route === '/settings' ? (
-					<SettingsPage status={auth.data} />
-				) : (
-					<ProjectsPage />
-				)}
-			</main>
-		</>
+				<a href="#/projects" className={route.startsWith('/projects') ? 'active' : ''}>
+					<span className="material-symbols-outlined">account_tree</span>
+					Projects
+				</a>
+				<a href="#/containers" className={route === '/containers' ? 'active' : ''}>
+					<span className="material-symbols-outlined">deployed_code</span>
+					Containers
+				</a>
+			</aside>
+			<div className="content">
+				<header>
+					<span className="spacer" />
+					<SelfUpdate />
+					<a
+						href="#/settings"
+						className={`icon-btn${route === '/settings' ? ' active' : ''}`}
+						title="Settings"
+					>
+						<span className="material-symbols-outlined">settings</span>
+					</a>
+					{auth.data.method === 'session' && (
+						<button
+							className="icon-btn"
+							title="Sign out"
+							onClick={() => doLogout.mutate()}
+							disabled={doLogout.isPending}
+						>
+							<span className="material-symbols-outlined">logout</span>
+						</button>
+					)}
+				</header>
+				<main>
+					{projectMatch ? (
+						<ProjectPage name={decodeURIComponent(projectMatch[1])} />
+					) : route === '/containers' ? (
+						<ContainersPage />
+					) : route === '/settings' ? (
+						<SettingsPage status={auth.data} />
+					) : (
+						<ProjectsPage />
+					)}
+				</main>
+			</div>
+		</div>
 	);
 }
