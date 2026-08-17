@@ -59,13 +59,6 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 		},
 	});
 
-	const remove = useMutation({
-		mutationFn: () => api(`/api/projects/${name}`, { method: 'DELETE' }),
-		onSuccess: () => {
-			window.location.hash = '#/projects';
-		},
-	});
-
 	if (project.isLoading) return <p className="muted">Loading…</p>;
 	if (project.error) return <p className="error">{(project.error as Error).message}</p>;
 	const p = project.data!.project;
@@ -88,14 +81,9 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 				<button onClick={() => run.mutate('restart')} disabled={run.isPending}>
 					Restart
 				</button>
-				<button
-					className="danger"
-					onClick={() => {
-						if (window.confirm(`Remove project "${p.name}" from the registry?`)) remove.mutate();
-					}}
-				>
-					Remove
-				</button>
+				<a href={`#/projects/${p.name}/edit`} className="icon-btn" title="Edit project">
+					<span className="material-symbols-outlined">edit</span>
+				</a>
 			</div>
 			<p className="muted">
 				{p.gitUrl} ({p.branch}) — target: {p.target.type}
