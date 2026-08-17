@@ -1,7 +1,7 @@
 /* Neon Agentic Nexus — shared look with the switchboard landing page. */
 :root {
 	--bg: #0b1326;
-	--panel: rgba(23, 31, 51, 0.75);
+	--panel: rgba(23, 31, 51, 0.45);
 	--panel-solid: #171f33;
 	--panel-bright: #222a3d;
 	--border: rgba(255, 255, 255, 0.1);
@@ -22,7 +22,7 @@
 body {
 	margin: 0;
 	min-height: 100vh;
-	background: #1a1f2e url('/butterfly-circuit.png') center / cover fixed;
+	background: var(--bg) url('/butterfly-circuit.png') center / cover fixed;
 	color: var(--text);
 }
 
@@ -202,6 +202,46 @@ h2 {
 	margin: 0.75rem 0;
 }
 
+.card-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+	margin: 0.75rem 0;
+}
+
+.project-card {
+	display: grid;
+	grid-template-columns: 1fr max-content 7.5rem;
+	align-items: center;
+	gap: 1rem;
+	background: var(--panel);
+	border: 1px solid var(--border);
+	border-radius: 0.5rem;
+	backdrop-filter: blur(12px);
+	padding: 0.85rem 1rem;
+	color: var(--text);
+	text-decoration: none;
+}
+
+.project-card:hover {
+	background: rgba(34, 42, 61, 0.6);
+	border-color: rgba(210, 187, 255, 0.35);
+	text-decoration: none;
+}
+
+.project-card-name {
+	font-weight: 700;
+	color: var(--accent);
+}
+
+.project-card-uptime {
+	justify-self: end;
+}
+
+.project-card .badge {
+	text-align: center;
+}
+
 table {
 	width: 100%;
 	border-collapse: collapse;
@@ -311,6 +351,12 @@ select {
 	padding: 0.35rem 0.6rem;
 	font-family: inherit;
 	font-size: 0.85rem;
+}
+
+.panel input:not([type='checkbox']),
+.panel select {
+	width: 100%;
+	max-width: 34rem;
 }
 
 input:focus,

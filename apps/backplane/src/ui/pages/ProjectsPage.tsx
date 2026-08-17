@@ -1,7 +1,38 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { api, type Project } from '../api';
+import { api, type ContainerSummary, type Project } from '../api';
+
+function formatUptime(seconds: number): string {
+	const d = Math.floor(seconds / 86_400);
+	const h = Math.floor((seconds % 86_400) / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	if (d > 0) return `${d}d ${h}h`;
+	if (h > 0) return `${h}h ${m}m`;
+	return `${m}m`;
+}
+
+interface ProjectHealth {
+	label: string;
+	cls: '' | 'ok' | 'warn' | 'err';
+	uptime: string | null;
+}
+
+function projectHealth(p: Project, containers: ContainerSummary[] | undefined): ProjectHealth {
+	if (!containers) return { label: 'unknown', cls: '', uptime: null };
+	const compose = p.target.projectName ?? p.name;
+	const own = containers.filter((c) => c.composeProject === compose);
+	const running = own.filter((c) => c.state === 'running');
+	if (own.length === 0) return { label: 'not deployed', cls: '', uptime: null };
+	// The stack is only fully up since its most recently started container.
+	const uptime =
+		running.length > 0
+			? formatUptime(Date.now() / 1000 - Math.max(...running.map((c) => c.created)))
+			: null;
+	if (running.length === own.length) return { label: 'running', cls: 'ok', uptime };
+	if (running.length > 0) return { label: `${running.length}/${own.length} running`, cls: 'warn', uptime };
+	return { label: 'stopped', cls: 'err', uptime: null };
+}
 
 const EMPTY = {
 	name: '',
@@ -89,6 +120,12 @@ export function ProjectsPage(): React.JSX.Element {
 		queryFn: () => api<{ projects: Project[] }>('/api/projects'),
 		refetchInterval: 15_000,
 	});
+	// Status/uptime is best-effort: cards render without it if this fails.
+	const containers = useQuery({
+		queryKey: ['containers'],
+		queryFn: () => api<{ containers: ContainerSummary[] }>('/api/containers'),
+		refetchInterval: 15_000,
+	});
 
 	return (
 		<>
@@ -102,35 +139,19 @@ export function ProjectsPage(): React.JSX.Element {
 				<p className="muted">No projects registered yet. Add one to start deploying.</p>
 			)}
 			{data && data.projects.length > 0 && (
-				<div className="panel">
-					<table>
-						<thead>
-							<tr>
-								<th>Name</th>
-								<th>Repo</th>
-								<th>Branch</th>
-								<th>Images watched</th>
-								<th>Auto-deploy</th>
-							</tr>
-						</thead>
-						<tbody>
-							{data.projects.map((p) => (
-								<tr
-									key={p.name}
-									className="clickable"
-									onClick={() => (window.location.hash = `#/projects/${p.name}`)}
-								>
-									<td>
-										<a href={`#/projects/${p.name}`}>{p.name}</a>
-									</td>
-									<td className="muted">{p.gitUrl}</td>
-									<td>{p.branch}</td>
-									<td>{p.images.length}</td>
-									<td>{p.autoDeploy ? <span className="badge ok">on</span> : <span className="badge">off</span>}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+				<div className="card-stack">
+					{data.projects.map((p) => {
+						const health = projectHealth(p, containers.data?.containers);
+						return (
+							<a key={p.name} className="project-card" href={`#/projects/${p.name}`}>
+								<span className="project-card-name">{p.name}</span>
+								<span className="project-card-uptime muted">
+								{health.uptime ? `up ${health.uptime}` : '—'}
+							</span>
+								<span className={`badge ${health.cls}`}>{health.label}</span>
+							</a>
+						);
+					})}
 				</div>
 			)}
 		</>

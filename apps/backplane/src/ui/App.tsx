@@ -5,11 +5,12 @@ import { fetchAuthStatus, logout } from './api';
 import { SelfUpdate } from './components/SelfUpdate';
 import { ContainersPage } from './pages/ContainersPage';
 import { LoginPage } from './pages/LoginPage';
+import { ProjectEditPage } from './pages/ProjectEditPage';
 import { ProjectPage } from './pages/ProjectPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { SettingsPage } from './pages/SettingsPage';
 
-/** Tiny hash router: #/projects, #/projects/:name, #/containers, #/settings. */
+/** Tiny hash router: #/projects, #/projects/:name(/edit), #/containers, #/settings. */
 function useRoute(): string {
 	const [hash, setHash] = useState(window.location.hash);
 	useEffect(() => {
@@ -24,6 +25,7 @@ export function App(): React.JSX.Element {
 	const route = useRoute();
 	const qc = useQueryClient();
 	const projectMatch = route.match(/^\/projects\/([^/]+)$/);
+	const editMatch = route.match(/^\/projects\/([^/]+)\/edit$/);
 
 	const auth = useQuery({ queryKey: ['auth'], queryFn: fetchAuthStatus });
 	const doLogout = useMutation({
@@ -71,7 +73,9 @@ export function App(): React.JSX.Element {
 					)}
 				</header>
 				<main>
-					{projectMatch ? (
+					{editMatch ? (
+						<ProjectEditPage name={decodeURIComponent(editMatch[1])} />
+					) : projectMatch ? (
 						<ProjectPage name={decodeURIComponent(projectMatch[1])} />
 					) : route === '/containers' ? (
 						<ContainersPage />
