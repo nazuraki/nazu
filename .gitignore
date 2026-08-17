@@ -66,3 +66,5 @@ node_modules/
 
 # mkcert-generated certs (generated locally, not committed)
 infra/certs/*.pem
+.claude
+apps/backplane/data
