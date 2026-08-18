@@ -47,8 +47,10 @@ export function parseComposeServices(yaml: string): ComposeService[] {
 }
 
 function publishedImages(): string[] {
+	// The publish matrix is emitted as JSON entries by the workflow's `changes`
+	// job (`{"image":"nazu-web",...}`), so scan for those.
 	const workflow = read('.github/workflows/publish-images.yml');
-	return [...workflow.matchAll(/-\s+image:\s*(\S+)/g)].map((m) => m[1]);
+	return [...workflow.matchAll(/"image":\s*"([\w-]+)"/g)].map((m) => m[1]);
 }
 
 const COMPOSE_FILES = ['docker-compose.yml', 'apps/backplane/docker-compose.yml'];
