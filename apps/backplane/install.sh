@@ -79,6 +79,19 @@ set_env() {
 # distinct from the stacks the backplane manages.
 set_env COMPOSE_PROJECT_NAME backplane
 
+# Host-visible root for per-project deploy checkouts (ADR 0005). It is bind-
+# mounted into the backplane at the identical path so that relative bind
+# mounts in managed compose files resolve to paths the host daemon can see.
+# Set once — a customized path in .env survives re-runs.
+if grep -q '^BACKPLANE_WORKDIRS=' "$DIR/.env" 2>/dev/null; then
+  WORKDIRS=$(grep '^BACKPLANE_WORKDIRS=' "$DIR/.env" | tail -n 1 | cut -d= -f2-)
+else
+  WORKDIRS="$DIR/workdirs"
+  set_env BACKPLANE_WORKDIRS "$WORKDIRS"
+fi
+# Pre-create it: otherwise the daemon creates the bind source root-owned.
+mkdir -p "$WORKDIRS"
+
 # Download a repo file into $DIR atomically, so a failed fetch can't leave a
 # truncated file behind for an already-running stack's bind mounts.
 fetch() {

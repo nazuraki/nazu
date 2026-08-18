@@ -27,11 +27,22 @@ services:
       # repos and private GHCR images. Empty = public-only, as before.
       BACKPLANE_GITHUB_TOKEN: ${BACKPLANE_GITHUB_TOKEN:-}
       PROMETHEUS_URL: http://prometheus:9090
+      # Root of the per-project deploy checkouts (see the workdirs mount below).
+      BACKPLANE_WORKDIRS: ${BACKPLANE_WORKDIRS:-${PWD}/workdirs}
     volumes:
       # Read-write: the backplane starts/stops containers in target stacks.
       - /var/run/docker.sock:/var/run/docker.sock
-      # Registry DB + per-project git checkouts.
+      # Registry DB + generated docker registry-auth config.
       - backplane_data:/data
+      # Per-project git checkouts, bind-mounted at the IDENTICAL path inside
+      # the container. The backplane runs `docker compose` in these checkouts
+      # against the host daemon, so relative bind mounts in managed compose
+      # files (e.g. ./caddy/Caddyfile) must resolve to paths the daemon can
+      # see — mirroring makes every container-side path a valid host path
+      # (same trick as the self-update helper). See ADR 0005. install.sh pins
+      # BACKPLANE_WORKDIRS in .env; the ${PWD} fallback covers `just
+      # backplane-up` from a checkout.
+      - ${BACKPLANE_WORKDIRS:-${PWD}/workdirs}:${BACKPLANE_WORKDIRS:-${PWD}/workdirs}
     restart: unless-stopped
     depends_on:
       - prometheus

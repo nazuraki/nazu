@@ -68,3 +68,6 @@ node_modules/
 infra/certs/*.pem
 .claude
 apps/backplane/data
+
+# Backplane deploy checkouts (`just backplane-up` defaults to ${PWD}/workdirs)
+workdirs/

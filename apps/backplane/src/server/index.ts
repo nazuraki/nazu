@@ -24,8 +24,12 @@ const GITHUB_TOKEN = process.env.BACKPLANE_GITHUB_TOKEN?.trim() || undefined;
 const registry = new Registry(join(DATA_DIR, 'backplane.db'));
 const auth = new AuthService(registry, API_KEY);
 const registryAuth = (host: string): string | undefined => registryAuthHeader(host, GITHUB_TOKEN);
+// Must be a path the HOST daemon can also see (mirrored bind mount in
+// docker-compose.yml) so relative bind mounts in managed compose files resolve.
+const WORKDIRS = process.env.BACKPLANE_WORKDIRS?.trim() || join(DATA_DIR, 'workdirs');
+
 const target = new ComposeTarget({
-	workdirRoot: join(DATA_DIR, 'workdirs'),
+	workdirRoot: WORKDIRS,
 	git: gitCredentials(GITHUB_TOKEN),
 	dockerEnv: writeDockerConfig(DATA_DIR, GITHUB_TOKEN),
 });
