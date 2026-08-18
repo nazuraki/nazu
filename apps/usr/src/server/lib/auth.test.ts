@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hashPassword, hashToken, validateApiKey, validateBasicHeader, verifyPassword } from './auth.js';
+import { hashPassword, hashToken, validateBasicHeader, verifyPassword } from './auth.js';
 
 describe('password hashing', () => {
 	it('round-trips', () => {
@@ -13,19 +13,6 @@ describe('password hashing', () => {
 	it('rejects malformed stored values', () => {
 		expect(verifyPassword('x', 'plaintext')).toBe(false);
 		expect(verifyPassword('x', 'scrypt$$')).toBe(false);
-	});
-});
-
-describe('validateApiKey', () => {
-	it('accepts only an exact match when configured', () => {
-		expect(validateApiKey('secret', 'secret')?.method).toBe('api-key');
-		expect(validateApiKey('secret', 'secret')?.root).toBe(true);
-		expect(validateApiKey('wrong', 'secret')).toBeNull();
-		expect(validateApiKey(undefined, 'secret')).toBeNull();
-	});
-
-	it('is disabled when no key is configured', () => {
-		expect(validateApiKey('anything', '')).toBeNull();
 	});
 });
 

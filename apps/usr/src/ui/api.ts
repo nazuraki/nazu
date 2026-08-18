@@ -27,7 +27,6 @@ export interface AuthStatus {
 	usrPermissions: string[];
 	setupRequired: boolean;
 	localAuth: boolean;
-	apiKeyAuth: boolean;
 	oauthProviders: string[];
 }
 
@@ -130,6 +129,28 @@ export const updateRole = (id: number, input: Partial<RoleInput>): Promise<Role>
 
 export const deleteRole = (id: number): Promise<{ ok: boolean }> =>
 	api(`/api/roles/${id}`, { method: 'DELETE' });
+
+// ── API keys ──────────────────────────────────────────────────────────────────
+
+export interface ApiKey {
+	id: number;
+	name: string;
+	roles: Pick<Role, 'id' | 'app' | 'name'>[];
+	createdAt: string;
+	lastUsedAt: string | null;
+}
+
+export const fetchKeys = (): Promise<ApiKey[]> => api('/api/keys');
+
+/** `token` is returned exactly once, on creation. */
+export const createKey = (name: string, roleIds: number[]): Promise<ApiKey & { token: string }> =>
+	api('/api/keys', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ name, roleIds }) });
+
+export const setKeyRoles = (id: number, roleIds: number[]): Promise<ApiKey> =>
+	api(`/api/keys/${id}/roles`, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify({ roleIds }) });
+
+export const deleteKey = (id: number): Promise<{ ok: boolean }> =>
+	api(`/api/keys/${id}`, { method: 'DELETE' });
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 

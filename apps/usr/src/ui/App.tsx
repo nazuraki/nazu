@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { fetchAuthStatus, logout } from './api';
+import { KeysPage } from './pages/KeysPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SetupPage } from './pages/SetupPage';
@@ -44,6 +45,7 @@ export function App(): React.JSX.Element {
 		perms.has('admin') || perms.has(`${area}:read`) || perms.has(`${area}:write`);
 	const canUsers = canArea('users');
 	const canRoles = canArea('roles');
+	const canKeys = canArea('keys');
 	const canSettings = canArea('settings');
 	// Identities without a users row (api key, open mode) have no profile.
 	const hasProfile = auth.data.method === 'session' && auth.data.email !== null;
@@ -68,6 +70,12 @@ export function App(): React.JSX.Element {
 					<a href="#/roles" className={route === '/roles' ? 'active' : ''}>
 						<span className="material-symbols-outlined">shield_person</span>
 						Roles
+					</a>
+				)}
+				{canKeys && (
+					<a href="#/keys" className={route === '/keys' ? 'active' : ''}>
+						<span className="material-symbols-outlined">key</span>
+						Keys
 					</a>
 				)}
 			</aside>
@@ -102,6 +110,8 @@ export function App(): React.JSX.Element {
 						<UsersPage />
 					) : route === '/roles' && canRoles ? (
 						<RolesPage />
+					) : route === '/keys' && canKeys ? (
+						<KeysPage />
 					) : route === '/settings' && canSettings ? (
 						<SettingsPage />
 					) : hasProfile ? (

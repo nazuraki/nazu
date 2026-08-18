@@ -21,19 +21,20 @@ migrations in `migrations/` applied at boot.
   `settings:read`/`settings:write` in the `usr` app — so partial grants work
   (e.g. a role with only `users:read` is a read-only directory). `admin`
   (seeded role `usr/admin`) is the grantable umbrella satisfying all of them.
-  The API key, open mode, and the break-glass local credentials are **root** —
-  identities outside the roles model that bypass checks.
+  API keys go through the same checks via their roles; only zero-conf open
+  mode and the break-glass local credentials are **root** (outside the model).
 - **First run:** with no users and no credentials configured, the UI shows a
   welcome screen that creates the initial admin — a real users row holding
   `usr/admin`, with the local (break-glass) credentials linked to it.
 
 ## Auth
 
-Same ladder as the nazu web app: static API key (`USR_API_KEY` env, header
-`x-api-key` or bearer) → session cookie (OAuth GitHub/Google or local login) →
-Basic (local admin) → zero-conf open mode when nothing is configured. OAuth
-credentials are DB-backed and edited in Settings; callback URLs are
-`/api/auth/oauth/<provider>/callback`.
+Same ladder as the nazu web app: API key (header `x-api-key` or bearer —
+DB-backed and **role-mapped like users**, created in the Keys page, shown
+once, stored hashed; there is no env key) → session cookie (OAuth
+GitHub/Google or local login) → Basic (local admin) → zero-conf open mode
+until first-run setup. OAuth credentials are DB-backed and edited in
+Settings; callback URLs are `/api/auth/oauth/<provider>/callback`.
 
 ## The hot path
 
@@ -43,7 +44,8 @@ GET /api/permissions?email=<email>&app=<app>
 ```
 
 Unknown emails return `200` with `exists: false` and empty arrays. Omit `app`
-to get grants keyed by app.
+to get grants keyed by app. Callers need `permissions:read` in the `usr` app —
+create a key in the Keys page and give it the seeded `usr/service` role.
 
 ## Run
 

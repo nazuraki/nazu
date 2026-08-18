@@ -11,10 +11,8 @@ services:
     # LAN clients go through caddy (HTTPS, tls profile).
     ports:
       - "127.0.0.1:8432:8432"
-    environment:
-      # Static key other apps use to query /api/permissions. The UI/API is
-      # open only when this is empty AND no login method is configured in-app.
-      USR_API_KEY: ${USR_API_KEY:-}
+    # No app env: API keys are DB-backed and role-mapped, created in the Keys
+    # UI. Open mode lasts only until first-run setup creates the admin.
     restart: unless-stopped
     depends_on:
       postgres:

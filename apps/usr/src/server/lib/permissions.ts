@@ -1,3 +1,4 @@
+import { keyGrants } from './api-keys.js';
 import type { AuthUser } from './auth.js';
 import { getSql } from './db.js';
 
@@ -66,6 +67,9 @@ export async function hasPermission(
 export async function usrPermissions(user: AuthUser | null): Promise<string[]> {
 	if (!user) return [];
 	if (user.root) return ['admin'];
+	if (user.keyId !== null) {
+		return (await keyGrants(user.keyId, 'usr'))['usr']?.permissions ?? [];
+	}
 	if (!user.email) return [];
 	return (await resolvePermissions(user.email, 'usr')).apps['usr']?.permissions ?? [];
 }

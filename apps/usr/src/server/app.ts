@@ -2,10 +2,10 @@ import { Hono } from 'hono';
 import type { MiddlewareHandler } from 'hono';
 import { getCookie } from 'hono/cookie';
 
+import { validateApiKeyToken } from './lib/api-keys.js';
 import {
 	openMode,
 	openUser,
-	validateApiKey,
 	validateBasicHeader,
 	validateSession,
 	verifyLocalCredentials,
@@ -13,6 +13,7 @@ import {
 } from './lib/auth.js';
 import { can } from './lib/permissions.js';
 import { authRoutes, SESSION_COOKIE } from './routes/auth.js';
+import { keysRoutes } from './routes/keys.js';
 import { permissionsRoutes } from './routes/permissions.js';
 import { profileRoutes } from './routes/profile.js';
 import { rolesRoutes } from './routes/roles.js';
@@ -39,31 +40,31 @@ export function requireArea(area: string): MiddlewareHandler<AppEnv> {
 	};
 }
 
-export interface AppOptions {
-	/** Static key for machine clients (other apps, agents); '' disables it. */
-	apiKey: string;
-}
-
 /** Auth-exempt paths: liveness plus what the SPA needs to reach a login. */
 const OPEN_PREFIXES = ['/api/auth/'];
 const OPEN_PATHS = new Set(['/api/health']);
 
 /**
- * Auth ladder, mirroring the nazu web app: static API key → session cookie
- * (OAuth or local login) → Basic header (local admin) → zero-conf open mode
- * when nothing is configured. No WWW-Authenticate challenge — the SPA has its
- * own login screen.
+ * Auth ladder, mirroring the nazu web app: role-mapped API key (x-api-key or
+ * bearer, resolved against the api_keys table) → session cookie (OAuth or
+ * local login) → Basic header (local admin) → zero-conf open mode when
+ * nothing is configured. No WWW-Authenticate challenge — the SPA has its own
+ * login screen.
  */
 async function authenticate(
-	apiKey: string,
 	headers: { apiKey?: string; authorization?: string },
 	sessionToken: string | undefined,
 ): Promise<AuthUser | null> {
 	const bearer = headers.authorization?.startsWith('Bearer ')
 		? headers.authorization.slice(7)
 		: undefined;
-	const keyUser = validateApiKey(headers.apiKey ?? bearer, apiKey);
-	if (keyUser) return keyUser;
+	const token = headers.apiKey ?? bearer;
+	if (token) {
+		const key = await validateApiKeyToken(token);
+		if (key) {
+			return { id: key.name, email: null, userId: null, keyId: key.id, root: false, method: 'api-key' };
+		}
+	}
 
 	const sessionUser = await validateSession(sessionToken);
 	if (sessionUser) return sessionUser;
@@ -74,18 +75,17 @@ async function authenticate(
 		if (basicUser) return basicUser;
 	}
 
-	if (await openMode(apiKey)) return openUser();
+	if (await openMode()) return openUser();
 	return null;
 }
 
-export function createApp(opts: AppOptions): Hono<AppEnv> {
+export function createApp(): Hono<AppEnv> {
 	const app = new Hono<AppEnv>();
 
 	app.get('/api/health', (c) => c.json({ ok: true }));
 
 	app.use('/api/*', async (c, next) => {
 		const user = await authenticate(
-			opts.apiKey,
 			{ apiKey: c.req.header('x-api-key'), authorization: c.req.header('authorization') },
 			getCookie(c, SESSION_COOKIE),
 		);
@@ -97,10 +97,11 @@ export function createApp(opts: AppOptions): Hono<AppEnv> {
 		return next();
 	});
 
-	app.route('/api/auth', authRoutes(opts));
+	app.route('/api/auth', authRoutes());
 	app.route('/api/profile', profileRoutes());
 	app.route('/api/users', usersRoutes());
 	app.route('/api/roles', rolesRoutes());
+	app.route('/api/keys', keysRoutes());
 	app.route('/api/permissions', permissionsRoutes());
 	app.route('/api/settings', settingsRoutes());
 

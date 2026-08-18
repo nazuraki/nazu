@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { Hono } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 
-import type { AppEnv, AppOptions } from '../app.js';
+import type { AppEnv } from '../app.js';
 import {
 	completeSetup,
 	createSession,
@@ -27,7 +27,7 @@ const SESSION_COOKIE_OPTS = {
 } as const;
 
 /** Login endpoints — exempt from the auth gate so the SPA can reach a login. */
-export function authRoutes(opts: AppOptions): Hono<AppEnv> {
+export function authRoutes(): Hono<AppEnv> {
 	const app = new Hono<AppEnv>();
 
 	// Tells the SPA whether/how to render a login screen (or first-run setup).
@@ -40,7 +40,6 @@ export function authRoutes(opts: AppOptions): Hono<AppEnv> {
 			usrPermissions: await usrPermissions(user),
 			setupRequired: await setupRequired(),
 			localAuth: await localAuthConfigured(),
-			apiKeyAuth: opts.apiKey !== '',
 			oauthProviders: (await configuredProviders()).map((p) => p.name),
 		});
 	});

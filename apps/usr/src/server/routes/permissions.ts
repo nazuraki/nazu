@@ -1,16 +1,19 @@
 import { Hono } from 'hono';
 
-import type { AppEnv } from '../app.js';
+import { requireArea, type AppEnv } from '../app.js';
 import { resolvePermissions } from '../lib/permissions.js';
 
 /**
- * The hot path other apps call (API-key authed in practice):
+ * The hot path other apps call, gated by permissions:read (the seeded
+ * usr/service role grants exactly this — assign it to app API keys):
  *   GET /api/permissions?email=…&app=…  → grants for one app
  *   GET /api/permissions?email=…        → grants keyed by app
  * Unknown emails are 200 + exists:false, not an error.
  */
 export function permissionsRoutes(): Hono<AppEnv> {
 	const app = new Hono<AppEnv>();
+
+	app.use('*', requireArea('permissions'));
 
 	app.get('/', async (c) => {
 		const email = c.req.query('email');

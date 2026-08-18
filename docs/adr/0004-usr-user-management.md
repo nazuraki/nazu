@@ -28,7 +28,12 @@ Add `apps/usr/`, a standalone user-management app:
   only for provisioned emails (usr is the roster, not a signup page).
 - **Query API:** `GET /api/permissions?email=&app=` returns roles + effective
   permissions; unknown emails are `200` + `exists:false`. Other apps call it
-  with the static `USR_API_KEY`.
+  with a role-mapped API key holding `permissions:read` (seeded `usr/service`
+  role).
+- **API keys are identities in the model, not root:** DB-backed (`api_keys`,
+  hashed, shown once, revocable, role-mapped via `api_key_roles`) and
+  authorized through the same per-action `can()` path as users. There is no
+  env key.
 - **Auth:** the nazu-web ladder rebuilt for Hono — API key → session cookie
   (hand-rolled GitHub/Google authorization-code flow; provider credentials
   DB-backed and edited in-app) → Basic (local admin) → zero-conf open mode.
@@ -37,9 +42,9 @@ Add `apps/usr/`, a standalone user-management app:
 - **usr dogfoods its own model:** authorization is a per-action `can()` check
   against `usr`-app grants (`users:read`/`users:write`, `roles:*`,
   `settings:*`), so partial admin is grantable; `admin` (seeded `usr/admin`
-  role) is the umbrella satisfying every check. The API key, open mode, and
-  the break-glass local credentials are **root** identities outside the roles
-  model and bypass checks — there is no admin boolean on identities.
+  role) is the umbrella satisfying every check. Zero-conf open mode and the
+  break-glass local credentials are the only **root** identities outside the
+  roles model — there is no admin boolean on identities.
 - **First-run setup:** on a fresh install (no users, no credentials) the SPA
   shows a welcome screen that creates the initial admin as a real users row
   with `usr/admin` assigned, and links the local break-glass credentials to

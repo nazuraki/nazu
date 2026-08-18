@@ -3,8 +3,22 @@ import { describe, expect, it } from 'vitest';
 import type { AuthUser } from './auth.js';
 import { can, usrPermissions } from './permissions.js';
 
-const rootUser: AuthUser = { id: 'api', email: null, userId: null, root: true, method: 'api-key' };
-const emailless: AuthUser = { id: 'local', email: null, userId: null, root: false, method: 'open' };
+const rootUser: AuthUser = {
+	id: 'local',
+	email: null,
+	userId: null,
+	keyId: null,
+	root: true,
+	method: 'open',
+};
+const emailless: AuthUser = {
+	id: 'anon',
+	email: null,
+	userId: null,
+	keyId: null,
+	root: false,
+	method: 'open',
+};
 
 // DB-backed grant resolution is covered by the compose E2E; these pin the
 // pure identity rules: root bypasses, no email means no grants.

@@ -8,14 +8,16 @@ import { createUser, getUser, getUserByEmail, touchLastLogin, ValidationError, t
 export type AuthMethod = 'api-key' | 'session' | 'basic' | 'open';
 
 export interface AuthUser {
-	/** Email for real users; the configured username for the local admin. */
+	/** Email for real users; key name for API keys; username for local admin. */
 	id: string;
 	email: string | null;
 	/** Row id when the identity maps to a users row (OAuth/session logins). */
 	userId: number | null;
+	/** Row id when the identity is a role-mapped API key. */
+	keyId: number | null;
 	/**
-	 * Identity outside the roles model — the API key, zero-conf open mode, and
-	 * the break-glass local credentials. Bypasses permission checks entirely;
+	 * Identity outside the roles model — zero-conf open mode and the
+	 * break-glass local credentials. Bypasses permission checks entirely;
 	 * every other authorization decision is a per-action `can()` check.
 	 */
 	root: boolean;
@@ -51,14 +53,6 @@ export function hashToken(token: string): string {
 	return createHash('sha256').update(token).digest('hex');
 }
 
-// ── API key (static header for machine clients, e.g. other apps) ──────────────
-
-export function validateApiKey(header: string | undefined, configured: string): AuthUser | null {
-	if (!configured || !header) return null;
-	if (!safeEqual(header, configured)) return null;
-	return { id: 'api', email: null, userId: null, root: true, method: 'api-key' };
-}
-
 // ── Local admin (username/password in app_settings; Basic or session) ─────────
 
 export async function localAuthConfigured(): Promise<boolean> {
@@ -92,7 +86,14 @@ export async function verifyLocalCredentials(
 	if (!verifyPassword(password, auth.localPassword)) return null;
 	const user = await getUserByEmail(auth.localEmail);
 	if (!user) return null;
-	return { id: auth.localUser, email: user.email, userId: user.id, root: true, method: 'basic' };
+	return {
+		id: auth.localUser,
+		email: user.email,
+		userId: user.id,
+		keyId: null,
+		root: true,
+		method: 'basic',
+	};
 }
 
 /** True when this email holds the local credentials (deletion is refused). */
@@ -168,6 +169,7 @@ export async function validateSession(token: string | undefined): Promise<AuthUs
 		id: user.email,
 		email: user.email,
 		userId: user.id,
+		keyId: null,
 		root: await isLocalCredentialHolder(user.email),
 		method: 'session',
 	};
@@ -181,16 +183,18 @@ export async function deleteSession(token: string | undefined): Promise<void> {
 
 // ── Zero-conf open mode ────────────────────────────────────────────────────────
 
-/** With no API key, no local admin and no OAuth configured, requests are open. */
-export async function openMode(apiKey: string): Promise<boolean> {
-	if (apiKey) return false;
+/** Open only while nothing is configured: no credentials, no OAuth, no keys. */
+export async function openMode(): Promise<boolean> {
 	if (await localAuthConfigured()) return false;
 	const o = await getSection('oauth');
-	return !(o.githubId && o.githubSecret) && !(o.googleId && o.googleSecret);
+	if ((o.githubId && o.githubSecret) || (o.googleId && o.googleSecret)) return false;
+	const sql = getSql();
+	const rows = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM api_keys`;
+	return rows[0].n === 0;
 }
 
 export function openUser(): AuthUser {
-	return { id: 'local', email: null, userId: null, root: true, method: 'open' };
+	return { id: 'local', email: null, userId: null, keyId: null, root: true, method: 'open' };
 }
 
 export type { User };
