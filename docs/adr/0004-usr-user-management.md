@@ -62,5 +62,5 @@ Add `apps/usr/`, a standalone user-management app:
 - Roles/permissions are free-form strings by design; consistency across apps
   is a convention, not a schema guarantee.
 - A future step could move the nazu web app's OAuth config to usr, or add
-  token issuance (JWT) so apps can verify without a round trip. Out of scope
-  here.
+  token issuance (JWT) so apps can verify without a round trip — the latter is
+  designed in #97. Out of scope here.
