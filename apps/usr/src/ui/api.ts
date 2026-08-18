@@ -24,12 +24,28 @@ export interface AuthStatus {
 	method: 'api-key' | 'session' | 'basic' | 'open' | null;
 	email: string | null;
 	admin: boolean;
+	setupRequired: boolean;
 	localAuth: boolean;
 	apiKeyAuth: boolean;
 	oauthProviders: string[];
 }
 
 export const fetchAuthStatus = (): Promise<AuthStatus> => api('/api/auth/status');
+
+export interface SetupInput {
+	email: string;
+	name?: string;
+	username: string;
+	password: string;
+}
+
+export async function setup(input: SetupInput): Promise<void> {
+	await api('/api/auth/setup', {
+		method: 'POST',
+		headers: JSON_HEADERS,
+		body: JSON.stringify(input),
+	});
+}
 
 export async function login(username: string, password: string): Promise<void> {
 	await api('/api/auth/login', {

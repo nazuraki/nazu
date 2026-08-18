@@ -2,8 +2,9 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypt
 
 import { getSql } from './db.js';
 import { hasPermission } from './permissions.js';
+import { listRoles, setUserRoles } from './roles.js';
 import { getSection, putSection } from './settings.js';
-import { getUser, touchLastLogin, type User } from './users.js';
+import { createUser, getUser, getUserByEmail, touchLastLogin, ValidationError, type User } from './users.js';
 
 export type AuthMethod = 'api-key' | 'session' | 'basic' | 'open';
 
@@ -65,6 +66,7 @@ export async function setLocalCredentials(username: string, password: string): P
 	await putSection('auth', { localUser: username, localPassword: hashPassword(password) });
 }
 
+/** Local credentials are break-glass admin; linked to a users row via localEmail. */
 export async function verifyLocalCredentials(
 	username: string,
 	password: string,
@@ -73,7 +75,48 @@ export async function verifyLocalCredentials(
 	if (!auth.localUser || !auth.localPassword) return null;
 	if (!safeEqual(username, auth.localUser)) return null;
 	if (!verifyPassword(password, auth.localPassword)) return null;
-	return { id: auth.localUser, email: null, userId: null, admin: true, method: 'basic' };
+	const user = auth.localEmail ? await getUserByEmail(auth.localEmail) : undefined;
+	return {
+		id: auth.localUser,
+		email: user?.email ?? null,
+		userId: user?.id ?? null,
+		admin: true,
+		method: 'basic',
+	};
+}
+
+// ── First-run setup (zero-conf welcome) ────────────────────────────────────────
+
+/** True on a fresh install: no local credentials and an empty user roster. */
+export async function setupRequired(): Promise<boolean> {
+	if (await localAuthConfigured()) return false;
+	const sql = getSql();
+	const rows = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM users`;
+	return rows[0].n === 0;
+}
+
+export interface SetupInput {
+	email: string;
+	name?: string;
+	username: string;
+	password: string;
+}
+
+/**
+ * Create the initial admin: a real users row holding the seeded usr/admin
+ * role, with the local credentials linked to it (localEmail).
+ */
+export async function completeSetup(input: SetupInput): Promise<number> {
+	if (!(await setupRequired())) throw new ValidationError('setup has already been completed');
+	const user = await createUser(input.email, { name: input.name ?? null });
+	const adminRole = (await listRoles('usr')).find((r) => r.name === 'admin');
+	if (adminRole) await setUserRoles(user.id, [adminRole.id]);
+	await putSection('auth', {
+		localUser: input.username,
+		localPassword: hashPassword(input.password),
+		localEmail: user.email,
+	});
+	return user.id;
 }
 
 export function validateBasicHeader(header: string | undefined): [string, string] | null {
@@ -86,18 +129,19 @@ export function validateBasicHeader(header: string | undefined): [string, string
 
 // ── Sessions (browser cookies; token stored hashed) ───────────────────────────
 
-/** Session for a real user (userId) or the local admin account (username). */
-export async function createSession(who: { userId: number } | { username: string }): Promise<string> {
+/**
+ * Session for an OAuth login (userId only) or a local-credential login
+ * (username set, marking it break-glass admin; userId links the profile).
+ */
+export async function createSession(who: { userId?: number; username?: string }): Promise<string> {
 	const sql = getSql();
 	const token = randomBytes(32).toString('hex');
 	const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-	const userId = 'userId' in who ? who.userId : null;
-	const username = 'username' in who ? who.username : null;
 	await sql`
 		INSERT INTO sessions (token_hash, user_id, username, expires_at)
-		VALUES (${hashToken(token)}, ${userId}, ${username}, ${expiresAt})
+		VALUES (${hashToken(token)}, ${who.userId ?? null}, ${who.username ?? null}, ${expiresAt})
 	`;
-	if (userId !== null) await touchLastLogin(userId);
+	if (who.userId !== undefined) await touchLastLogin(who.userId);
 	return token;
 }
 
@@ -108,11 +152,17 @@ export async function validateSession(token: string | undefined): Promise<AuthUs
 		SELECT user_id, username, expires_at FROM sessions WHERE token_hash = ${hashToken(token)}
 	`;
 	if (!rows[0] || new Date(rows[0].expires_at) < new Date()) return null;
-	if (rows[0].user_id === null) {
-		// Local admin session — no users row, always admin.
-		return { id: rows[0].username ?? 'admin', email: null, userId: null, admin: true, method: 'session' };
+	const user = rows[0].user_id !== null ? await getUser(Number(rows[0].user_id)) : undefined;
+	if (rows[0].username !== null) {
+		// Local-credential session: admin regardless of roles (break-glass).
+		return {
+			id: rows[0].username,
+			email: user?.email ?? null,
+			userId: user?.id ?? null,
+			admin: true,
+			method: 'session',
+		};
 	}
-	const user = await getUser(Number(rows[0].user_id));
 	if (!user) return null;
 	return {
 		id: user.email,

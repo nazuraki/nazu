@@ -35,7 +35,11 @@ Add `apps/usr/`, a standalone user-management app:
   No auth library: `@auth/sveltekit` doesn't fit Hono and the code flow is
   small; scrypt password format matches the siblings.
 - **usr admin** = the `admin` permission in the `usr` app (seeded `usr/admin`
-  role); local admin and API key identities are implicitly admin.
+  role); the local credentials and the API key are implicitly admin.
+- **First-run setup:** on a fresh install (no users, no credentials) the SPA
+  shows a welcome screen that creates the initial admin as a real users row
+  with `usr/admin` assigned, and links the local break-glass credentials to
+  it — so even the bootstrap identity has a profile and follows the model.
 - **Deploy:** published by CI as `ghcr.io/nazuraki/nazu-usr`, registered in the
   backplane as its own compose project; HTTPS via the same caddy `tls`-profile
   pattern as the nazu and backplane stacks.

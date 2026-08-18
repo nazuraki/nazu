@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { fetchAuthStatus, logout } from './api';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { SetupPage } from './pages/SetupPage';
 import { RolesPage } from './pages/RolesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { UserEditPage } from './pages/UserEditPage';
@@ -33,6 +34,7 @@ export function App(): React.JSX.Element {
 
 	if (auth.isPending) return <main />;
 	if (auth.isError) return <main className="error">usr unreachable: {auth.error.message}</main>;
+	if (auth.data.setupRequired) return <SetupPage />;
 	if (!auth.data.authenticated) return <LoginPage status={auth.data} />;
 
 	const admin = auth.data.admin;

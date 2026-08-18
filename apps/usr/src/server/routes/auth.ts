@@ -5,13 +5,15 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 
 import type { AppEnv, AppOptions } from '../app.js';
 import {
+	completeSetup,
 	createSession,
 	deleteSession,
 	localAuthConfigured,
+	setupRequired,
 	verifyLocalCredentials,
 } from '../lib/auth.js';
 import { authorizeRedirect, completeLogin, configuredProviders, getProvider, OAuthError } from '../lib/oauth.js';
-import { getUserByEmail, updateProfile } from '../lib/users.js';
+import { getUserByEmail, updateProfile, ValidationError } from '../lib/users.js';
 
 export const SESSION_COOKIE = 'usr_session';
 const STATE_COOKIE = 'usr_oauth_state';
@@ -27,7 +29,7 @@ const SESSION_COOKIE_OPTS = {
 export function authRoutes(opts: AppOptions): Hono<AppEnv> {
 	const app = new Hono<AppEnv>();
 
-	// Tells the SPA whether/how to render a login screen.
+	// Tells the SPA whether/how to render a login screen (or first-run setup).
 	app.get('/status', async (c) => {
 		const user = c.var.user ?? null;
 		return c.json({
@@ -35,10 +37,39 @@ export function authRoutes(opts: AppOptions): Hono<AppEnv> {
 			method: user?.method ?? null,
 			email: user?.email ?? null,
 			admin: user?.admin ?? false,
+			setupRequired: await setupRequired(),
 			localAuth: await localAuthConfigured(),
 			apiKeyAuth: opts.apiKey !== '',
 			oauthProviders: (await configuredProviders()).map((p) => p.name),
 		});
+	});
+
+	// First-run welcome: create the initial admin user + local credentials.
+	// Guarded by setupRequired inside completeSetup — a 400 once configured.
+	app.post('/setup', async (c) => {
+		const body = (await c.req.json().catch(() => ({}))) as {
+			email?: string;
+			name?: string;
+			username?: string;
+			password?: string;
+		};
+		if (!body.email || !body.username || !body.password) {
+			return c.json({ error: 'email, username and password required' }, 400);
+		}
+		try {
+			const userId = await completeSetup({
+				email: body.email,
+				name: body.name,
+				username: body.username,
+				password: body.password,
+			});
+			const token = await createSession({ userId, username: body.username });
+			setCookie(c, SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
+			return c.json({ ok: true }, 201);
+		} catch (err) {
+			if (err instanceof ValidationError) return c.json({ error: err.message }, 400);
+			throw err;
+		}
 	});
 
 	app.get('/me', (c) => {
@@ -55,7 +86,7 @@ export function authRoutes(opts: AppOptions): Hono<AppEnv> {
 		}
 		const user = await verifyLocalCredentials(body.username, body.password);
 		if (!user) return c.json({ error: 'invalid credentials' }, 401);
-		const token = await createSession({ username: body.username });
+		const token = await createSession({ userId: user.userId ?? undefined, username: body.username });
 		setCookie(c, SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
 		return c.json({ ok: true });
 	});

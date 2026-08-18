@@ -17,7 +17,10 @@ migrations in `migrations/` applied at boot.
 - **Users** are identified by email. An admin creates them before first login;
   OAuth sign-in only succeeds for provisioned emails.
 - **usr admins** hold the `admin` permission in the `usr` app (seeded role
-  `usr/admin`). The local admin account and the API key are always admin.
+  `usr/admin`). The local credentials and the API key are always admin.
+- **First run:** with no users and no credentials configured, the UI shows a
+  welcome screen that creates the initial admin — a real users row holding
+  `usr/admin`, with the local (break-glass) credentials linked to it.
 
 ## Auth
 
