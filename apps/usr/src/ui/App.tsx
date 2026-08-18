@@ -37,8 +37,15 @@ export function App(): React.JSX.Element {
 	if (auth.data.setupRequired) return <SetupPage />;
 	if (!auth.data.authenticated) return <LoginPage status={auth.data} />;
 
-	const admin = auth.data.admin;
-	// Identities without a users row (local admin, api key, open mode) have no profile.
+	// Nav mirrors per-area grants (`admin` is the umbrella); the API enforces
+	// the same checks, so this is presentation only.
+	const perms = new Set(auth.data.usrPermissions);
+	const canArea = (area: string): boolean =>
+		perms.has('admin') || perms.has(`${area}:read`) || perms.has(`${area}:write`);
+	const canUsers = canArea('users');
+	const canRoles = canArea('roles');
+	const canSettings = canArea('settings');
+	// Identities without a users row (api key, open mode) have no profile.
 	const hasProfile = auth.data.method === 'session' && auth.data.email !== null;
 
 	return (
@@ -51,13 +58,13 @@ export function App(): React.JSX.Element {
 						Profile
 					</a>
 				)}
-				{admin && (
+				{canUsers && (
 					<a href="#/users" className={route.startsWith('/users') ? 'active' : ''}>
 						<span className="material-symbols-outlined">group</span>
 						Users
 					</a>
 				)}
-				{admin && (
+				{canRoles && (
 					<a href="#/roles" className={route === '/roles' ? 'active' : ''}>
 						<span className="material-symbols-outlined">shield_person</span>
 						Roles
@@ -68,7 +75,7 @@ export function App(): React.JSX.Element {
 				<header>
 					<span className="spacer" />
 					{auth.data.email && <span className="muted">{auth.data.email}</span>}
-					{admin && (
+					{canSettings && (
 						<a
 							href="#/settings"
 							className={`icon-btn${route === '/settings' ? ' active' : ''}`}
@@ -89,17 +96,17 @@ export function App(): React.JSX.Element {
 					)}
 				</header>
 				<main>
-					{userMatch && admin ? (
+					{userMatch && canUsers ? (
 						<UserEditPage id={Number(userMatch[1])} />
-					) : route.startsWith('/users') && admin ? (
+					) : route.startsWith('/users') && canUsers ? (
 						<UsersPage />
-					) : route === '/roles' && admin ? (
+					) : route === '/roles' && canRoles ? (
 						<RolesPage />
-					) : route === '/settings' && admin ? (
+					) : route === '/settings' && canSettings ? (
 						<SettingsPage />
 					) : hasProfile ? (
 						<ProfilePage />
-					) : admin ? (
+					) : canUsers ? (
 						<UsersPage />
 					) : (
 						<p className="muted">Signed in as {auth.data.method}.</p>

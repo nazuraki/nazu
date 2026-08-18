@@ -19,7 +19,7 @@ describe('password hashing', () => {
 describe('validateApiKey', () => {
 	it('accepts only an exact match when configured', () => {
 		expect(validateApiKey('secret', 'secret')?.method).toBe('api-key');
-		expect(validateApiKey('secret', 'secret')?.admin).toBe(true);
+		expect(validateApiKey('secret', 'secret')?.root).toBe(true);
 		expect(validateApiKey('wrong', 'secret')).toBeNull();
 		expect(validateApiKey(undefined, 'secret')).toBeNull();
 	});

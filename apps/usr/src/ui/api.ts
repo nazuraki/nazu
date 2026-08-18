@@ -23,7 +23,8 @@ export interface AuthStatus {
 	authenticated: boolean;
 	method: 'api-key' | 'session' | 'basic' | 'open' | null;
 	email: string | null;
-	admin: boolean;
+	/** Grants in the `usr` app; `admin` is the umbrella over everything. */
+	usrPermissions: string[];
 	setupRequired: boolean;
 	localAuth: boolean;
 	apiKeyAuth: boolean;

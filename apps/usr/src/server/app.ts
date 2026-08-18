@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { MiddlewareHandler } from 'hono';
 import { getCookie } from 'hono/cookie';
 
 import {
@@ -10,6 +11,7 @@ import {
 	verifyLocalCredentials,
 	type AuthUser,
 } from './lib/auth.js';
+import { can } from './lib/permissions.js';
 import { authRoutes, SESSION_COOKIE } from './routes/auth.js';
 import { permissionsRoutes } from './routes/permissions.js';
 import { profileRoutes } from './routes/profile.js';
@@ -19,6 +21,22 @@ import { usersRoutes } from './routes/users.js';
 
 export interface AppEnv {
 	Variables: { user: AuthUser };
+}
+
+/**
+ * Per-action authorization for an admin area: GETs need `<area>:read`, other
+ * methods `<area>:write` — each satisfiable by the grantable `admin` umbrella
+ * (root identities always pass). Fine-grained by design: grant e.g. only
+ * `users:read` to build a read-only user directory client.
+ */
+export function requireArea(area: string): MiddlewareHandler<AppEnv> {
+	return async (c, next) => {
+		const permission = c.req.method === 'GET' ? `${area}:read` : `${area}:write`;
+		if (!(await can(c.var.user, permission))) {
+			return c.json({ error: `requires usr permission "${permission}"` }, 403);
+		}
+		return next();
+	};
 }
 
 export interface AppOptions {

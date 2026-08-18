@@ -13,6 +13,7 @@ import {
 	verifyLocalCredentials,
 } from '../lib/auth.js';
 import { authorizeRedirect, completeLogin, configuredProviders, getProvider, OAuthError } from '../lib/oauth.js';
+import { usrPermissions } from '../lib/permissions.js';
 import { getUserByEmail, updateProfile, ValidationError } from '../lib/users.js';
 
 export const SESSION_COOKIE = 'usr_session';
@@ -36,7 +37,7 @@ export function authRoutes(opts: AppOptions): Hono<AppEnv> {
 			authenticated: user !== null,
 			method: user?.method ?? null,
 			email: user?.email ?? null,
-			admin: user?.admin ?? false,
+			usrPermissions: await usrPermissions(user),
 			setupRequired: await setupRequired(),
 			localAuth: await localAuthConfigured(),
 			apiKeyAuth: opts.apiKey !== '',
@@ -72,10 +73,15 @@ export function authRoutes(opts: AppOptions): Hono<AppEnv> {
 		}
 	});
 
-	app.get('/me', (c) => {
+	app.get('/me', async (c) => {
 		const user = c.var.user;
 		if (!user) return c.json({ error: 'unauthorized' }, 401);
-		return c.json({ id: user.id, email: user.email, admin: user.admin, method: user.method });
+		return c.json({
+			id: user.id,
+			email: user.email,
+			usrPermissions: await usrPermissions(user),
+			method: user.method,
+		});
 	});
 
 	// Local admin login: exchanges credentials for a session cookie.

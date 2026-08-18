@@ -17,6 +17,8 @@ export interface RoleInput {
 }
 
 const NAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+// Permissions also allow ':' for action scoping, e.g. `users:write`.
+const PERM_RE = /^[a-z0-9][a-z0-9:._-]{0,63}$/;
 
 interface RoleRow {
 	id: string;
@@ -48,7 +50,7 @@ function validate(input: RoleInput): void {
 	if (!NAME_RE.test(input.name)) throw new ValidationError(`invalid role name "${input.name}"`);
 	if (!Array.isArray(input.permissions)) throw new ValidationError('permissions must be an array');
 	for (const p of input.permissions) {
-		if (!NAME_RE.test(p)) throw new ValidationError(`invalid permission "${p}"`);
+		if (!PERM_RE.test(p)) throw new ValidationError(`invalid permission "${p}"`);
 	}
 }
 

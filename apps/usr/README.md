@@ -16,8 +16,13 @@ migrations in `migrations/` applied at boot.
 - **Roles** are named per app and carry a set of permission strings.
 - **Users** are identified by email. An admin creates them before first login;
   OAuth sign-in only succeeds for provisioned emails.
-- **usr admins** hold the `admin` permission in the `usr` app (seeded role
-  `usr/admin`). The local credentials and the API key are always admin.
+- **usr authorizes itself through its own model, per action:** admin routes
+  require `users:read`/`users:write`, `roles:read`/`roles:write`, or
+  `settings:read`/`settings:write` in the `usr` app — so partial grants work
+  (e.g. a role with only `users:read` is a read-only directory). `admin`
+  (seeded role `usr/admin`) is the grantable umbrella satisfying all of them.
+  The API key, open mode, and the break-glass local credentials are **root** —
+  identities outside the roles model that bypass checks.
 - **First run:** with no users and no credentials configured, the UI shows a
   welcome screen that creates the initial admin — a real users row holding
   `usr/admin`, with the local (break-glass) credentials linked to it.

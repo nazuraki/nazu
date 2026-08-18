@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 
-import type { AppEnv } from '../app.js';
+import { requireArea, type AppEnv } from '../app.js';
 import { listUserRoles, setUserRoles } from '../lib/roles.js';
 import {
 	createUser,
@@ -13,14 +13,11 @@ import {
 	type ProfileInput,
 } from '../lib/users.js';
 
-/** Admin CRUD for the user roster and per-user role assignment. */
+/** User roster CRUD + role assignment, gated by users:read / users:write. */
 export function usersRoutes(): Hono<AppEnv> {
 	const app = new Hono<AppEnv>();
 
-	app.use('*', async (c, next) => {
-		if (!c.var.user.admin) return c.json({ error: 'admin required' }, 403);
-		return next();
-	});
+	app.use('*', requireArea('users'));
 
 	app.get('/', async (c) => c.json(await listUsers()));
 

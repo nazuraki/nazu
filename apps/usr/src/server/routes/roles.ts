@@ -1,17 +1,14 @@
 import { Hono } from 'hono';
 
-import type { AppEnv } from '../app.js';
+import { requireArea, type AppEnv } from '../app.js';
 import { createRole, deleteRole, getRole, listRoles, updateRole, type RoleInput } from '../lib/roles.js';
 import { NotFoundError, ValidationError } from '../lib/users.js';
 
-/** Admin CRUD for app-scoped roles and their permission sets. */
+/** App-scoped role CRUD, gated by roles:read / roles:write. */
 export function rolesRoutes(): Hono<AppEnv> {
 	const app = new Hono<AppEnv>();
 
-	app.use('*', async (c, next) => {
-		if (!c.var.user.admin) return c.json({ error: 'admin required' }, 403);
-		return next();
-	});
+	app.use('*', requireArea('roles'));
 
 	app.get('/', async (c) => c.json(await listRoles(c.req.query('app'))));
 

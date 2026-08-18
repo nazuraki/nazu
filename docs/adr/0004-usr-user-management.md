@@ -34,8 +34,12 @@ Add `apps/usr/`, a standalone user-management app:
   DB-backed and edited in-app) → Basic (local admin) → zero-conf open mode.
   No auth library: `@auth/sveltekit` doesn't fit Hono and the code flow is
   small; scrypt password format matches the siblings.
-- **usr admin** = the `admin` permission in the `usr` app (seeded `usr/admin`
-  role); the local credentials and the API key are implicitly admin.
+- **usr dogfoods its own model:** authorization is a per-action `can()` check
+  against `usr`-app grants (`users:read`/`users:write`, `roles:*`,
+  `settings:*`), so partial admin is grantable; `admin` (seeded `usr/admin`
+  role) is the umbrella satisfying every check. The API key, open mode, and
+  the break-glass local credentials are **root** identities outside the roles
+  model and bypass checks — there is no admin boolean on identities.
 - **First-run setup:** on a fresh install (no users, no credentials) the SPA
   shows a welcome screen that creates the initial admin as a real users row
   with `usr/admin` assigned, and links the local break-glass credentials to

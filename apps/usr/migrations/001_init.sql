@@ -51,7 +51,9 @@ CREATE TABLE user_roles (
   PRIMARY KEY (user_id, role_id)
 );
 
--- usr's own admin gate: holders of usr/admin manage users, roles and settings.
+-- usr's own admin gate. Authorization is per-action: routes require
+-- users:read/users:write, roles:read/roles:write, settings:read/settings:write
+-- in the `usr` app; `admin` is the grantable umbrella satisfying all of them.
 INSERT INTO roles (app, name, description) VALUES ('usr', 'admin', 'usr administrators');
 INSERT INTO role_permissions (role_id, permission)
   SELECT id, 'admin' FROM roles WHERE app = 'usr' AND name = 'admin';

@@ -1,3 +1,4 @@
+import type { AuthUser } from './auth.js';
 import { getSql } from './db.js';
 
 export interface AppGrants {
@@ -59,4 +60,21 @@ export async function hasPermission(
 ): Promise<boolean> {
 	const result = await resolvePermissions(email, app);
 	return result.apps[app]?.permissions.includes(permission) ?? false;
+}
+
+/** usr's own grants for an identity; root identities hold the umbrella. */
+export async function usrPermissions(user: AuthUser | null): Promise<string[]> {
+	if (!user) return [];
+	if (user.root) return ['admin'];
+	if (!user.email) return [];
+	return (await resolvePermissions(user.email, 'usr')).apps['usr']?.permissions ?? [];
+}
+
+/**
+ * Authorization gate for usr's own API: root identities pass; users need the
+ * specific permission — or `admin`, the grantable umbrella — in the `usr` app.
+ */
+export async function can(user: AuthUser | null, permission: string): Promise<boolean> {
+	const grants = await usrPermissions(user);
+	return grants.includes(permission) || grants.includes('admin');
 }

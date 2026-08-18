@@ -1,7 +1,6 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 import { getSql } from './db.js';
-import { hasPermission } from './permissions.js';
 import { listRoles, setUserRoles } from './roles.js';
 import { getSection, putSection } from './settings.js';
 import { createUser, getUser, getUserByEmail, touchLastLogin, ValidationError, type User } from './users.js';
@@ -14,7 +13,12 @@ export interface AuthUser {
 	email: string | null;
 	/** Row id when the identity maps to a users row (OAuth/session logins). */
 	userId: number | null;
-	admin: boolean;
+	/**
+	 * Identity outside the roles model — the API key, zero-conf open mode, and
+	 * the break-glass local credentials. Bypasses permission checks entirely;
+	 * every other authorization decision is a per-action `can()` check.
+	 */
+	root: boolean;
 	method: AuthMethod;
 }
 
@@ -52,7 +56,7 @@ export function hashToken(token: string): string {
 export function validateApiKey(header: string | undefined, configured: string): AuthUser | null {
 	if (!configured || !header) return null;
 	if (!safeEqual(header, configured)) return null;
-	return { id: 'api', email: null, userId: null, admin: true, method: 'api-key' };
+	return { id: 'api', email: null, userId: null, root: true, method: 'api-key' };
 }
 
 // ── Local admin (username/password in app_settings; Basic or session) ─────────
@@ -88,7 +92,7 @@ export async function verifyLocalCredentials(
 	if (!verifyPassword(password, auth.localPassword)) return null;
 	const user = await getUserByEmail(auth.localEmail);
 	if (!user) return null;
-	return { id: auth.localUser, email: user.email, userId: user.id, admin: true, method: 'basic' };
+	return { id: auth.localUser, email: user.email, userId: user.id, root: true, method: 'basic' };
 }
 
 /** True when this email holds the local credentials (deletion is refused). */
@@ -158,11 +162,15 @@ export async function validateSession(token: string | undefined): Promise<AuthUs
 	if (!rows[0] || new Date(rows[0].expires_at) < new Date()) return null;
 	const user = await getUser(Number(rows[0].user_id));
 	if (!user) return null;
-	// The credential holder is admin regardless of roles (break-glass parity
-	// with Basic auth); everyone else needs the usr/admin permission.
-	const admin =
-		(await isLocalCredentialHolder(user.email)) || (await hasPermission(user.email, 'usr', 'admin'));
-	return { id: user.email, email: user.email, userId: user.id, admin, method: 'session' };
+	// The credential holder is root regardless of roles (break-glass parity
+	// with Basic auth); everyone else is authorized per action via can().
+	return {
+		id: user.email,
+		email: user.email,
+		userId: user.id,
+		root: await isLocalCredentialHolder(user.email),
+		method: 'session',
+	};
 }
 
 export async function deleteSession(token: string | undefined): Promise<void> {
@@ -182,7 +190,7 @@ export async function openMode(apiKey: string): Promise<boolean> {
 }
 
 export function openUser(): AuthUser {
-	return { id: 'local', email: null, userId: null, admin: true, method: 'open' };
+	return { id: 'local', email: null, userId: null, root: true, method: 'open' };
 }
 
 export type { User };

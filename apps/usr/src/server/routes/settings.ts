@@ -1,18 +1,15 @@
 import { Hono } from 'hono';
 
-import type { AppEnv } from '../app.js';
+import { requireArea, type AppEnv } from '../app.js';
 import { setLocalCredentials } from '../lib/auth.js';
 import { getSection, putSection } from '../lib/settings.js';
 import { ValidationError } from '../lib/users.js';
 
-/** Admin-only config: OAuth provider credentials + the local admin account. */
+/** OAuth + local-credential config, gated by settings:read / settings:write. */
 export function settingsRoutes(): Hono<AppEnv> {
 	const app = new Hono<AppEnv>();
 
-	app.use('*', async (c, next) => {
-		if (!c.var.user.admin) return c.json({ error: 'admin required' }, 403);
-		return next();
-	});
+	app.use('*', requireArea('settings'));
 
 	// Secrets are write-only: the response reports presence, never the value.
 	app.get('/oauth', async (c) => {
