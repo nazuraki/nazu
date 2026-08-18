@@ -100,8 +100,17 @@ export async function updateProfile(id: number, profile: ProfileInput): Promise<
 	return toUser(rows[0]);
 }
 
+/** Deleting the local-credential holder is refused — relink in Settings first. */
 export async function deleteUser(id: number): Promise<boolean> {
 	const sql = getSql();
+	const user = await getUser(id);
+	if (!user) return false;
+	const rows = await sql<{ value: string }[]>`
+		SELECT value FROM app_settings WHERE section = 'auth' AND key = 'localEmail'
+	`;
+	if (rows[0]?.value === user.email) {
+		throw new ValidationError('this user holds the local admin credentials — relink them first');
+	}
 	const res = await sql`DELETE FROM users WHERE id = ${id}`;
 	return res.count > 0;
 }

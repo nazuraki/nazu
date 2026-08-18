@@ -144,9 +144,13 @@ export const fetchOAuthSettings = (): Promise<OAuthSettings> => api('/api/settin
 export const saveOAuthSettings = (values: Record<string, string>): Promise<{ ok: boolean }> =>
 	api('/api/settings/oauth', { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(values) });
 
-export const saveLocalAdmin = (username: string, password: string): Promise<{ ok: boolean }> =>
+export const saveLocalAdmin = (
+	username: string,
+	password: string,
+	email?: string,
+): Promise<{ ok: boolean }> =>
 	api('/api/settings/local-admin', {
 		method: 'PUT',
 		headers: JSON_HEADERS,
-		body: JSON.stringify({ username, password }),
+		body: JSON.stringify({ username, password, email: email || undefined }),
 	});

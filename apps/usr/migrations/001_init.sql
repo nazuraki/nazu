@@ -19,15 +19,13 @@ CREATE TABLE users (
   last_login_at TIMESTAMPTZ
 );
 
--- Browser sessions: user_id for real users, username for the local admin
--- account (which has no users row).
+-- Browser sessions — every session (OAuth or local-credential login) belongs
+-- to a users row; tokens are stored hashed.
 CREATE TABLE sessions (
   token_hash TEXT PRIMARY KEY,
-  user_id    BIGINT REFERENCES users (id) ON DELETE CASCADE,
-  username   TEXT,
+  user_id    BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  expires_at TIMESTAMPTZ NOT NULL,
-  CHECK (user_id IS NOT NULL OR username IS NOT NULL)
+  expires_at TIMESTAMPTZ NOT NULL
 );
 
 -- Apps are string namespaces (e.g. 'nazu', 'backplane', 'usr'); roles are

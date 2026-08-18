@@ -94,6 +94,7 @@ export function UserEditPage({ id }: { id: number }): React.JSX.Element {
 				</div>
 			))}
 			{toggleRole.isError && <p className="error">{toggleRole.error.message}</p>}
+			{remove.isError && <p className="error">{remove.error.message}</p>}
 		</>
 	);
 }

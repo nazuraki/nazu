@@ -14,6 +14,7 @@ export function SettingsPage(): React.JSX.Element {
 
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
+	const [adminEmail, setAdminEmail] = useState('');
 
 	const saveOAuth = useMutation({
 		mutationFn: () => {
@@ -33,10 +34,11 @@ export function SettingsPage(): React.JSX.Element {
 	});
 
 	const saveAdmin = useMutation({
-		mutationFn: () => saveLocalAdmin(username, password),
+		mutationFn: () => saveLocalAdmin(username, password, adminEmail || undefined),
 		onSuccess: () => {
 			setUsername('');
 			setPassword('');
+			setAdminEmail('');
 			void qc.invalidateQueries({ queryKey: ['auth'] });
 		},
 	});
@@ -94,7 +96,8 @@ export function SettingsPage(): React.JSX.Element {
 			<h2>Local admin</h2>
 			<div className="panel">
 				<p className="muted">
-					Fallback credentials with full admin rights — useful before OAuth is configured.
+					Break-glass credentials with full admin rights, linked to an existing user. Leave the
+					email empty to keep the current linkage.
 				</p>
 				<form
 					onSubmit={(e) => {
@@ -110,6 +113,8 @@ export function SettingsPage(): React.JSX.Element {
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 					/>
+					<label>Linked user email (optional)</label>
+					<input value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} />
 					<div className="row" style={{ marginTop: '0.75rem' }}>
 						<button type="submit" disabled={saveAdmin.isPending || !username || !password}>
 							Save admin account

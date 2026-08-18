@@ -59,9 +59,14 @@ export function usersRoutes(): Hono<AppEnv> {
 	});
 
 	app.delete('/:id', async (c) => {
-		const deleted = await deleteUser(Number(c.req.param('id')));
-		if (!deleted) return c.json({ error: 'not found' }, 404);
-		return c.json({ ok: true });
+		try {
+			const deleted = await deleteUser(Number(c.req.param('id')));
+			if (!deleted) return c.json({ error: 'not found' }, 404);
+			return c.json({ ok: true });
+		} catch (err) {
+			if (err instanceof ValidationError) return c.json({ error: err.message }, 400);
+			throw err;
+		}
 	});
 
 	app.put('/:id/roles', async (c) => {

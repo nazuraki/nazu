@@ -63,7 +63,7 @@ export function authRoutes(opts: AppOptions): Hono<AppEnv> {
 				username: body.username,
 				password: body.password,
 			});
-			const token = await createSession({ userId, username: body.username });
+			const token = await createSession(userId);
 			setCookie(c, SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
 			return c.json({ ok: true }, 201);
 		} catch (err) {
@@ -85,8 +85,8 @@ export function authRoutes(opts: AppOptions): Hono<AppEnv> {
 			return c.json({ error: 'username and password required' }, 400);
 		}
 		const user = await verifyLocalCredentials(body.username, body.password);
-		if (!user) return c.json({ error: 'invalid credentials' }, 401);
-		const token = await createSession({ userId: user.userId ?? undefined, username: body.username });
+		if (!user || user.userId === null) return c.json({ error: 'invalid credentials' }, 401);
+		const token = await createSession(user.userId);
 		setCookie(c, SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
 		return c.json({ ok: true });
 	});
@@ -125,7 +125,7 @@ export function authRoutes(opts: AppOptions): Hono<AppEnv> {
 			const user = await getUserByEmail(identity.email);
 			if (!user) return c.redirect('/?login_error=unknown_user');
 			if (!user.name && identity.name) await updateProfile(user.id, { name: identity.name });
-			const token = await createSession({ userId: user.id });
+			const token = await createSession(user.id);
 			setCookie(c, SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
 			return c.redirect('/');
 		} catch (err) {
