@@ -22,11 +22,7 @@
 body {
 	margin: 0;
 	min-height: 100vh;
-	background:
-		radial-gradient(ellipse at 20% -10%, rgba(124, 58, 237, 0.25), transparent 55%),
-		radial-gradient(ellipse at 85% 110%, rgba(57, 255, 20, 0.08), transparent 50%),
-		var(--bg);
-	background-attachment: fixed;
+	background: var(--bg) url('/butterfly-circuit.png') center / cover fixed;
 	color: var(--text);
 }
 
