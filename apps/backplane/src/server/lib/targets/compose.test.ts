@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -39,6 +39,38 @@ describe('ComposeTarget', () => {
 		);
 		expect(cmds[1]).toBe('docker compose -p nazu pull');
 		expect(cmds[2]).toBe('docker compose -p nazu up -d --remove-orphans');
+	});
+
+	it('clones into an existing but empty workdir', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'bp-'));
+		mkdirSync(join(root, 'nazu'));
+		const exec = vi.fn(async () => ({ stdout: '', stderr: '' })) as unknown as ExecFn;
+		const target = new ComposeTarget({ workdirRoot: root, exec });
+
+		await target.deploy(project(), () => {});
+
+		expect(calls(exec as ReturnType<typeof vi.fn>)[0]).toBe(
+			`git clone --branch main --single-branch https://github.com/nazuraki/nazu.git ${join(root, 'nazu')}`,
+		);
+	});
+
+	it('adopts a non-empty workdir without .git via init + fetch + reset', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'bp-'));
+		mkdirSync(join(root, 'nazu'));
+		writeFileSync(join(root, 'nazu', '.env'), 'COMPOSE_PROFILES=tls\n');
+		const exec = vi.fn(async () => ({ stdout: '', stderr: '' })) as unknown as ExecFn;
+		const target = new ComposeTarget({ workdirRoot: root, exec });
+
+		await target.deploy(project(), () => {});
+
+		const cmds = calls(exec as ReturnType<typeof vi.fn>);
+		expect(cmds.slice(0, 4)).toEqual([
+			'git init',
+			'git remote add origin https://github.com/nazuraki/nazu.git',
+			'git fetch origin main',
+			'git reset --hard origin/main',
+		]);
+		expect(cmds[4]).toBe('docker compose -p nazu pull');
 	});
 
 	it('fetch+resets an existing checkout and honours target overrides', async () => {

@@ -21,6 +21,10 @@ WORKDIR /app
 # runs `docker compose` against the host daemon via the mounted socket. Client
 # tools only — no daemon runs in this container.
 RUN apk add --no-cache docker-cli docker-cli-compose git
+# Workdirs are a host bind mount, so checkouts may be seeded or edited from the
+# host under another uid; without this git refuses them ("dubious ownership").
+# safe.directory is only honoured from system/global config, not `-c`.
+RUN git config --system --add safe.directory '*'
 
 RUN corepack enable pnpm
 

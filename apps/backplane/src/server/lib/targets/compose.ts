@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { GitCredentials } from '../credentials.js';
@@ -69,25 +69,37 @@ export class ComposeTarget implements DeployTarget {
 		const dir = this.workdir(project);
 		const gitArgs = this.git?.args ?? [];
 		const env = this.git?.env;
-		if (existsSync(join(dir, '.git'))) {
-			log(`# git sync ${project.branch}`);
-			await this.exec('git', [...gitArgs, 'fetch', 'origin', project.branch], {
+		if (!existsSync(join(dir, '.git'))) {
+			if (!existsSync(dir) || readdirSync(dir).length === 0) {
+				log(`# git clone ${project.gitUrl} (${project.branch})`);
+				await this.exec(
+					'git',
+					[...gitArgs, 'clone', '--branch', project.branch, '--single-branch', project.gitUrl, dir],
+					{ env, onLine: log },
+				);
+				return;
+			}
+			// A non-empty workdir without .git (e.g. a hand-placed per-project .env,
+			// or leftovers from a workdir-root migration): clone refuses non-empty
+			// targets, so adopt it in place and fall through to fetch+reset, which
+			// overwrites tracked paths and keeps untracked files.
+			log(`# git init (adopting existing non-empty workdir)`);
+			await this.exec('git', [...gitArgs, 'init'], { cwd: dir, onLine: log });
+			await this.exec('git', [...gitArgs, 'remote', 'add', 'origin', project.gitUrl], {
 				cwd: dir,
-				env,
 				onLine: log,
 			});
-			await this.exec('git', [...gitArgs, 'reset', '--hard', `origin/${project.branch}`], {
-				cwd: dir,
-				onLine: log,
-			});
-		} else {
-			log(`# git clone ${project.gitUrl} (${project.branch})`);
-			await this.exec(
-				'git',
-				[...gitArgs, 'clone', '--branch', project.branch, '--single-branch', project.gitUrl, dir],
-				{ env, onLine: log },
-			);
 		}
+		log(`# git sync ${project.branch}`);
+		await this.exec('git', [...gitArgs, 'fetch', 'origin', project.branch], {
+			cwd: dir,
+			env,
+			onLine: log,
+		});
+		await this.exec('git', [...gitArgs, 'reset', '--hard', `origin/${project.branch}`], {
+			cwd: dir,
+			onLine: log,
+		});
 	}
 
 	async deploy(project: Project, log: LogFn): Promise<void> {

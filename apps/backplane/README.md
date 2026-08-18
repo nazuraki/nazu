@@ -15,7 +15,9 @@ are equal clients of the same REST API, so agents can do everything the UI can.
 - **MCP** (`src/mcp/`): stdio MCP wrapping the REST API (same pattern as
   `apps/mcp`). Client-side process — not part of the compose stack.
 - **Registry storage**: SQLite via `node:sqlite` (zero-dep) on the `/data`
-  volume, alongside per-project git checkouts (`/data/workdirs/<project>`).
+  volume. Per-project git checkouts live under `$BACKPLANE_WORKDIRS` on the
+  **host**, bind-mounted into the container at the identical path (see
+  "Deploy model").
 
 The backplane runs as its **own compose project** (`-p backplane`,
 `docker-compose.yml` here) — never inside a stack it manages, since it must be
@@ -52,7 +54,10 @@ at `:3001` (deep-dive/ad-hoc; inline UI charts come straight from Prometheus's
 Env (all optional): `BACKPLANE_API_KEY` (static bearer key for agents/MCP),
 `BACKPLANE_POLL_INTERVAL` (digest poll seconds, default 300, `0` = off),
 `BACKPLANE_GITHUB_TOKEN` (GitHub PAT for private repos/images — see
-"Private repos and images"), `PROMETHEUS_URL`, `PORT`, `BACKPLANE_DATA_DIR`.
+"Private repos and images"), `BACKPLANE_WORKDIRS` (host root for deploy
+checkouts — see "Deploy model"; the installer pins it to `<install
+dir>/workdirs`, and from a checkout it defaults to `${PWD}/workdirs`),
+`PROMETHEUS_URL`, `PORT`, `BACKPLANE_DATA_DIR`.
 
 ### Auth
 
@@ -88,11 +93,20 @@ re-run `just backplane-up` manually.
 A project registers a git repo + branch, watched image refs, and a `compose`
 target (optional compose files/profiles/project name). Deploying:
 
-1. clone or fetch+hard-reset the repo under `/data/workdirs/<name>`
+1. clone or fetch+hard-reset the repo under `$BACKPLANE_WORKDIRS/<name>`
 2. `docker compose -p <name> [-f …] [--profile …] pull`
 3. `… up -d --remove-orphans`
 
 Git-driven rather than recreate-in-place so compose-file changes deploy too.
+
+**Workdirs are host-visible** ([ADR 0005](../../docs/adr/0005-host-visible-backplane-workdirs.md)):
+`$BACKPLANE_WORKDIRS` is a host directory mounted into the backplane at the
+identical path. Compose runs inside the container but the daemon resolves bind
+sources as host paths, so the mirror is what makes repo-relative bind mounts in
+managed compose files (e.g. `./caddy/Caddyfile`) work. It also means a
+checkout's per-project `.env` can be edited straight on the host, and a workdir
+that pre-exists without `.git` (say, seeded with just such an `.env`) is
+adopted in place on first sync rather than cloned over.
 **Update** is the lighter sibling: pull + `up -d` against the existing checkout
 (no git sync) — rolls containers to the newest pushed images without picking up
 repo changes. Runs are serialized per project and recorded (status + full log)

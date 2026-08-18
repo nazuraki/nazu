@@ -105,6 +105,9 @@ Repo layout:
 - **Backplane:** `apps/backplane` is API-first — all logic in `src/server/lib/`,
   Hono routes only translate HTTP; the React UI and the backplane MCP are equal
   REST clients. Registry state is SQLite via `node:sqlite` (no DB service).
+  Deploy checkouts live on the **host** at `$BACKPLANE_WORKDIRS`, mirrored into
+  the container at the identical path so repo-relative bind mounts in managed
+  compose files resolve for the host daemon ([ADR 0005](docs/adr/0005-host-visible-backplane-workdirs.md)).
   Caddy publishes Prometheus metrics on host port 2020 (plain HTTP, `tls`
   profile) for the backplane's Prometheus to scrape.
 - **Data model:** `tasks`, `kb_index`, `documents`, `document_chunks`,
