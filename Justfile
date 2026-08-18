@@ -18,12 +18,12 @@ dev:
 build:
     pnpm --filter @nazu/web build
 
-check: typecheck lint test-unit discord-check discord-test backplane-check backplane-lint backplane-test
+check: typecheck lint test-unit discord-check discord-test backplane-check backplane-lint backplane-test usr-check usr-lint usr-test
 
 # Run exactly what CI runs (.github/workflows/ci.yml): the core suite (lint,
 # typecheck, unit, functional) then the gated optional pieces. Needs Docker. Use
 # `check` for the fast inner loop; use this before pushing to mirror CI.
-ci: lint typecheck test-unit discord-check discord-test backplane-check backplane-lint backplane-test test-functional test-optional
+ci: lint typecheck test-unit discord-check discord-test backplane-check backplane-lint backplane-test usr-check usr-lint usr-test test-functional test-optional
 
 # Type-check the web app
 typecheck:
@@ -77,6 +77,41 @@ backplane-down:
 backplane-update:
     docker compose -p backplane -f apps/backplane/docker-compose.yml pull backplane
     docker compose -p backplane -f apps/backplane/docker-compose.yml up -d
+
+# ─── usr (user management) ────────────────────────────────────────
+
+# Type-check usr (server + UI)
+usr-check:
+    pnpm --filter @nazu/usr check
+
+# Lint usr
+usr-lint:
+    pnpm --filter @nazu/usr lint
+
+# Run the usr unit tests
+usr-test:
+    pnpm --filter @nazu/usr test
+
+# Run the usr server in dev mode (tsx watch; needs the usr postgres)
+usr-dev:
+    pnpm --filter @nazu/usr dev
+
+# Run the usr SPA in dev mode (vite; proxies /api to :8432)
+usr-dev-ui:
+    pnpm --filter @nazu/usr dev:ui
+
+# Build + start usr's own compose project (separate from nazu's stack)
+usr-up:
+    docker compose -p usr -f apps/usr/docker-compose.yml up -d --build
+
+# Stop the usr stack
+usr-down:
+    docker compose -p usr -f apps/usr/docker-compose.yml down
+
+# Update usr from the published image (what the backplane does)
+usr-update:
+    docker compose -p usr -f apps/usr/docker-compose.yml pull usr
+    docker compose -p usr -f apps/usr/docker-compose.yml up -d
 
 # ─── Infrastructure ───────────────────────────────────────────────
 

@@ -37,6 +37,12 @@ jobs:
         run: pnpm --filter @nazu/backplane run check
       - name: Backplane unit tests
         run: pnpm --filter @nazu/backplane run test
+      - name: usr lint
+        run: pnpm --filter @nazu/usr run lint
+      - name: usr type-check
+        run: pnpm --filter @nazu/usr run check
+      - name: usr unit tests
+        run: pnpm --filter @nazu/usr run test
 
   test-functional:
     runs-on: ubuntu-latest

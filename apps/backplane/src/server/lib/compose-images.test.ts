@@ -53,14 +53,18 @@ function publishedImages(): string[] {
 	return [...workflow.matchAll(/"image":\s*"([\w-]+)"/g)].map((m) => m[1]);
 }
 
-const COMPOSE_FILES = ['docker-compose.yml', 'apps/backplane/docker-compose.yml'];
+const COMPOSE_FILES = [
+	'docker-compose.yml',
+	'apps/backplane/docker-compose.yml',
+	'apps/usr/docker-compose.yml',
+];
 
 describe('publish matrix ↔ compose image consistency', () => {
 	const allServices = COMPOSE_FILES.flatMap((f) => parseComposeServices(read(f)));
 
 	it('parses the expected buildable services', () => {
 		const buildable = allServices.filter((s) => s.hasBuild).map((s) => s.name);
-		expect(buildable.sort()).toEqual(['backplane', 'discord', 'graphiti', 'web']);
+		expect(buildable.sort()).toEqual(['backplane', 'discord', 'graphiti', 'usr', 'web']);
 	});
 
 	it('references every published image from exactly one compose service', () => {

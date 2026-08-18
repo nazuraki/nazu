@@ -1,0 +1,74 @@
+# usr — centralized user management. Its own compose project (like the
+# backplane), deployable by the backplane with
+# composeFiles: ["apps/usr/docker-compose.yml"].
+services:
+  usr:
+    image: ghcr.io/nazuraki/nazu-usr:latest
+    build:
+      context: ../..
+      dockerfile: apps/usr/Dockerfile
+    # Loopback-only: plain HTTP stays available on the host for local dev, but
+    # LAN clients go through caddy (HTTPS, tls profile).
+    ports:
+      - "127.0.0.1:8432:8432"
+    # No app env: API keys are DB-backed and role-mapped, created in the Keys
+    # UI. Open mode lasts only until first-run setup creates the admin.
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_started
+
+  # HTTPS front door for the UI/API (mirrors the nazu and backplane stacks'
+  # tls profile). Certs are user-provided absolute host paths, mirrored into
+  # the container so the path is valid as-is. The :- defaults keep compose
+  # parseable when tls is unconfigured. Enable with COMPOSE_PROFILES=tls.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["tls"]
+    ports:
+      # HTTP→HTTPS redirect. Override when :80 is taken on a shared host —
+      # a failed port bind aborts the whole `up`.
+      - "${USR_HTTP_PORT:-80}:80"
+      # Mirrored (host port = container port): the Caddyfile site address
+      # includes USR_HTTPS_PORT so redirect Locations stay correct on
+      # non-standard ports.
+      - "${USR_HTTPS_PORT:-443}:${USR_HTTPS_PORT:-443}"
+    environment:
+      USR_HOSTNAME: ${USR_HOSTNAME:-}
+      USR_HTTPS_PORT: ${USR_HTTPS_PORT:-443}
+      USR_TLS_CERT: ${USR_TLS_CERT:-}
+      USR_TLS_KEY: ${USR_TLS_KEY:-}
+    command:
+      - sh
+      - -c
+      - |
+        : "$${USR_HOSTNAME:?USR_HOSTNAME is required when the tls profile is active}"
+        : "$${USR_TLS_CERT:?USR_TLS_CERT is required when the tls profile is active}"
+        : "$${USR_TLS_KEY:?USR_TLS_KEY is required when the tls profile is active}"
+        exec caddy run --config /config/Caddyfile --adapter caddyfile
+    volumes:
+      - ./caddy/Caddyfile:/config/Caddyfile:ro
+      - ${USR_TLS_CERT:-/etc/ssl/usr/cert.pem}:${USR_TLS_CERT:-/etc/ssl/usr/cert.pem}:ro
+      - ${USR_TLS_KEY:-/etc/ssl/usr/key.pem}:${USR_TLS_KEY:-/etc/ssl/usr/key.pem}:ro
+      - caddy_data:/data
+    restart: unless-stopped
+    depends_on:
+      - usr
+
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: usr
+      POSTGRES_PASSWORD: usr
+      POSTGRES_DB: usr
+    volumes:
+      # postgres:18+ stores data in a version-specific subdir, so the volume is
+      # mounted at the parent (/var/lib/postgresql), not /…/data as on ≤16.
+      - usr_postgres_data:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:5434:5432"
+    restart: unless-stopped
+
+volumes:
+  usr_postgres_data:
+  caddy_data:

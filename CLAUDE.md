@@ -30,6 +30,7 @@ Repo layout:
 | `apps/indexer/` | Code-graph indexer (TS + Rust + Go binaries) + the `code-graph` MCP. Builds per-project graphs in FalkorDB. |
 | `apps/graphiti/` | **Graphiti sidecar** — a thin Python (FastAPI) wrapper over `graphiti-core` for temporal-knowledge recall (#53). Owns no config; the web app passes credentials per request. Off by default; a profile-gated optional service (`profiles: ["graph"]`). |
 | `apps/discord/` | **Discord ingest sidecar** — a thin TypeScript bot (#34) that watches channels for YouTube/TikTok links and ingests transcripts via the web app's `POST /api/ingest/url`. Owns no logic; pulls config from `GET /api/discord/config`. Off by default; a profile-gated optional service (`profiles: ["discord"]`). See [ADR 0002](docs/adr/0002-discord-transcript-ingest.md). |
+| `apps/usr/` | **User management** — centralized users, app-scoped roles, permission strings. Hono API + React SPA (backplane pattern); own Postgres in its **own compose project** (`just usr-up`), deployed via the backplane. Other apps query `GET /api/permissions?email=&app=` with a role-mapped API key (Keys UI, seeded `usr/service` role). See [ADR 0004](docs/adr/0004-usr-user-management.md). |
 | `apps/backplane/` | **Deploy backplane** (#75) — control plane for the dev server: project registry, git-driven `docker compose` deploys, image-update polling, container status/logs, Prometheus metrics proxy. Hono API + React SPA + stdio MCP as equal clients. Runs as its **own compose project** (`just backplane-up`) with Prometheus + cAdvisor + Grafana — never inside a stack it manages. |
 | `infra/` | DB migrations, Caddy/Cloudflare config, git hooks. |
 
@@ -93,6 +94,14 @@ Repo layout:
   Model is `ai.chatModel` (default `claude-sonnet-4-6`); needs `ai.anthropicApiKey`.
 - **Memory MCP:** `apps/mcp` is a thin stdio MCP over the REST API. Keep it thin —
   all logic stays in `apps/web` server code.
+- **usr (users/permissions):** `apps/usr` owns users, app-scoped roles and
+  permission strings in its own Postgres. Apps are string namespaces; admins
+  pre-provision users by email (OAuth login only succeeds for provisioned
+  emails). API keys are DB-backed and role-mapped like users (no env key);
+  hot path for other apps: `GET /api/permissions?email=&app=` with a key
+  holding `permissions:read` (seeded `usr/service` role). Auth ladder mirrors
+  the web app (API key → session → Basic → zero-conf open); OAuth config is
+  DB-backed. See [ADR 0004](docs/adr/0004-usr-user-management.md).
 - **Backplane:** `apps/backplane` is API-first — all logic in `src/server/lib/`,
   Hono routes only translate HTTP; the React UI and the backplane MCP are equal
   REST clients. Registry state is SQLite via `node:sqlite` (no DB service).

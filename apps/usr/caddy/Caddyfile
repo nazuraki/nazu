@@ -1,0 +1,4 @@
+{$USR_HOSTNAME}:{$USR_HTTPS_PORT} {
+	tls {$USR_TLS_CERT} {$USR_TLS_KEY}
+	reverse_proxy usr:8432
+}

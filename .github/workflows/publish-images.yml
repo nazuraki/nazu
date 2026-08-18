@@ -47,8 +47,9 @@ jobs:
           discord_paths="$shared apps/discord/"
           backplane_paths="$shared apps/backplane/"
           graphiti_paths="apps/graphiti/ .github/workflows/publish-images.yml"
+          usr_paths="$shared apps/usr/"
 
-          all_images=(web discord graphiti backplane)
+          all_images=(web discord graphiti backplane usr)
 
           publish_all() {
             echo "Publishing all images: $1"
@@ -83,6 +84,7 @@ jobs:
               discord)   echo '{"image":"nazu-discord","context":".","dockerfile":"apps/discord/Dockerfile"}' ;;
               graphiti)  echo '{"image":"nazu-graphiti","context":"apps/graphiti","dockerfile":"apps/graphiti/Dockerfile"}' ;;
               backplane) echo '{"image":"nazu-backplane","context":".","dockerfile":"apps/backplane/Dockerfile"}' ;;
+              usr)       echo '{"image":"nazu-usr","context":".","dockerfile":"apps/usr/Dockerfile"}' ;;
             esac
           }
 
