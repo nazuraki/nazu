@@ -28,10 +28,6 @@ services:
       timeout: 3s
       retries: 20
 
-  caddy:
-    ports: !override
-      - "8443:443"
-
   minio:
     ports: !override
       - "9002:9000"

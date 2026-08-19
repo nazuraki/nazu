@@ -1,4 +1,0 @@
-{$BACKPLANE_HOSTNAME}:{$BACKPLANE_HTTPS_PORT} {
-	tls {$BACKPLANE_TLS_CERT} {$BACKPLANE_TLS_KEY}
-	reverse_proxy backplane:8430
-}

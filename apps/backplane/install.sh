@@ -104,7 +104,7 @@ fetch() {
 }
 
 fetch docker-compose.yml
-fetch caddy/Caddyfile
+fetch docker-compose.edge.yml
 fetch prometheus/prometheus.yml
 fetch grafana/provisioning/datasources/prometheus.yml
 
@@ -125,11 +125,10 @@ echo
 echo "  To deploy private GitHub repos / GHCR images, set BACKPLANE_GITHUB_TOKEN"
 echo "  (PAT with repo read + read:packages) in $DIR/.env and re-run."
 echo
-echo "  The UI/API listens on localhost only. For HTTPS on the LAN, set"
-echo "  BACKPLANE_HOSTNAME, BACKPLANE_TLS_CERT, BACKPLANE_TLS_KEY, and"
-echo "  COMPOSE_PROFILES=tls in $DIR/.env and re-run this installer."
-echo "  Ports default to 443/80; override with BACKPLANE_HTTPS_PORT /"
-echo "  BACKPLANE_HTTP_PORT if those are taken."
+echo "  The UI/API listens on localhost only. For LAN/HTTPS access, front it"
+echo "  with a shared edge proxy on the external 'edge' docker network: set"
+echo "  COMPOSE_FILE=docker-compose.yml:docker-compose.edge.yml in $DIR/.env"
+echo "  and re-run this installer."
 echo
 echo "  Installed in: $DIR"
 echo "  Update with:  re-run this installer"

@@ -1,0 +1,29 @@
+# Edge-host override: joins `web` to the shared external `edge` docker
+# network so the switchboard Caddy can reverse_proxy to it by name (`nazu`)
+# without any published ports or per-app TLS. Opt-in — local dev never needs
+# it (the network is `external` and only exists on edge hosts):
+#
+#   docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d
+#
+# On the server the backplane project config lists both files. One-time host
+# prep (owned by the switchboard stack): `docker network create edge`.
+services:
+  web:
+    networks:
+      default: {}
+      edge:
+        # Stable name on the shared network — service names like `web` are
+        # too generic to claim there.
+        aliases: [nazu]
+    # The web app shells out to `docker compose` for the optional-service
+    # toggles. It must see the same file set as the deploy, or an in-app
+    # `up -d discord` would recreate `web` from the base file alone and drop
+    # it off the edge network. Mirror this file in and extend COMPOSE_FILE.
+    volumes:
+      - ./docker-compose.edge.yml:/app/docker-compose.edge.yml:ro
+    environment:
+      COMPOSE_FILE: /app/docker-compose.yml:/app/docker-compose.edge.yml
+
+networks:
+  edge:
+    external: true

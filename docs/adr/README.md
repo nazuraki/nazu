@@ -11,3 +11,4 @@ supersede rather than delete.
 | [0003](0003-rag-chat-app-calls-llm.md) | /nazu chat: the app calls an LLM for inference (RAG over the KB) | Accepted |
 | [0004](0004-usr-user-management.md) | usr — centralized user management | Accepted |
 | [0005](0005-host-visible-backplane-workdirs.md) | Host-visible backplane workdirs for repo-relative bind mounts | Accepted |
+| [0006](0006-shared-edge-network.md) | Apps join the shared edge network; per-app caddies retired | Accepted |

@@ -1,0 +1,16 @@
+# Edge-host override: joins `usr` to the shared external `edge` docker
+# network so the switchboard Caddy can reverse_proxy to `usr:8432` by name —
+# no published ports, no per-app TLS. Opt-in — local dev never needs it (the
+# network is `external` and only exists on edge hosts). On the server the
+# backplane project config lists both files:
+#
+#   composeFiles: ["apps/usr/docker-compose.yml", "apps/usr/docker-compose.edge.yml"]
+services:
+  usr:
+    networks:
+      default: {}
+      edge: {}
+
+networks:
+  edge:
+    external: true

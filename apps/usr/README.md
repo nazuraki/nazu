@@ -58,9 +58,11 @@ Local dev: `just usr-dev` (server, tsx watch) + `just usr-dev-ui` (vite, proxies
 `/api` to :8432). Postgres from the compose stack is published on
 `127.0.0.1:5434` (`DATABASE_URL=postgres://usr:usr@localhost:5434/usr`).
 
-HTTPS: enable the `tls` profile and set `USR_HOSTNAME`, `USR_TLS_CERT`,
-`USR_TLS_KEY` (and `USR_HTTPS_PORT` / `USR_HTTP_PORT` on shared hosts) in the
-host's `.env` — mirrors the nazu and backplane stacks.
+HTTPS / LAN access: the app listens on `127.0.0.1:8432` only. LAN and public
+clients come in through the shared edge proxy (switchboard), which reaches
+`usr:8432` over the external `edge` docker network — on edge hosts, add
+[`docker-compose.edge.yml`](docker-compose.edge.yml) to the compose file list.
+No TLS config lives in this stack.
 
 ## Backplane deployment
 

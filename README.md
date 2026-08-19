@@ -48,16 +48,19 @@ Optional services are gated behind Compose profiles so you only run what you nee
 
 | Profile | Services | Needed for |
 |---|---|---|
-| `tls` | `caddy` | HTTPS termination on `:443` (requires `NAZU_HOSTNAME`, `NAZU_TLS_CERT`, `NAZU_TLS_KEY`) |
+| `graph` | `graphiti` | Temporal-knowledge graph recall (Graphiti sidecar) |
+| `discord` | `discord` | Discord transcript-ingest bot |
 
-All services declare `restart: unless-stopped`, so once enabled they survive reboots until explicitly disabled. Enabling `tls` makes the web app write the generated `Caddyfile` into a named volume (`caddy_config`) shared with the caddy container — no host path required.
+All services declare `restart: unless-stopped`, so once enabled they survive reboots until explicitly disabled.
 
 Examples:
 
 ```sh
 docker compose up -d                     # core stack
-docker compose --profile tls up -d       # add HTTPS
+docker compose --profile graph up -d     # add graph recall
 ```
+
+The stack terminates no TLS of its own: the web app listens on `127.0.0.1:8420`, and LAN/public traffic arrives through the shared edge proxy (switchboard) over the external `edge` docker network — on edge hosts, add [`docker-compose.edge.yml`](docker-compose.edge.yml) to the compose file list.
 
 ### Development
 
@@ -105,8 +108,6 @@ nazu is **zero-conf**: a fresh `docker compose up` runs with no `.env`. Almost a
 | `REPO_CACHE_DIR` | Directory for cached git checkouts used by the code-graph webhook reindexer |
 | `NAZU_API_KEY` | Static API key(s) for non-interactive agents / the Memory MCP (comma-separated; `Authorization: Bearer` or `X-API-Key`). Off when unset. |
 | `NAZU_LOCAL_USER_EMAIL` | Identity stamped on local / open-mode requests (default `local@nazu.local`) |
-| `NAZU_HOSTNAME` | Hostname Caddy serves on (e.g. `nazu.example.com`) — required with the `tls` profile |
-| `NAZU_TLS_CERT` / `NAZU_TLS_KEY` | Absolute host paths to the TLS cert/key, bind-mounted into caddy at the same path — required with the `tls` profile |
 | `COMPOSE_PROJECT_NAME` | Compose project name (default `nazu`); pins the web app's in-container `docker compose` to the same project/network |
 
 ## Container images
