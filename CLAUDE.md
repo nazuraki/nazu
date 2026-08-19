@@ -32,7 +32,7 @@ Repo layout:
 | `apps/discord/` | **Discord ingest sidecar** — a thin TypeScript bot (#34) that watches channels for YouTube/TikTok links and ingests transcripts via the web app's `POST /api/ingest/url`. Owns no logic; pulls config from `GET /api/discord/config`. Off by default; a profile-gated optional service (`profiles: ["discord"]`). See [ADR 0002](docs/adr/0002-discord-transcript-ingest.md). |
 | `apps/usr/` | **User management** — centralized users, app-scoped roles, permission strings. Hono API + React SPA (backplane pattern); own Postgres in its **own compose project** (`just usr-up`), deployed via the backplane. Other apps query `GET /api/permissions?email=&app=` with a role-mapped API key (Keys UI, seeded `usr/service` role). See [ADR 0004](docs/adr/0004-usr-user-management.md). |
 | `apps/backplane/` | **Deploy backplane** (#75) — control plane for the dev server: project registry, git-driven `docker compose` deploys, image-update polling, container status/logs, Prometheus metrics proxy. Hono API + React SPA + stdio MCP as equal clients. Runs as its **own compose project** (`just backplane-up`) with Prometheus + cAdvisor + Grafana — never inside a stack it manages. |
-| `infra/` | DB migrations, Caddy/Cloudflare config, git hooks. |
+| `infra/` | DB migrations, git hooks. |
 
 > **Partially built:** the Graphiti temporal knowledge graph (semantic/relationship
 > recall, the long-term vision in `docs/PURPOSE.md`) now has a first cut — see
@@ -108,8 +108,9 @@ Repo layout:
   Deploy checkouts live on the **host** at `$BACKPLANE_WORKDIRS`, mirrored into
   the container at the identical path so repo-relative bind mounts in managed
   compose files resolve for the host daemon ([ADR 0005](docs/adr/0005-host-visible-backplane-workdirs.md)).
-  Caddy publishes Prometheus metrics on host port 2020 (plain HTTP, `tls`
-  profile) for the backplane's Prometheus to scrape.
+  The switchboard Caddy (shared edge) serves request metrics on its
+  plain-HTTP `:2020` listener, scraped by the backplane's Prometheus over the
+  shared `edge` network.
 - **Data model:** `tasks`, `kb_index`, `documents`, `document_chunks`,
   `graph_episodes`, `app_settings`, `service_config` (+ `schema_migrations`).
   `document_chunks` holds passage-sized slices of a document body (one FTS
@@ -123,12 +124,16 @@ Repo layout:
 
 - Inside Docker Compose, reach services by name (`postgres`, `minio`, `falkordb`),
   not `localhost`.
-- `.env` is for host-coupled infra only (TLS cert paths, `COMPOSE_PROJECT_NAME`,
-  optional connection overrides). Almost all app config is in the DB — a fresh
+- `.env` is for host-coupled infra only (`COMPOSE_PROJECT_NAME`, optional
+  connection overrides). Almost all app config is in the DB — a fresh
   `docker compose up` works with **no** `.env`.
 - `.env` may contain secrets — never commit it. `.env.example` is the template.
 - Public access arrives via the Cloudflare Tunnel in the shared edge stack
   (switchboard) — this stack runs no `cloudflared` and opens no inbound ports.
+- LAN/public HTTPS is terminated by the switchboard Caddy, which reaches each
+  app by container name over the external `edge` docker network. Apps run no
+  caddies of their own; on edge hosts each stack adds its
+  `docker-compose.edge.yml` override (see [ADR 0006](docs/adr/0006-shared-edge-network.md)).
 - The Memory MCP uses **stdio** transport — it is a client-side process (e.g. run
   by Claude Code), not a long-running HTTP service, and does **not** belong in
   docker-compose.

@@ -1,44 +1,4 @@
 services:
-  caddy:
-    image: caddy:2-alpine
-    profiles: ["tls"]
-    ports:
-      # HTTP→HTTPS redirect. Override when :80 is taken on a shared host —
-      # a failed port bind aborts the whole `up`.
-      - "${NAZU_HTTP_PORT:-80}:80"
-      # The HTTPS publish is mirrored (host port = container port) because the
-      # Caddyfile site address includes NAZU_HTTPS_PORT — that keeps redirect
-      # Locations correct on non-standard ports.
-      - "${NAZU_HTTPS_PORT:-443}:${NAZU_HTTPS_PORT:-443}"
-      # Prometheus metrics (plain HTTP) — scraped by the backplane stack (#75).
-      - "2020:2020"
-    environment:
-      NAZU_HOSTNAME: ${NAZU_HOSTNAME:-}
-      NAZU_HTTPS_PORT: ${NAZU_HTTPS_PORT:-443}
-      NAZU_TLS_CERT: ${NAZU_TLS_CERT:-}
-      NAZU_TLS_KEY: ${NAZU_TLS_KEY:-}
-    command:
-      - sh
-      - -c
-      - |
-        : "$${NAZU_HOSTNAME:?NAZU_HOSTNAME is required when the tls profile is active}"
-        : "$${NAZU_TLS_CERT:?NAZU_TLS_CERT is required when the tls profile is active}"
-        : "$${NAZU_TLS_KEY:?NAZU_TLS_KEY is required when the tls profile is active}"
-        exec caddy run --config /config/Caddyfile --adapter caddyfile
-    # The web app writes the generated Caddyfile into the shared caddy_config
-    # volume; caddy reads it from there (no host path, no env needed). Certs are
-    # user-provided absolute host paths, mirrored so the path is valid as-is.
-    # The :- defaults keep `compose` parseable when tls is unconfigured (caddy
-    # is only ever started once certs are set and validated by the web app).
-    volumes:
-      - caddy_config:/config:ro
-      - ${NAZU_TLS_CERT:-/etc/ssl/nazu/cert.pem}:${NAZU_TLS_CERT:-/etc/ssl/nazu/cert.pem}:ro
-      - ${NAZU_TLS_KEY:-/etc/ssl/nazu/key.pem}:${NAZU_TLS_KEY:-/etc/ssl/nazu/key.pem}:ro
-      - caddy_data:/data
-    restart: unless-stopped
-    depends_on:
-      - web
-
   minio:
     image: minio/minio:latest
     ports:
@@ -59,9 +19,10 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    # Loopback-only: plain HTTP stays available on the host for local dev, but
-    # LAN clients must use HTTPS (caddy :443, tls profile) or the shared edge.
-    # The internal port stays 3000 so caddy keeps reaching `web:3000` unchanged.
+    # Loopback-only: plain HTTP stays available on the host for local dev.
+    # LAN/public clients come in through the shared edge (switchboard), which
+    # reaches `web:3000` over the external `edge` network — see
+    # docker-compose.edge.yml.
     ports:
       - "127.0.0.1:8420:3000"
     env_file:
@@ -70,7 +31,7 @@ services:
     environment:
       NODE_ENV: production
       # Pin the project name so the in-container compose CLI targets the same
-      # project/network as the host — required for caddy's `web:3000` to resolve.
+      # project/network as the host.
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-nazu}
       # Static API key(s) for non-interactive agents / the Memory MCP. Off when
       # empty. Also loadable from .env; surfaced here so `NAZU_API_KEY=… up` works.
@@ -83,9 +44,6 @@ services:
       # Lets the web app drive `docker compose` to toggle optional services.
       # Service secrets live in DB settings, so no host .env file is needed.
       - ./docker-compose.yml:/app/docker-compose.yml:ro
-      # Shared with caddy: the web app writes the generated Caddyfile here when
-      # tls is enabled. Named volume — no host path, works without config.
-      - caddy_config:/config
     restart: unless-stopped
     depends_on:
       postgres:
@@ -193,6 +151,4 @@ services:
 volumes:
   postgres_data:
   falkordb_data:
-  caddy_data:
-  caddy_config:
   minio_data:

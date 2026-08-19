@@ -28,7 +28,7 @@ async function getAuth(): Promise<AuthInstance | null> {
 	const sig = JSON.stringify([githubId, githubSecret, googleId, googleSecret, secret]);
 	if (cached?.sig === sig) return cached.instance;
 
-	// trustHost: required when running behind a reverse proxy (Caddy / CF Tunnel).
+	// trustHost: required when running behind a reverse proxy (the shared edge / CF Tunnel).
 	const instance = SvelteKitAuth({ providers, secret, trustHost: true });
 	cached = { sig, instance };
 	return instance;

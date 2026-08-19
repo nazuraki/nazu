@@ -72,18 +72,17 @@ locks down every `/api/*` route (except health and the login endpoints):
 - **`BACKPLANE_API_KEY`** — static bearer key for non-interactive clients
   (MCP, curl); the UI can also store it in localStorage.
 
-Use with the tls profile — cookies are `Secure`-flagged and Basic/bearer
-credentials shouldn't travel over plain LAN HTTP.
+Use behind the shared edge (HTTPS) — cookies are `Secure`-flagged and
+Basic/bearer credentials shouldn't travel over plain LAN HTTP.
 
-### HTTPS (tls profile)
+### HTTPS (shared edge)
 
-The plain-HTTP listener binds to localhost only; LAN access goes through a
-profile-gated caddy that serves `https://<host>` (mirrors the nazu stack's
-tls profile). In `.env` set `BACKPLANE_HOSTNAME`, plus `BACKPLANE_TLS_CERT` /
-`BACKPLANE_TLS_KEY` (absolute host paths, e.g. from mkcert), and
-`COMPOSE_PROFILES=tls`, then `up -d` (or re-run the installer). Defaults to
-ports 443 (HTTPS) and 80 (HTTP→HTTPS redirect); on a shared host override
-with `BACKPLANE_HTTPS_PORT` / `BACKPLANE_HTTP_PORT`.
+The plain-HTTP listener binds to localhost only; LAN access goes through the
+shared edge proxy (switchboard), which terminates TLS and reaches
+`backplane:8430` over the external `edge` docker network. Enable it with
+`COMPOSE_FILE=docker-compose.yml:docker-compose.edge.yml` in the install
+directory's `.env`, then `up -d` (or re-run the installer). Grafana and
+Prometheus join the same network and are proxied the same way.
 
 **Self-update** is the known chicken-and-egg: after pulling new backplane code,
 re-run `just backplane-up` manually.
@@ -103,7 +102,7 @@ Git-driven rather than recreate-in-place so compose-file changes deploy too.
 `$BACKPLANE_WORKDIRS` is a host directory mounted into the backplane at the
 identical path. Compose runs inside the container but the daemon resolves bind
 sources as host paths, so the mirror is what makes repo-relative bind mounts in
-managed compose files (e.g. `./caddy/Caddyfile`) work. It also means a
+managed compose files (e.g. nazu's `./docker-compose.yml` self-mount) work. It also means a
 checkout's per-project `.env` can be edited straight on the host, and a workdir
 that pre-exists without `.git` (say, seeded with just such an `.env`) is
 adopted in place on first sync rather than cloned over.
@@ -171,8 +170,9 @@ the host remains equivalent.
 ## Observability stack
 
 Prometheus scrapes **cAdvisor** (per-container CPU/mem for every container on
-the host, all compose projects) and **nazu's Caddy** metrics (host port 2020,
-best-effort — target is down unless nazu's `tls` profile is active). Grafana OSS
+the host, all compose projects) and the **switchboard Caddy**'s request metrics
+(`switchboard:2020` over the shared `edge` network, best-effort — target is
+down on hosts without the edge stack). Grafana OSS
 (AGPLv3 — fine self-hosted) is linked out for ad-hoc exploration with the
 Prometheus datasource provisioned. Zero egress; everything stays on the box.
 

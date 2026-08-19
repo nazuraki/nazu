@@ -1,6 +1,4 @@
 import { execFile } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { env } from '$env/dynamic/private';
 import { getSql } from './db.js';
@@ -8,9 +6,9 @@ import { getSection } from './settings.js';
 
 const exec = promisify(execFile);
 
-const COMPOSE_FILE = env.COMPOSE_FILE || '/app/docker-compose.yml';
-// Mount point of the caddy_config volume shared with the caddy container.
-const CADDY_CONFIG_DIR = env.CADDY_CONFIG_DIR || '/config';
+// Colon-separated like compose's own COMPOSE_FILE (deploys add
+// docker-compose.edge.yml so in-app `up`s see the same config as the stack).
+const COMPOSE_FILES = (env.COMPOSE_FILE || '/app/docker-compose.yml').split(':');
 
 interface OptionalService {
 	/** Compose profile that gates the service. */
@@ -21,42 +19,9 @@ interface OptionalService {
 	label: string;
 	/** Env vars that must be set before the service can start. */
 	requires: string[];
-	/** Optional hook to materialize config files before `up`. */
-	prepare?: () => Promise<void>;
 }
-
-// The plain-HTTP :2020 listener serves Prometheus metrics (request rate/latency)
-// for the backplane's observability stack (#75), which scrapes it via the host
-// port published in docker-compose.yml. The `servers metrics` global enables
-// per-request metrics collection.
-const CADDYFILE = `{
-	servers {
-		metrics
-	}
-}
-
-{$NAZU_HOSTNAME}:{$NAZU_HTTPS_PORT} {
-	tls {$NAZU_TLS_CERT} {$NAZU_TLS_KEY}
-	reverse_proxy web:3000
-}
-
-http://:2020 {
-	metrics /metrics
-}
-`;
 
 export const OPTIONAL_SERVICES: OptionalService[] = [
-	{
-		profile: 'tls',
-		service: 'caddy',
-		label: 'TLS (Caddy)',
-		requires: ['NAZU_HOSTNAME', 'NAZU_TLS_CERT', 'NAZU_TLS_KEY'],
-		async prepare() {
-			const path = resolve(CADDY_CONFIG_DIR, 'Caddyfile');
-			await mkdir(dirname(path), { recursive: true });
-			await writeFile(path, CADDYFILE, 'utf8');
-		},
-	},
 	{
 		// Graphiti temporal-graph recall sidecar (#53). Needs the Anthropic key
 		// (DB-backed) for entity extraction; checked from settings in missingConfig.
@@ -99,7 +64,7 @@ async function missingConfig(svc: OptionalService): Promise<string[]> {
 }
 
 async function compose(args: string[]): Promise<void> {
-	await exec('docker', ['compose', '-f', COMPOSE_FILE, ...args], {
+	await exec('docker', ['compose', ...COMPOSE_FILES.flatMap((f) => ['-f', f]), ...args], {
 		timeout: 120_000,
 	});
 }
@@ -140,7 +105,6 @@ export async function enableService(profile: string): Promise<void> {
 	if (missing.length) {
 		throw new Error(`missing required config: ${missing.join(', ')}`);
 	}
-	await svc.prepare?.();
 	await compose(['--profile', svc.profile, 'up', '-d', svc.service]);
 	await persist(svc.profile, true);
 }

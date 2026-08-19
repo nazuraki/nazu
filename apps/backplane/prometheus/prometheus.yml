@@ -12,8 +12,10 @@ scrape_configs:
     static_configs:
       - targets: ["cadvisor:8080"]
 
-  # nazu's caddy exposes request-rate/latency metrics on host port 2020 when its
-  # tls profile is active. Best-effort: the target is simply down otherwise.
+  # The switchboard Caddy (shared edge) serves request-rate/latency metrics on
+  # its plain-HTTP :2020 listener, reached over the shared `edge` network (see
+  # docker-compose.edge.yml). Best-effort: the target is simply down on hosts
+  # without the edge stack (e.g. local dev).
   - job_name: caddy
     static_configs:
-      - targets: ["host.docker.internal:2020"]
+      - targets: ["switchboard:2020"]

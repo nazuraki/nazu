@@ -13,8 +13,10 @@ services:
     build:
       context: ../..
       dockerfile: apps/backplane/Dockerfile
-    # Loopback-only: plain HTTP stays available on the host for local dev, but
-    # LAN clients go through caddy (HTTPS on 8443, tls profile).
+    # Loopback-only: plain HTTP stays available on the host for local dev.
+    # LAN clients come in through the shared edge (switchboard), which reaches
+    # `backplane:8430` over the external `edge` network — see
+    # docker-compose.edge.yml.
     ports:
       - "127.0.0.1:8430:8430"
     environment:
@@ -37,7 +39,7 @@ services:
       # Per-project git checkouts, bind-mounted at the IDENTICAL path inside
       # the container. The backplane runs `docker compose` in these checkouts
       # against the host daemon, so relative bind mounts in managed compose
-      # files (e.g. ./caddy/Caddyfile) must resolve to paths the daemon can
+      # files (e.g. nazu's ./docker-compose.yml self-mount) must resolve to paths the daemon can
       # see — mirroring makes every container-side path a valid host path
       # (same trick as the self-update helper). See ADR 0005. install.sh pins
       # BACKPLANE_WORKDIRS in .env; the ${PWD} fallback covers `just
@@ -47,54 +49,14 @@ services:
     depends_on:
       - prometheus
 
-  # HTTPS front door for the UI/API (mirrors the nazu stack's tls profile).
-  # Certs are user-provided absolute host paths, mirrored into the container
-  # so the path is valid as-is. The :- defaults keep compose parseable when
-  # tls is unconfigured. Enable with COMPOSE_PROFILES=tls in .env.
-  caddy:
-    image: caddy:2-alpine
-    profiles: ["tls"]
-    ports:
-      # HTTP→HTTPS redirect. Override when :80 is taken on a shared host —
-      # a failed port bind aborts the whole `up`.
-      - "${BACKPLANE_HTTP_PORT:-80}:80"
-      # Mirrored (host port = container port): the Caddyfile site address
-      # includes BACKPLANE_HTTPS_PORT so redirect Locations stay correct on
-      # non-standard ports.
-      - "${BACKPLANE_HTTPS_PORT:-443}:${BACKPLANE_HTTPS_PORT:-443}"
-    environment:
-      BACKPLANE_HOSTNAME: ${BACKPLANE_HOSTNAME:-}
-      BACKPLANE_HTTPS_PORT: ${BACKPLANE_HTTPS_PORT:-443}
-      BACKPLANE_TLS_CERT: ${BACKPLANE_TLS_CERT:-}
-      BACKPLANE_TLS_KEY: ${BACKPLANE_TLS_KEY:-}
-    command:
-      - sh
-      - -c
-      - |
-        : "$${BACKPLANE_HOSTNAME:?BACKPLANE_HOSTNAME is required when the tls profile is active}"
-        : "$${BACKPLANE_TLS_CERT:?BACKPLANE_TLS_CERT is required when the tls profile is active}"
-        : "$${BACKPLANE_TLS_KEY:?BACKPLANE_TLS_KEY is required when the tls profile is active}"
-        exec caddy run --config /config/Caddyfile --adapter caddyfile
-    volumes:
-      - ./caddy/Caddyfile:/config/Caddyfile:ro
-      - ${BACKPLANE_TLS_CERT:-/etc/ssl/backplane/cert.pem}:${BACKPLANE_TLS_CERT:-/etc/ssl/backplane/cert.pem}:ro
-      - ${BACKPLANE_TLS_KEY:-/etc/ssl/backplane/key.pem}:${BACKPLANE_TLS_KEY:-/etc/ssl/backplane/key.pem}:ro
-      - caddy_data:/data
-    restart: unless-stopped
-    depends_on:
-      - backplane
-
   prometheus:
     image: prom/prometheus:latest
+    # Loopback-only: LAN access goes through the shared edge (switchboard).
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
-    # Reach targets published on the host (e.g. nazu's caddy metrics port),
-    # which live in other compose projects/networks. No-op on Docker Desktop.
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   cadvisor:
@@ -108,8 +70,9 @@ services:
 
   grafana:
     image: grafana/grafana-oss:latest
+    # Loopback-only: LAN access goes through the shared edge (switchboard).
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       # Internal-only dev server; keep the default admin/admin login flow.
       GF_ANALYTICS_REPORTING_ENABLED: "false"
@@ -123,6 +86,5 @@ services:
 
 volumes:
   backplane_data:
-  caddy_data:
   prometheus_data:
   grafana_data:

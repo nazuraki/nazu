@@ -1,0 +1,30 @@
+# Edge-host override: joins the stack's front-facing services to the shared
+# external `edge` docker network so the switchboard Caddy can reverse_proxy
+# to them by container name (`backplane:8430`, `grafana:3000`,
+# `prometheus:9090`) — no published ports, no per-app TLS. Prometheus also
+# scrapes the switchboard Caddy's request metrics over this network.
+#
+# Opt-in — local dev never needs it (the network is `external` and only
+# exists on edge hosts). Enable by listing both files in COMPOSE_FILE in the
+# install directory's .env:
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.edge.yml
+services:
+  backplane:
+    networks:
+      default: {}
+      edge: {}
+
+  grafana:
+    networks:
+      default: {}
+      edge: {}
+
+  prometheus:
+    networks:
+      default: {}
+      edge: {}
+
+networks:
+  edge:
+    external: true
