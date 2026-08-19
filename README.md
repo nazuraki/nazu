@@ -1,6 +1,6 @@
 # nazu
 
-Personal knowledge management and home dashboard — self-hosted, Cloudflare Tunnel exposed.
+Personal knowledge management and home dashboard — self-hosted, publicly reachable through a Cloudflare Tunnel that terminates in the shared edge stack (switchboard).
 
 ## What it is
 
@@ -20,7 +20,6 @@ nazu is a personal second-brain and home control panel. It consists of:
 | Database | PostgreSQL 16 |
 | Object storage | MinIO (S3-compatible, documents + attachments) |
 | Graph DB | FalkorDB — per-project code-intelligence graphs (`code:*`); a personal knowledge graph is planned, not yet built |
-| Tunnel | Cloudflare Tunnel (outbound-only, no open ports) |
 | Runtime | Docker Compose |
 
 ## Running
@@ -45,20 +44,19 @@ This starts the **core stack** — `web`, `postgres`, `minio`, and `falkordb`. T
 
 #### Optional services (Compose profiles)
 
-The two ingress services are gated behind Compose profiles so you only run what you need. They can be toggled at runtime from **Settings** in the web UI (the app shells out to `docker compose` over the mounted Docker socket), or enabled at startup with `--profile <name>`:
+Optional services are gated behind Compose profiles so you only run what you need. They can be toggled at runtime from **Settings** in the web UI (the app shells out to `docker compose` over the mounted Docker socket), or enabled at startup with `--profile <name>`:
 
 | Profile | Services | Needed for |
 |---|---|---|
 | `tls` | `caddy` | HTTPS termination on `:443` (requires `NAZU_HOSTNAME`, `NAZU_TLS_CERT`, `NAZU_TLS_KEY`) |
-| `tunnel` | `cloudflared` | Public access via Cloudflare Tunnel (requires `CF_TUNNEL_TOKEN`) |
 
 All services declare `restart: unless-stopped`, so once enabled they survive reboots until explicitly disabled. Enabling `tls` makes the web app write the generated `Caddyfile` into a named volume (`caddy_config`) shared with the caddy container — no host path required.
 
 Examples:
 
 ```sh
-docker compose up -d                              # core stack
-docker compose --profile tls --profile tunnel up -d   # add HTTPS + tunnel
+docker compose up -d                     # core stack
+docker compose --profile tls up -d       # add HTTPS
 ```
 
 ### Development
@@ -107,7 +105,6 @@ nazu is **zero-conf**: a fresh `docker compose up` runs with no `.env`. Almost a
 | `REPO_CACHE_DIR` | Directory for cached git checkouts used by the code-graph webhook reindexer |
 | `NAZU_API_KEY` | Static API key(s) for non-interactive agents / the Memory MCP (comma-separated; `Authorization: Bearer` or `X-API-Key`). Off when unset. |
 | `NAZU_LOCAL_USER_EMAIL` | Identity stamped on local / open-mode requests (default `local@nazu.local`) |
-| `CF_TUNNEL_TOKEN` | Cloudflare Tunnel token (also settable in Settings; required with the `tunnel` profile) |
 | `NAZU_HOSTNAME` | Hostname Caddy serves on (e.g. `nazu.example.com`) — required with the `tls` profile |
 | `NAZU_TLS_CERT` / `NAZU_TLS_KEY` | Absolute host paths to the TLS cert/key, bind-mounted into caddy at the same path — required with the `tls` profile |
 | `COMPOSE_PROJECT_NAME` | Compose project name (default `nazu`); pins the web app's in-container `docker compose` to the same project/network |
@@ -144,9 +141,7 @@ A former build checkout on the server can be deleted once both stacks are cut ov
 
 ## Remote Access
 
-The `cloudflared` service in Docker Compose connects outbound to the CF edge — no inbound firewall ports needed.
-
-**One-time CF dashboard setup:** in Zero Trust → Networks → Tunnels → your tunnel → Public Hostnames, set the origin to `http://web:3000` (Docker service name). See `infra/cloudflare/tunnel-config.example.yml` for details.
+Public access runs through a Cloudflare Tunnel, but the `cloudflared` connector no longer lives in this stack — it runs in the shared edge stack (switchboard), whose Caddy routes public hostnames by `Host` and stamps `X-Access-Scope: external`. The public hostname's origin in the Zero Trust dashboard points at that edge, which proxies back to this app. Cloudflare Access still authenticates remote traffic at the edge (see Auth above); nothing tunnel-related is configured in this repo.
 
 ## Code graph indexer
 

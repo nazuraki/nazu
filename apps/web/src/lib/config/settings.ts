@@ -247,7 +247,6 @@ export const SECTIONS: SectionDef[] = [
 			{ key: 'authSecret', label: 'Auth signing secret (auto)', type: 'secret' },
 			{ key: 'cfAccessTeamDomain', label: 'Cloudflare Access team domain', type: 'string' },
 			{ key: 'cfAccessAud', label: 'Cloudflare Access AUD', type: 'string' },
-			{ key: 'cfTunnelToken', label: 'Cloudflare Tunnel token', type: 'secret' },
 		],
 	},
 ];

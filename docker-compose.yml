@@ -1,14 +1,4 @@
 services:
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    profiles: ["tunnel"]
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:-}
-    depends_on:
-      - web
-
   caddy:
     image: caddy:2-alpine
     profiles: ["tls"]
@@ -70,9 +60,8 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     # Loopback-only: plain HTTP stays available on the host for local dev, but
-    # LAN clients must use HTTPS (caddy :443, tls profile) or the CF tunnel.
-    # The internal port stays 3000 so caddy / cloudflared keep reaching
-    # `web:3000` unchanged.
+    # LAN clients must use HTTPS (caddy :443, tls profile) or the shared edge.
+    # The internal port stays 3000 so caddy keeps reaching `web:3000` unchanged.
     ports:
       - "127.0.0.1:8420:3000"
     env_file:
@@ -92,8 +81,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Lets the web app drive `docker compose` to toggle optional services.
-      # Secrets (e.g. the CF tunnel token) are injected into that subprocess from
-      # DB settings, so no host .env file is needed.
+      # Service secrets live in DB settings, so no host .env file is needed.
       - ./docker-compose.yml:/app/docker-compose.yml:ro
       # Shared with caddy: the web app writes the generated Caddyfile here when
       # tls is enabled. Named volume — no host path, works without config.
