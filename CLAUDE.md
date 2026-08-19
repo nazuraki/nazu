@@ -127,8 +127,8 @@ Repo layout:
   optional connection overrides). Almost all app config is in the DB — a fresh
   `docker compose up` works with **no** `.env`.
 - `.env` may contain secrets — never commit it. `.env.example` is the template.
-- Cloudflare Tunnel is outbound-only — no inbound ports — but the `cloudflared`
-  service must be running.
+- Public access arrives via the Cloudflare Tunnel in the shared edge stack
+  (switchboard) — this stack runs no `cloudflared` and opens no inbound ports.
 - The Memory MCP uses **stdio** transport — it is a client-side process (e.g. run
   by Claude Code), not a long-running HTTP service, and does **not** belong in
   docker-compose.

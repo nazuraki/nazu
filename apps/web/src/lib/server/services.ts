@@ -47,12 +47,6 @@ http://:2020 {
 
 export const OPTIONAL_SERVICES: OptionalService[] = [
 	{
-		profile: 'tunnel',
-		service: 'cloudflared',
-		label: 'Cloudflare Tunnel',
-		requires: ['CF_TUNNEL_TOKEN'],
-	},
-	{
 		profile: 'tls',
 		service: 'caddy',
 		label: 'TLS (Caddy)',
@@ -88,15 +82,11 @@ function find(profile: string): OptionalService {
 }
 
 /**
- * Config a service needs before it can start. The Cloudflare Tunnel token now
- * lives in DB settings (injected into the compose subprocess by {@link composeEnv}),
- * so it's reported missing from there rather than from the host env.
+ * Config a service needs before it can start. DB-backed secrets (Anthropic
+ * key, Discord bot token) are reported missing from settings; everything else
+ * is checked against the host env.
  */
 async function missingConfig(svc: OptionalService): Promise<string[]> {
-	if (svc.profile === 'tunnel') {
-		const o = await getSection('oauth');
-		return (o.cfTunnelToken as string)?.trim() ? [] : ['CF_TUNNEL_TOKEN'];
-	}
 	if (svc.profile === 'graph') {
 		const ai = await getSection('ai');
 		return (ai.anthropicApiKey as string)?.trim() ? [] : ['Anthropic API key'];
@@ -108,19 +98,9 @@ async function missingConfig(svc: OptionalService): Promise<string[]> {
 	return svc.requires.filter((k) => !env[k]?.trim());
 }
 
-/** Extra env injected into the compose subprocess for a service. */
-async function composeEnv(svc: OptionalService): Promise<Record<string, string>> {
-	if (svc.profile === 'tunnel') {
-		const o = await getSection('oauth');
-		return { CF_TUNNEL_TOKEN: (o.cfTunnelToken as string)?.trim() ?? '' };
-	}
-	return {};
-}
-
-async function compose(args: string[], extraEnv: Record<string, string> = {}): Promise<void> {
+async function compose(args: string[]): Promise<void> {
 	await exec('docker', ['compose', '-f', COMPOSE_FILE, ...args], {
 		timeout: 120_000,
-		env: { ...process.env, ...extraEnv },
 	});
 }
 
@@ -161,7 +141,7 @@ export async function enableService(profile: string): Promise<void> {
 		throw new Error(`missing required config: ${missing.join(', ')}`);
 	}
 	await svc.prepare?.();
-	await compose(['--profile', svc.profile, 'up', '-d', svc.service], await composeEnv(svc));
+	await compose(['--profile', svc.profile, 'up', '-d', svc.service]);
 	await persist(svc.profile, true);
 }
 

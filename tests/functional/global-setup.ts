@@ -6,9 +6,9 @@ import { closeDb, sql } from "./lib/db.js";
 
 const PROJECT = "nazu-test";
 const COMPOSE_FILES = ["-f", "docker-compose.yml", "-f", "docker-compose.test.override.yml"];
-// minio and falkordb are core services (no profile). The tls/tunnel ingress
-// services aren't exercised by the functional suite, so no profiles are
-// activated — keeps caddy/cloudflared (and their host cert mounts) out of CI.
+// minio and falkordb are core services (no profile). The tls ingress service
+// isn't exercised by the functional suite, so no profiles are activated —
+// keeps caddy (and its host cert mounts) out of CI.
 const PROFILES: string[] = [];
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
