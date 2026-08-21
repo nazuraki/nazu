@@ -1,3 +1,4 @@
+import { Alert } from '@nazuraki/ui-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { authHeaders } from '../api';
@@ -53,7 +54,7 @@ export function LogStream({ containerId }: { containerId: string }): React.JSX.E
 
 	return (
 		<>
-			{error && <p className="error">{error}</p>}
+			{error && <Alert variant="danger">{error}</Alert>}
 			<pre className="log" ref={pre}>
 				{lines.length ? lines.join('\n') : '(waiting for logs…)'}
 			</pre>

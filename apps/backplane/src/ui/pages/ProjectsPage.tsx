@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Badge, Button, Card, Checkbox, Field, Input, NavLink, Spinner } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { api, type ContainerSummary, type Project } from '../api';
@@ -14,24 +15,24 @@ function formatUptime(seconds: number): string {
 
 interface ProjectHealth {
 	label: string;
-	cls: '' | 'ok' | 'warn' | 'err';
+	variant: 'success' | 'warning' | 'danger' | undefined;
 	uptime: string | null;
 }
 
 function projectHealth(p: Project, containers: ContainerSummary[] | undefined): ProjectHealth {
-	if (!containers) return { label: 'unknown', cls: '', uptime: null };
+	if (!containers) return { label: 'unknown', variant: undefined, uptime: null };
 	const compose = p.target.projectName ?? p.name;
 	const own = containers.filter((c) => c.composeProject === compose);
 	const running = own.filter((c) => c.state === 'running');
-	if (own.length === 0) return { label: 'not deployed', cls: '', uptime: null };
+	if (own.length === 0) return { label: 'not deployed', variant: undefined, uptime: null };
 	// The stack is only fully up since its most recently started container.
 	const uptime =
 		running.length > 0
 			? formatUptime(Date.now() / 1000 - Math.max(...running.map((c) => c.created)))
 			: null;
-	if (running.length === own.length) return { label: 'running', cls: 'ok', uptime };
-	if (running.length > 0) return { label: `${running.length}/${own.length} running`, cls: 'warn', uptime };
-	return { label: 'stopped', cls: 'err', uptime: null };
+	if (running.length === own.length) return { label: 'running', variant: 'success', uptime };
+	if (running.length > 0) return { label: `${running.length}/${own.length} running`, variant: 'warning', uptime };
+	return { label: 'stopped', variant: 'danger', uptime: null };
 }
 
 const EMPTY = {
@@ -80,37 +81,50 @@ function AddProjectForm(): React.JSX.Element {
 		},
 	});
 
-	if (!open) return <button onClick={() => setOpen(true)}>+ Add project</button>;
+	if (!open) {
+		return (
+			<Button variant="primary" onClick={() => setOpen(true)}>
+				+ Add project
+			</Button>
+		);
+	}
 
 	const set = (k: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement>) =>
 		setForm({ ...form, [k]: k === 'autoDeploy' ? e.target.checked : e.target.value });
 
 	return (
-		<div className="panel">
-			<label>Name</label>
-			<input value={form.name} onChange={set('name')} placeholder="nazu" />
-			<label>Git URL</label>
-			<input value={form.gitUrl} onChange={set('gitUrl')} placeholder="https://github.com/user/repo.git" />
-			<label>Branch</label>
-			<input value={form.branch} onChange={set('branch')} />
-			<label>Watched images (comma-separated)</label>
-			<input value={form.images} onChange={set('images')} placeholder="ghcr.io/user/image:latest" />
-			<label>Compose files (comma-separated, optional)</label>
-			<input value={form.composeFiles} onChange={set('composeFiles')} placeholder="docker-compose.yml" />
-			<label>Compose profiles (comma-separated, optional)</label>
-			<input value={form.profiles} onChange={set('profiles')} placeholder="tls,discord" />
-			<label>
-				<input type="checkbox" checked={form.autoDeploy} onChange={set('autoDeploy')} /> auto-deploy on
-				new image
-			</label>
+		<Card className="panel">
+			<Field label="Name" htmlFor="f-name">
+				<Input id="f-name" value={form.name} onChange={set('name')} placeholder="nazu" />
+			</Field>
+			<Field label="Git URL" htmlFor="f-gitUrl">
+				<Input id="f-gitUrl" value={form.gitUrl} onChange={set('gitUrl')} placeholder="https://github.com/user/repo.git" />
+			</Field>
+			<Field label="Branch" htmlFor="f-branch">
+				<Input id="f-branch" value={form.branch} onChange={set('branch')} />
+			</Field>
+			<Field label="Watched images (comma-separated)" htmlFor="f-images">
+				<Input id="f-images" value={form.images} onChange={set('images')} placeholder="ghcr.io/user/image:latest" />
+			</Field>
+			<Field label="Compose files (comma-separated, optional)" htmlFor="f-composeFiles">
+				<Input id="f-composeFiles" value={form.composeFiles} onChange={set('composeFiles')} placeholder="docker-compose.yml" />
+			</Field>
+			<Field label="Compose profiles (comma-separated, optional)" htmlFor="f-profiles">
+				<Input id="f-profiles" value={form.profiles} onChange={set('profiles')} placeholder="tls,discord" />
+			</Field>
+			<Checkbox
+					checked={form.autoDeploy}
+					onChange={set('autoDeploy')}
+					label="auto-deploy on new image"
+				/>
 			<div className="row" style={{ marginTop: '0.75rem' }}>
-				<button onClick={() => create.mutate()} disabled={create.isPending}>
+				<Button variant="primary" onClick={() => create.mutate()} disabled={create.isPending}>
 					Create
-				</button>
-				<button onClick={() => setOpen(false)}>Cancel</button>
+				</Button>
+				<Button onClick={() => setOpen(false)}>Cancel</Button>
 				{create.isError && <span className="error">{(create.error as Error).message}</span>}
 			</div>
-		</div>
+		</Card>
 	);
 }
 
@@ -133,8 +147,8 @@ export function ProjectsPage(): React.JSX.Element {
 				<h1 style={{ flex: 1 }}>Projects</h1>
 				<AddProjectForm />
 			</div>
-			{isLoading && <p className="muted">Loading…</p>}
-			{error && <p className="error">{(error as Error).message}</p>}
+			{isLoading && <Spinner />}
+			{error && <Alert variant="danger">{(error as Error).message}</Alert>}
 			{data && data.projects.length === 0 && (
 				<p className="muted">No projects registered yet. Add one to start deploying.</p>
 			)}
@@ -143,13 +157,13 @@ export function ProjectsPage(): React.JSX.Element {
 					{data.projects.map((p) => {
 						const health = projectHealth(p, containers.data?.containers);
 						return (
-							<a key={p.name} className="project-card" href={`#/projects/${p.name}`}>
+							<NavLink key={p.name} className="project-card" href={`#/projects/${p.name}`}>
 								<span className="project-card-name">{p.name}</span>
 								<span className="project-card-uptime muted">
-								{health.uptime ? `up ${health.uptime}` : '—'}
-							</span>
-								<span className={`badge ${health.cls}`}>{health.label}</span>
-							</a>
+									{health.uptime ? `up ${health.uptime}` : '—'}
+								</span>
+								<Badge variant={health.variant}>{health.label}</Badge>
+							</NavLink>
 						);
 					})}
 				</div>

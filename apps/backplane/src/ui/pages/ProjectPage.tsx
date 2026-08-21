@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Badge, Button, Card, Spinner, type BadgeProps } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import {
@@ -10,10 +11,10 @@ import {
 	type Project,
 } from '../api';
 
-function stateBadge(state: string): string {
-	if (state === 'running') return 'badge ok';
-	if (state === 'exited' || state === 'dead') return 'badge err';
-	return 'badge warn';
+function stateVariant(state: string): BadgeProps['variant'] {
+	if (state === 'running') return 'success';
+	if (state === 'exited' || state === 'dead') return 'danger';
+	return 'warning';
 }
 
 function DeployLog({ project, id }: { project: string; id: number }): React.JSX.Element {
@@ -22,7 +23,7 @@ function DeployLog({ project, id }: { project: string; id: number }): React.JSX.
 		queryFn: () => api<{ deploy: DeployRecord }>(`/api/projects/${project}/deploys/${id}`),
 		refetchInterval: (q) => (q.state.data?.deploy.status === 'running' ? 2000 : false),
 	});
-	if (!data) return <p className="muted">Loading…</p>;
+	if (!data) return <Spinner />;
 	return <pre className="log">{data.deploy.log || '(no output yet)'}</pre>;
 }
 
@@ -59,8 +60,8 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 		},
 	});
 
-	if (project.isLoading) return <p className="muted">Loading…</p>;
-	if (project.error) return <p className="error">{(project.error as Error).message}</p>;
+	if (project.isLoading) return <Spinner />;
+	if (project.error) return <Alert variant="danger">{(project.error as Error).message}</Alert>;
 	const p = project.data!.project;
 	const updateAvailable = (updates.data?.updates ?? []).some((u) => u.updateAvailable);
 
@@ -68,19 +69,20 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 		<>
 			<div className="row">
 				<h1 style={{ flex: 1 }}>{p.name}</h1>
-				<button onClick={() => run.mutate('deploy')} disabled={run.isPending}>
+				<Button variant="primary" onClick={() => run.mutate('deploy')} disabled={run.isPending}>
 					Deploy
-				</button>
-				<button
+				</Button>
+				<Button
+					variant={updateAvailable ? 'accent' : 'default'}
 					onClick={() => run.mutate('update')}
 					disabled={run.isPending}
 					title="Pull newest images and recreate changed containers (no git sync)"
 				>
 					{updateAvailable ? 'Update ⬆' : 'Update'}
-				</button>
-				<button onClick={() => run.mutate('restart')} disabled={run.isPending}>
+				</Button>
+				<Button onClick={() => run.mutate('restart')} disabled={run.isPending}>
 					Restart
-				</button>
+				</Button>
 				<a href={`#/projects/${p.name}/edit`} className="icon-btn" title="Edit project">
 					<span className="material-symbols-outlined">edit</span>
 				</a>
@@ -90,14 +92,14 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 				{p.target.profiles?.length ? ` [${p.target.profiles.join(', ')}]` : ''} — auto-deploy:{' '}
 				{p.autoDeploy ? 'on' : 'off'}
 			</p>
-			{run.isError && <p className="error">{(run.error as Error).message}</p>}
+			{run.isError && <Alert variant="danger">{(run.error as Error).message}</Alert>}
 
 			<h2>Services</h2>
-			<div className="panel">
-				{status.error && <p className="error">{(status.error as Error).message}</p>}
+			<Card className="panel">
+				{status.error && <Alert variant="danger">{(status.error as Error).message}</Alert>}
 				{status.data?.services.length === 0 && <p className="muted">No services — never deployed?</p>}
 				{!!status.data?.services.length && (
-					<table>
+					<table className="nb-table">
 						<thead>
 							<tr>
 								<th>Service</th>
@@ -111,7 +113,7 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 								<tr key={s.service}>
 									<td>{s.service}</td>
 									<td>
-										<span className={stateBadge(s.state)}>{s.state}</span>
+										<Badge variant={stateVariant(s.state)}>{s.state}</Badge>
 									</td>
 									<td className="muted">{s.status}</td>
 									<td className="muted">{s.image}</td>
@@ -120,41 +122,41 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 						</tbody>
 					</table>
 				)}
-			</div>
+			</Card>
 
 			{p.images.length > 0 && (
 				<>
 					<h2>Images</h2>
-					<div className="panel">
-						<table>
+					<Card className="panel">
+						<table className="nb-table">
 							<tbody>
 								{(updates.data?.updates ?? []).map((u) => (
 									<tr key={u.image}>
 										<td>{u.image}</td>
 										<td>
 											{u.error ? (
-												<span className="badge warn" title={u.error}>
+												<Badge variant="warning" title={u.error}>
 													check failed
-												</span>
+												</Badge>
 											) : u.updateAvailable ? (
-												<span className="badge warn">update available</span>
+												<Badge variant="warning">update available</Badge>
 											) : (
-												<span className="badge ok">up to date</span>
+												<Badge variant="success">up to date</Badge>
 											)}
 										</td>
 									</tr>
 								))}
 							</tbody>
 						</table>
-					</div>
+					</Card>
 				</>
 			)}
 
 			<h2>Deploy history</h2>
-			<div className="panel">
+			<Card className="panel">
 				{deploys.data?.deploys.length === 0 && <p className="muted">No deploys yet.</p>}
 				{!!deploys.data?.deploys.length && (
-					<table>
+					<table className="nb-table">
 						<thead>
 							<tr>
 								<th>#</th>
@@ -175,17 +177,17 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 									<td>{d.action}</td>
 									<td className="muted">{d.trigger}</td>
 									<td>
-										<span
-											className={
+										<Badge
+											variant={
 												d.status === 'succeeded'
-													? 'badge ok'
+													? 'success'
 													: d.status === 'failed'
-														? 'badge err'
-														: 'badge warn'
+														? 'danger'
+														: 'warning'
 											}
 										>
 											{d.status}
-										</span>
+										</Badge>
 									</td>
 									<td className="muted">{new Date(d.startedAt).toLocaleString()}</td>
 								</tr>
@@ -194,7 +196,7 @@ export function ProjectPage({ name }: { name: string }): React.JSX.Element {
 					</table>
 				)}
 				{openLog !== null && <DeployLog project={name} id={openLog} />}
-			</div>
+			</Card>
 		</>
 	);
 }

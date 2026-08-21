@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Alert, Badge, Card, Spinner } from '@nazuraki/ui-react';
 import { useMemo, useState } from 'react';
 
 import { api, queryRange, type ContainerSummary } from '../api';
@@ -33,10 +34,9 @@ function ContainerCharts({ name }: { name: string }): React.JSX.Element {
 
 	if (cpu.error || mem.error) {
 		return (
-			<p className="error">
-				Metrics unavailable: {((cpu.error ?? mem.error) as Error).message} (is the Prometheus/cAdvisor
-				stack up?)
-			</p>
+			<Alert variant="danger" title="Metrics unavailable">
+				{((cpu.error ?? mem.error) as Error).message} (is the Prometheus/cAdvisor stack up?)
+			</Alert>
 		);
 	}
 	if (!cpuSeries.length && !memSeries.length) {
@@ -61,11 +61,11 @@ export function ContainersPage(): React.JSX.Element {
 	return (
 		<>
 			<h1>Containers</h1>
-			{isLoading && <p className="muted">Loading…</p>}
-			{error && <p className="error">{(error as Error).message}</p>}
+			{isLoading && <Spinner />}
+			{error && <Alert variant="danger">{(error as Error).message}</Alert>}
 			{data && (
-				<div className="panel">
-					<table>
+				<Card className="panel">
+					<table className="nb-table">
 						<thead>
 							<tr>
 								<th>Name</th>
@@ -84,17 +84,17 @@ export function ContainersPage(): React.JSX.Element {
 								>
 									<td>{c.name}</td>
 									<td>
-										<span
-											className={
+										<Badge
+											variant={
 												c.state === 'running'
-													? 'badge ok'
+													? 'success'
 													: c.state === 'exited'
-														? 'badge err'
-														: 'badge warn'
+														? 'danger'
+														: 'warning'
 											}
 										>
 											{c.state}
-										</span>
+										</Badge>
 									</td>
 									<td className="muted">{c.status}</td>
 									<td className="muted">{c.image}</td>
@@ -103,7 +103,7 @@ export function ContainersPage(): React.JSX.Element {
 							))}
 						</tbody>
 					</table>
-				</div>
+				</Card>
 			)}
 			{selected && (
 				<>

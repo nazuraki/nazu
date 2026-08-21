@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert } from '@nazuraki/ui-react';
 import { useEffect, useState } from 'react';
 
 import { fetchAuthStatus, logout } from './api';
@@ -34,7 +35,15 @@ export function App(): React.JSX.Element {
 	});
 
 	if (auth.isPending) return <main />;
-	if (auth.isError) return <main className="error">backplane unreachable: {auth.error.message}</main>;
+	if (auth.isError) {
+		return (
+			<main>
+				<Alert variant="danger" title="backplane unreachable">
+					{auth.error.message}
+				</Alert>
+			</main>
+		);
+	}
 	if (!auth.data.authenticated) return <LoginPage status={auth.data} />;
 
 	return (
