@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Badge, Button, Card, Input, Spinner } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { createRole, deleteRole, fetchRoles, updateRole, type Role } from '../api';
@@ -28,17 +29,16 @@ function RoleRow({ role }: { role: Role }): React.JSX.Element {
 			<td>{role.name}</td>
 			<td>
 				{editing ? (
-					<input
+					<Input
 						value={perms}
 						onChange={(e) => setPerms(e.target.value)}
 						placeholder="space-separated permissions"
+						aria-label="Permissions"
 					/>
 				) : (
 					<span className="chip-row">
 						{role.permissions.map((p) => (
-							<span key={p} className="badge">
-								{p}
-							</span>
+							<Badge key={p}>{p}</Badge>
 						))}
 						{role.permissions.length === 0 && <span className="muted">none</span>}
 					</span>
@@ -50,21 +50,21 @@ function RoleRow({ role }: { role: Role }): React.JSX.Element {
 			<td>
 				<div className="row">
 					{editing ? (
-						<button onClick={() => save.mutate()} disabled={save.isPending}>
+						<Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending}>
 							Save
-						</button>
+						</Button>
 					) : (
-						<button onClick={() => setEditing(true)}>Edit</button>
+						<Button onClick={() => setEditing(true)}>Edit</Button>
 					)}
-					<button
-						className="danger"
+					<Button
+						variant="danger"
 						onClick={() => {
 							if (window.confirm(`Delete role ${role.app}/${role.name}?`)) remove.mutate();
 						}}
 						disabled={remove.isPending}
 					>
 						Delete
-					</button>
+					</Button>
 				</div>
 			</td>
 		</tr>
@@ -88,13 +88,13 @@ export function RolesPage(): React.JSX.Element {
 		},
 	});
 
-	if (roles.isPending) return <p className="muted">loading…</p>;
-	if (roles.isError) return <p className="error">{roles.error.message}</p>;
+	if (roles.isPending) return <Spinner />;
+	if (roles.isError) return <Alert variant="danger">{roles.error.message}</Alert>;
 
 	return (
 		<>
 			<h1>Roles</h1>
-			<div className="panel">
+			<Card className="panel">
 				<form
 					className="row"
 					onSubmit={(e) => {
@@ -102,32 +102,35 @@ export function RolesPage(): React.JSX.Element {
 						create.mutate();
 					}}
 				>
-					<input
+					<Input
 						style={{ width: '10rem' }}
 						placeholder="app"
+						aria-label="App"
 						value={app}
 						onChange={(e) => setApp(e.target.value)}
 					/>
-					<input
+					<Input
 						style={{ width: '10rem' }}
 						placeholder="role name"
+						aria-label="Role name"
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 					/>
-					<input
+					<Input
 						style={{ flex: 1, minWidth: '12rem' }}
 						placeholder="permissions (space-separated)"
+						aria-label="Permissions"
 						value={perms}
 						onChange={(e) => setPerms(e.target.value)}
 					/>
-					<button type="submit" disabled={create.isPending || !app || !name}>
+					<Button variant="primary" disabled={create.isPending || !app || !name}>
 						Add role
-					</button>
+					</Button>
 					{create.isError && <span className="error">{create.error.message}</span>}
 				</form>
-			</div>
-			<div className="panel">
-				<table>
+			</Card>
+			<Card className="panel">
+				<table className="nb-table">
 					<thead>
 						<tr>
 							<th>App</th>
@@ -142,7 +145,7 @@ export function RolesPage(): React.JSX.Element {
 						))}
 					</tbody>
 				</table>
-			</div>
+			</Card>
 		</>
 	);
 }

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert, Button, Card, Field, Input } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { login, type AuthStatus } from '../api';
@@ -22,13 +23,13 @@ export function LoginPage({ status }: { status: AuthStatus }): React.JSX.Element
 
 	return (
 		<main>
-			<div className="panel login">
+			<Card className="panel login">
 				<h1>usr</h1>
-				{loginError && <p className="error">{loginError}</p>}
+				{loginError && <Alert variant="danger">{loginError}</Alert>}
 				{status.oauthProviders.length > 0 && (
 					<div className="providers">
 						{status.oauthProviders.map((p) => (
-							<a key={p} href={`/api/auth/oauth/${p}`}>
+							<a key={p} className="nb-btn nb-btn--primary" href={`/api/auth/oauth/${p}`}>
 								Sign in with {p}
 							</a>
 						))}
@@ -41,34 +42,33 @@ export function LoginPage({ status }: { status: AuthStatus }): React.JSX.Element
 							doLogin.mutate();
 						}}
 					>
-						<div className="row">
-							<input
-								placeholder="username"
+						{status.oauthProviders.length > 0 && <p className="muted">— or —</p>}
+						<Field label="Username" htmlFor="login-user">
+							<Input
+								id="login-user"
 								value={username}
-								onChange={(e) => setUsername(e.target.value)}
 								autoFocus
+								onChange={(e) => setUsername(e.target.value)}
 							/>
-						</div>
-						<div className="row">
-							<input
+						</Field>
+						<Field label="Password" htmlFor="login-pass">
+							<Input
+								id="login-pass"
 								type="password"
-								placeholder="password"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 							/>
-						</div>
-						<div className="row">
-							<button type="submit" disabled={doLogin.isPending || !username || !password}>
-								Sign in
-							</button>
-							{doLogin.isError && <span className="error">{doLogin.error.message}</span>}
-						</div>
+						</Field>
+						{doLogin.isError && <Alert variant="danger">{doLogin.error.message}</Alert>}
+						<Button variant="primary" disabled={doLogin.isPending || !username || !password}>
+							Sign in
+						</Button>
 					</form>
 				)}
 				{!status.localAuth && status.oauthProviders.length === 0 && (
 					<p className="muted">No sign-in method is configured.</p>
 				)}
-			</div>
+			</Card>
 		</main>
 	);
 }

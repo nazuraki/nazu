@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Badge, Button, Card, Checkbox, Input, Spinner } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { createKey, deleteKey, fetchKeys, fetchRoles, setKeyRoles, type ApiKey } from '../api';
@@ -33,23 +34,21 @@ function KeyRow({ apiKey }: { apiKey: ApiKey }): React.JSX.Element {
 				{editing && roles.data ? (
 					<span className="chip-row">
 						{roles.data.map((r) => (
-							<label key={r.id} style={{ display: 'inline-flex', gap: '0.25rem', margin: 0 }}>
-								<input
-									type="checkbox"
-									checked={assigned.has(r.id)}
-									onChange={() => toggleRole.mutate(r.id)}
-									disabled={toggleRole.isPending}
-								/>
-								{r.app}/{r.name}
-							</label>
+							<Checkbox
+								key={r.id}
+								checked={assigned.has(r.id)}
+								onChange={() => toggleRole.mutate(r.id)}
+								disabled={toggleRole.isPending}
+								label={`${r.app}/${r.name}`}
+							/>
 						))}
 					</span>
 				) : (
 					<span className="chip-row">
 						{apiKey.roles.map((r) => (
-							<span key={r.id} className="badge accent">
+							<Badge key={r.id} variant="primary">
 								{r.app}/{r.name}
-							</span>
+							</Badge>
 						))}
 						{apiKey.roles.length === 0 && <span className="muted">none</span>}
 					</span>
@@ -59,24 +58,20 @@ function KeyRow({ apiKey }: { apiKey: ApiKey }): React.JSX.Element {
 				)}
 			</td>
 			<td>
-				{apiKey.lastUsedAt ? (
-					new Date(apiKey.lastUsedAt).toLocaleString()
-				) : (
-					<span className="badge">never</span>
-				)}
+				{apiKey.lastUsedAt ? new Date(apiKey.lastUsedAt).toLocaleString() : <Badge>never</Badge>}
 			</td>
 			<td>
 				<div className="row">
-					<button onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Roles'}</button>
-					<button
-						className="danger"
+					<Button onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Roles'}</Button>
+					<Button
+						variant="danger"
 						onClick={() => {
 							if (window.confirm(`Revoke key "${apiKey.name}"?`)) remove.mutate();
 						}}
 						disabled={remove.isPending}
 					>
 						Revoke
-					</button>
+					</Button>
 				</div>
 			</td>
 		</tr>
@@ -98,8 +93,8 @@ export function KeysPage(): React.JSX.Element {
 		},
 	});
 
-	if (keys.isPending) return <p className="muted">loading…</p>;
-	if (keys.isError) return <p className="error">{keys.error.message}</p>;
+	if (keys.isPending) return <Spinner />;
+	if (keys.isError) return <Alert variant="danger">{keys.error.message}</Alert>;
 
 	return (
 		<>
@@ -108,7 +103,7 @@ export function KeysPage(): React.JSX.Element {
 				Machine identities for other apps — role-mapped like users. Give app keys the{' '}
 				<code>usr/service</code> role so they can query permissions.
 			</p>
-			<div className="panel">
+			<Card className="panel">
 				<form
 					className="row"
 					onSubmit={(e) => {
@@ -116,28 +111,28 @@ export function KeysPage(): React.JSX.Element {
 						create.mutate();
 					}}
 				>
-					<input
+					<Input
 						style={{ flex: 1, maxWidth: '20rem' }}
 						placeholder="key name, e.g. nazu-web"
+						aria-label="Key name"
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 					/>
-					<button type="submit" disabled={create.isPending || !name}>
+					<Button variant="primary" disabled={create.isPending || !name}>
 						Create key
-					</button>
+					</Button>
 					{create.isError && <span className="error">{create.error.message}</span>}
 				</form>
 				{newToken && (
-					<p>
-						<span className="badge ok">{newToken.name}</span>{' '}
+					<Alert variant="success" title={newToken.name}>
 						<code>{newToken.token}</code>
 						<br />
 						<span className="muted">Copy it now — it is shown only once.</span>
-					</p>
+					</Alert>
 				)}
-			</div>
-			<div className="panel">
-				<table>
+			</Card>
+			<Card className="panel">
+				<table className="nb-table">
 					<thead>
 						<tr>
 							<th>Name</th>
@@ -153,7 +148,7 @@ export function KeysPage(): React.JSX.Element {
 					</tbody>
 				</table>
 				{keys.data.length === 0 && <p className="muted">No keys yet.</p>}
-			</div>
+			</Card>
 		</>
 	);
 }

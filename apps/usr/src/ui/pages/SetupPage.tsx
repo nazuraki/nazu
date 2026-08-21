@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert, Button, Card, Field, Input } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { setup } from '../api';
@@ -18,7 +19,7 @@ export function SetupPage(): React.JSX.Element {
 
 	return (
 		<main>
-			<div className="panel login">
+			<Card className="panel login">
 				<h1>Welcome to usr</h1>
 				<p className="muted">
 					Fresh install — create the initial admin. This makes a user with the{' '}
@@ -30,26 +31,29 @@ export function SetupPage(): React.JSX.Element {
 						doSetup.mutate();
 					}}
 				>
-					<label>Email</label>
-					<input value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-					<label>Name (optional)</label>
-					<input value={name} onChange={(e) => setName(e.target.value)} />
-					<label>Username</label>
-					<input value={username} onChange={(e) => setUsername(e.target.value)} />
-					<label>Password</label>
-					<input
-						type="password"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-					/>
-					<div className="row" style={{ marginTop: '0.75rem' }}>
-						<button type="submit" disabled={doSetup.isPending || !email || !username || !password}>
-							Create admin
-						</button>
-						{doSetup.isError && <span className="error">{doSetup.error.message}</span>}
-					</div>
+					<Field label="Email" htmlFor="setup-email">
+						<Input id="setup-email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+					</Field>
+					<Field label="Name (optional)" htmlFor="setup-name">
+						<Input id="setup-name" value={name} onChange={(e) => setName(e.target.value)} />
+					</Field>
+					<Field label="Username" htmlFor="setup-user">
+						<Input id="setup-user" value={username} onChange={(e) => setUsername(e.target.value)} />
+					</Field>
+					<Field label="Password" htmlFor="setup-pass">
+						<Input
+							id="setup-pass"
+							type="password"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+						/>
+					</Field>
+					{doSetup.isError && <Alert variant="danger">{doSetup.error.message}</Alert>}
+					<Button variant="primary" disabled={doSetup.isPending || !email || !username || !password}>
+						Create admin
+					</Button>
 				</form>
-			</div>
+			</Card>
 		</main>
 	);
 }

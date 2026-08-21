@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Badge, Button, Card, Input, Spinner } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { createUser, fetchUsers } from '../api';
@@ -17,13 +18,13 @@ export function UsersPage(): React.JSX.Element {
 		},
 	});
 
-	if (users.isPending) return <p className="muted">loading…</p>;
-	if (users.isError) return <p className="error">{users.error.message}</p>;
+	if (users.isPending) return <Spinner />;
+	if (users.isError) return <Alert variant="danger">{users.error.message}</Alert>;
 
 	return (
 		<>
 			<h1>Users</h1>
-			<div className="panel">
+			<Card className="panel">
 				<form
 					className="row"
 					onSubmit={(e) => {
@@ -31,20 +32,21 @@ export function UsersPage(): React.JSX.Element {
 						create.mutate();
 					}}
 				>
-					<input
+					<Input
 						style={{ flex: 1, maxWidth: '24rem' }}
 						placeholder="email — pre-provision a user"
+						aria-label="Email"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 					/>
-					<button type="submit" disabled={create.isPending || !email}>
+					<Button variant="primary" disabled={create.isPending || !email}>
 						Add user
-					</button>
+					</Button>
 					{create.isError && <span className="error">{create.error.message}</span>}
 				</form>
-			</div>
-			<div className="panel">
-				<table>
+			</Card>
+			<Card className="panel">
+				<table className="nb-table">
 					<thead>
 						<tr>
 							<th>Email</th>
@@ -62,18 +64,14 @@ export function UsersPage(): React.JSX.Element {
 								<td>{u.email}</td>
 								<td>{u.displayName ?? u.name ?? <span className="muted">—</span>}</td>
 								<td>
-									{u.lastLoginAt ? (
-										new Date(u.lastLoginAt).toLocaleString()
-									) : (
-										<span className="badge">never</span>
-									)}
+									{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : <Badge>never</Badge>}
 								</td>
 							</tr>
 						))}
 					</tbody>
 				</table>
 				{users.data.length === 0 && <p className="muted">No users yet — add one above.</p>}
-			</div>
+			</Card>
 		</>
 	);
 }

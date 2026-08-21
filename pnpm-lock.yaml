@@ -155,6 +155,12 @@ importers:
       '@hono/node-server':
         specifier: ^2.0.5
         version: 2.1.0(hono@4.13.1)
+      '@nazuraki/styles':
+        specifier: ^0.2.1
+        version: 0.2.1
+      '@nazuraki/ui-react':
+        specifier: ^0.2.1
+        version: 0.2.1(react@19.2.8)
       hono:
         specifier: ^4.7.0
         version: 4.13.1

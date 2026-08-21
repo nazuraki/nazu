@@ -8,7 +8,10 @@ Centralized users, roles and permissions for all apps. One place to:
 
 Hono API + React SPA (API-first: all logic in `src/server/lib/`, routes only
 translate HTTP, the SPA is a plain REST client). Its own Postgres; plain-SQL
-migrations in `migrations/` applied at boot.
+migrations in `migrations/` applied at boot. The SPA is styled by the shared
+design system ([ui-std-lib](https://github.com/nazuraki/ui-std-lib):
+`@nazuraki/styles` neon-butterfly theme + `@nazuraki/ui-react` components from
+npmjs); `src/ui/styles.css` holds only app layout, written on `--nb-*` tokens.
 
 ## Concepts
 

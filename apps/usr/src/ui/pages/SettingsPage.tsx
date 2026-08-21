@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Button, Card, Field, Input, Spinner } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { fetchOAuthSettings, saveLocalAdmin, saveOAuthSettings } from '../api';
@@ -43,14 +44,14 @@ export function SettingsPage(): React.JSX.Element {
 		},
 	});
 
-	if (oauth.isPending) return <p className="muted">loading…</p>;
-	if (oauth.isError) return <p className="error">{oauth.error.message}</p>;
+	if (oauth.isPending) return <Spinner />;
+	if (oauth.isError) return <Alert variant="danger">{oauth.error.message}</Alert>;
 
 	return (
 		<>
 			<h1>Settings</h1>
 			<h2>OAuth providers</h2>
-			<div className="panel">
+			<Card className="panel">
 				<p className="muted">
 					Callback URLs: <code>/api/auth/oauth/github/callback</code> ·{' '}
 					<code>/api/auth/oauth/google/callback</code>. Secrets are write-only.
@@ -61,40 +62,52 @@ export function SettingsPage(): React.JSX.Element {
 						saveOAuth.mutate();
 					}}
 				>
-					<label>GitHub client id</label>
-					<input
-						value={githubId ?? oauth.data.githubId}
-						onChange={(e) => setGithubId(e.target.value)}
-					/>
-					<label>GitHub client secret {oauth.data.githubSecretSet && '(set)'}</label>
-					<input
-						type="password"
-						value={githubSecret}
-						placeholder={oauth.data.githubSecretSet ? '••••••••' : ''}
-						onChange={(e) => setGithubSecret(e.target.value)}
-					/>
-					<label>Google client id</label>
-					<input
-						value={googleId ?? oauth.data.googleId}
-						onChange={(e) => setGoogleId(e.target.value)}
-					/>
-					<label>Google client secret {oauth.data.googleSecretSet && '(set)'}</label>
-					<input
-						type="password"
-						value={googleSecret}
-						placeholder={oauth.data.googleSecretSet ? '••••••••' : ''}
-						onChange={(e) => setGoogleSecret(e.target.value)}
-					/>
-					<div className="row" style={{ marginTop: '0.75rem' }}>
-						<button type="submit" disabled={saveOAuth.isPending}>
-							Save OAuth
-						</button>
-						{saveOAuth.isError && <span className="error">{saveOAuth.error.message}</span>}
-					</div>
+					<Field label="GitHub client id" htmlFor="gh-id">
+						<Input
+							id="gh-id"
+							value={githubId ?? oauth.data.githubId}
+							onChange={(e) => setGithubId(e.target.value)}
+						/>
+					</Field>
+					<Field
+						label={<>GitHub client secret {oauth.data.githubSecretSet && '(set)'}</>}
+						htmlFor="gh-secret"
+					>
+						<Input
+							id="gh-secret"
+							type="password"
+							value={githubSecret}
+							placeholder={oauth.data.githubSecretSet ? '••••••••' : ''}
+							onChange={(e) => setGithubSecret(e.target.value)}
+						/>
+					</Field>
+					<Field label="Google client id" htmlFor="gg-id">
+						<Input
+							id="gg-id"
+							value={googleId ?? oauth.data.googleId}
+							onChange={(e) => setGoogleId(e.target.value)}
+						/>
+					</Field>
+					<Field
+						label={<>Google client secret {oauth.data.googleSecretSet && '(set)'}</>}
+						htmlFor="gg-secret"
+					>
+						<Input
+							id="gg-secret"
+							type="password"
+							value={googleSecret}
+							placeholder={oauth.data.googleSecretSet ? '••••••••' : ''}
+							onChange={(e) => setGoogleSecret(e.target.value)}
+						/>
+					</Field>
+					{saveOAuth.isError && <Alert variant="danger">{saveOAuth.error.message}</Alert>}
+					<Button variant="primary" disabled={saveOAuth.isPending}>
+						Save OAuth
+					</Button>
 				</form>
-			</div>
+			</Card>
 			<h2>Local admin</h2>
-			<div className="panel">
+			<Card className="panel">
 				<p className="muted">
 					Break-glass credentials with full admin rights, linked to an existing user. Leave the
 					email empty to keep the current linkage.
@@ -105,24 +118,26 @@ export function SettingsPage(): React.JSX.Element {
 						saveAdmin.mutate();
 					}}
 				>
-					<label>Username</label>
-					<input value={username} onChange={(e) => setUsername(e.target.value)} />
-					<label>Password</label>
-					<input
-						type="password"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-					/>
-					<label>Linked user email (optional)</label>
-					<input value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} />
-					<div className="row" style={{ marginTop: '0.75rem' }}>
-						<button type="submit" disabled={saveAdmin.isPending || !username || !password}>
-							Save admin account
-						</button>
-						{saveAdmin.isError && <span className="error">{saveAdmin.error.message}</span>}
-					</div>
+					<Field label="Username" htmlFor="adm-user">
+						<Input id="adm-user" value={username} onChange={(e) => setUsername(e.target.value)} />
+					</Field>
+					<Field label="Password" htmlFor="adm-pass">
+						<Input
+							id="adm-pass"
+							type="password"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+						/>
+					</Field>
+					<Field label="Linked user email (optional)" htmlFor="adm-email">
+						<Input id="adm-email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} />
+					</Field>
+					{saveAdmin.isError && <Alert variant="danger">{saveAdmin.error.message}</Alert>}
+					<Button variant="primary" disabled={saveAdmin.isPending || !username || !password}>
+						Save admin account
+					</Button>
 				</form>
-			</div>
+			</Card>
 		</>
 	);
 }

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Badge, Button, Card, Field, Input, Spinner } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { fetchProfile, saveProfile, type ProfileInput } from '../api';
@@ -16,8 +17,8 @@ export function ProfilePage(): React.JSX.Element {
 		},
 	});
 
-	if (profile.isPending) return <p className="muted">loading…</p>;
-	if (profile.isError) return <p className="error">{profile.error.message}</p>;
+	if (profile.isPending) return <Spinner />;
+	if (profile.isError) return <Alert variant="danger">{profile.error.message}</Alert>;
 
 	const p = profile.data;
 	const d = draft ?? {
@@ -30,57 +31,61 @@ export function ProfilePage(): React.JSX.Element {
 	return (
 		<>
 			<h1>Profile</h1>
-			<div className="panel">
-				<label>Email</label>
-				<p>{p.email}</p>
+			<Card className="panel">
+				<Field label="Email">
+					<p style={{ margin: 0 }}>{p.email}</p>
+				</Field>
 				<form
 					onSubmit={(e) => {
 						e.preventDefault();
 						save.mutate(d);
 					}}
 				>
-					<label>Name</label>
-					<input value={d.name} onChange={(e) => setDraft({ ...d, name: e.target.value })} />
-					<label>Display name</label>
-					<input
-						value={d.displayName}
-						onChange={(e) => setDraft({ ...d, displayName: e.target.value })}
-					/>
-					<label>Avatar URL</label>
-					<input
-						value={d.avatarUrl}
-						onChange={(e) => setDraft({ ...d, avatarUrl: e.target.value })}
-					/>
-					<label>Timezone</label>
-					<input
-						value={d.timezone}
-						placeholder="e.g. America/New_York"
-						onChange={(e) => setDraft({ ...d, timezone: e.target.value })}
-					/>
-					<div className="row" style={{ marginTop: '0.75rem' }}>
-						<button type="submit" disabled={save.isPending || draft === null}>
-							Save
-						</button>
-						{save.isError && <span className="error">{save.error.message}</span>}
-					</div>
+					<Field label="Name" htmlFor="pf-name">
+						<Input id="pf-name" value={d.name} onChange={(e) => setDraft({ ...d, name: e.target.value })} />
+					</Field>
+					<Field label="Display name" htmlFor="pf-display">
+						<Input
+							id="pf-display"
+							value={d.displayName}
+							onChange={(e) => setDraft({ ...d, displayName: e.target.value })}
+						/>
+					</Field>
+					<Field label="Avatar URL" htmlFor="pf-avatar">
+						<Input
+							id="pf-avatar"
+							value={d.avatarUrl}
+							onChange={(e) => setDraft({ ...d, avatarUrl: e.target.value })}
+						/>
+					</Field>
+					<Field label="Timezone" htmlFor="pf-tz">
+						<Input
+							id="pf-tz"
+							value={d.timezone}
+							placeholder="e.g. America/New_York"
+							onChange={(e) => setDraft({ ...d, timezone: e.target.value })}
+						/>
+					</Field>
+					{save.isError && <Alert variant="danger">{save.error.message}</Alert>}
+					<Button variant="primary" disabled={save.isPending || draft === null}>
+						Save
+					</Button>
 				</form>
-			</div>
+			</Card>
 			<h2>My access</h2>
-			<div className="panel">
+			<Card className="panel">
 				{p.roles.length === 0 && <p className="muted">No roles assigned.</p>}
 				{p.roles.map((r) => (
 					<div key={r.id} className="chip-row">
-						<span className="badge accent">
+						<Badge variant="primary">
 							{r.app}/{r.name}
-						</span>
+						</Badge>
 						{r.permissions.map((perm) => (
-							<span key={perm} className="badge">
-								{perm}
-							</span>
+							<Badge key={perm}>{perm}</Badge>
 						))}
 					</div>
 				))}
-			</div>
+			</Card>
 		</>
 	);
 }
