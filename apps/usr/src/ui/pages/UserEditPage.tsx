@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Badge, Button, Card, Checkbox, Label, Spinner } from '@nazuraki/ui-react';
 
 import { deleteUser, fetchRoles, fetchUser, setUserRoles } from '../api';
 
@@ -31,9 +32,9 @@ export function UserEditPage({ id }: { id: number }): React.JSX.Element {
 		},
 	});
 
-	if (user.isPending || roles.isPending) return <p className="muted">loading…</p>;
-	if (user.isError) return <p className="error">{user.error.message}</p>;
-	if (roles.isError) return <p className="error">{roles.error.message}</p>;
+	if (user.isPending || roles.isPending) return <Spinner />;
+	if (user.isError) return <Alert variant="danger">{user.error.message}</Alert>;
+	if (roles.isError) return <Alert variant="danger">{roles.error.message}</Alert>;
 
 	const assigned = new Set(user.data.roles.map((r) => r.id));
 	const apps = [...new Set(roles.data.map((r) => r.app))].sort();
@@ -41,7 +42,7 @@ export function UserEditPage({ id }: { id: number }): React.JSX.Element {
 	return (
 		<>
 			<h1>{user.data.email}</h1>
-			<div className="panel">
+			<Card className="panel">
 				<div className="row">
 					<span className="muted">
 						{user.data.displayName ?? user.data.name ?? 'no name'} · created{' '}
@@ -51,17 +52,17 @@ export function UserEditPage({ id }: { id: number }): React.JSX.Element {
 							: 'never logged in'}
 					</span>
 					<span className="spacer" style={{ flex: 1 }} />
-					<button
-						className="danger"
+					<Button
+						variant="danger"
 						onClick={() => {
 							if (window.confirm(`Delete ${user.data.email}?`)) remove.mutate();
 						}}
 						disabled={remove.isPending}
 					>
 						Delete user
-					</button>
+					</Button>
 				</div>
-			</div>
+			</Card>
 			<h2>Roles</h2>
 			{apps.length === 0 && (
 				<p className="muted">
@@ -69,32 +70,29 @@ export function UserEditPage({ id }: { id: number }): React.JSX.Element {
 				</p>
 			)}
 			{apps.map((app) => (
-				<div key={app} className="panel">
-					<label>{app}</label>
+				<Card key={app} className="panel">
+					<Label>{app}</Label>
 					{roles.data
 						.filter((r) => r.app === app)
 						.map((r) => (
 							<div key={r.id} className="row" style={{ margin: '0.35rem 0' }}>
-								<input
-									type="checkbox"
+								<Checkbox
 									checked={assigned.has(r.id)}
 									onChange={() => toggleRole.mutate(r.id)}
 									disabled={toggleRole.isPending}
+									label={r.name}
 								/>
-								<span>{r.name}</span>
 								<span className="chip-row">
 									{r.permissions.map((p) => (
-										<span key={p} className="badge">
-											{p}
-										</span>
+										<Badge key={p}>{p}</Badge>
 									))}
 								</span>
 							</div>
 						))}
-				</div>
+				</Card>
 			))}
-			{toggleRole.isError && <p className="error">{toggleRole.error.message}</p>}
-			{remove.isError && <p className="error">{remove.error.message}</p>}
+			{toggleRole.isError && <Alert variant="danger">{toggleRole.error.message}</Alert>}
+			{remove.isError && <Alert variant="danger">{remove.error.message}</Alert>}
 		</>
 	);
 }
