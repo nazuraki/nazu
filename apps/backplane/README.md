@@ -11,7 +11,10 @@ are equal clients of the same REST API, so agents can do everything the UI can.
   (registry, compose target, deployer, updates, docker, prometheus); routes in
   `routes/` only translate HTTP.
 - **UI** (`src/ui/`): Vite + React SPA, built statically and served by the
-  server process on the same port.
+  server process on the same port. Styled by the shared design system
+  ([ui-std-lib](https://github.com/nazuraki/ui-std-lib): `@nazuraki/styles`
+  neon-butterfly theme + `@nazuraki/ui-react` components from npmjs);
+  `styles.css` holds only app layout, written on `--nb-*` tokens.
 - **MCP** (`src/mcp/`): stdio MCP wrapping the REST API (same pattern as
   `apps/mcp`). Client-side process — not part of the compose stack.
 - **Registry storage**: SQLite via `node:sqlite` (zero-dep) on the `/data`
