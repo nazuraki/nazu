@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert, Button, Card, Field, Input } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { getApiKey, login, setApiKey, type AuthStatus } from '../api';
@@ -21,7 +22,7 @@ export function LoginPage({ status }: { status: AuthStatus }): React.JSX.Element
 
 	return (
 		<main>
-			<div className="panel login">
+			<Card className="panel login">
 				<h1>backplane</h1>
 				{status.localAuth && (
 					<form
@@ -30,24 +31,26 @@ export function LoginPage({ status }: { status: AuthStatus }): React.JSX.Element
 							doLogin.mutate();
 						}}
 					>
-						<div className="row">
-							<input
-								placeholder="Username"
+						<Field label="Username" htmlFor="login-user">
+							<Input
+								id="login-user"
 								value={username}
 								autoFocus
 								onChange={(e) => setUsername(e.target.value)}
 							/>
-						</div>
-						<div className="row">
-							<input
+						</Field>
+						<Field label="Password" htmlFor="login-pass">
+							<Input
+								id="login-pass"
 								type="password"
-								placeholder="Password"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 							/>
-						</div>
-						{doLogin.isError && <p className="error">{(doLogin.error as Error).message}</p>}
-						<button disabled={doLogin.isPending || !username || !password}>Sign in</button>
+						</Field>
+						{doLogin.isError && <Alert variant="danger">{(doLogin.error as Error).message}</Alert>}
+						<Button variant="primary" disabled={doLogin.isPending || !username || !password}>
+							Sign in
+						</Button>
 					</form>
 				)}
 				{status.apiKeyAuth && (
@@ -59,19 +62,19 @@ export function LoginPage({ status }: { status: AuthStatus }): React.JSX.Element
 						}}
 					>
 						{status.localAuth && <p className="muted">— or —</p>}
-						<div className="row">
-							<input
+						<Field label="API key" htmlFor="login-key">
+							<Input
+								id="login-key"
 								type="password"
-								placeholder="API key"
 								value={key}
 								onChange={(e) => setKey(e.target.value)}
 								title="Stored in localStorage; sent as Authorization: Bearer"
 							/>
-						</div>
-						<button disabled={!key}>Use API key</button>
+						</Field>
+						<Button disabled={!key}>Use API key</Button>
 					</form>
 				)}
-			</div>
+			</Card>
 		</main>
 	);
 }

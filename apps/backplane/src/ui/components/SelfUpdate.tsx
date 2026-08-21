@@ -1,3 +1,4 @@
+import { Badge, Button } from '@nazuraki/ui-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api, type ImageUpdate } from '../api';
@@ -29,7 +30,7 @@ export function SelfUpdate(): React.JSX.Element | null {
 	if (!data?.self) return null;
 
 	if (data.helper?.state === 'running' || update.isPending) {
-		return <span className="badge warn">backplane updating…</span>;
+		return <Badge variant="warning">backplane updating…</Badge>;
 	}
 
 	const failed =
@@ -38,18 +39,19 @@ export function SelfUpdate(): React.JSX.Element | null {
 	return (
 		<>
 			{failed && (
-				<span className="badge err" title={failed.logs.join('\n')}>
+				<Badge variant="danger" title={failed.logs.join('\n')}>
 					self-update failed
-				</span>
+				</Badge>
 			)}
 			{update.isError && <span className="error">{(update.error as Error).message}</span>}
 			{data.self.updateAvailable && (
-				<button
+				<Button
+					variant="accent"
 					onClick={() => update.mutate()}
 					title={`running ${data.self.runningDigest ?? '?'} → ${data.self.remoteDigest ?? '?'}`}
 				>
 					Update backplane
-				</button>
+				</Button>
 			)}
 		</>
 	);

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Button, Card, Checkbox, Field, Input, Spinner } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { api, type Project } from '../api';
@@ -60,42 +61,49 @@ function EditForm({ project }: { project: Project }): React.JSX.Element {
 
 	return (
 		<>
-			<div className="panel">
-				<label>Git URL</label>
-				<input value={form.gitUrl} onChange={set('gitUrl')} />
-				<label>Branch</label>
-				<input value={form.branch} onChange={set('branch')} />
-				<label>Watched images (comma-separated)</label>
-				<input value={form.images} onChange={set('images')} placeholder="ghcr.io/user/image:latest" />
-				<label>Compose project name (optional, defaults to project name)</label>
-				<input value={form.projectName} onChange={set('projectName')} placeholder={project.name} />
-				<label>Compose files (comma-separated, optional)</label>
-				<input value={form.composeFiles} onChange={set('composeFiles')} placeholder="docker-compose.yml" />
-				<label>Compose profiles (comma-separated, optional)</label>
-				<input value={form.profiles} onChange={set('profiles')} placeholder="tls,discord" />
-				<label>
-					<input type="checkbox" checked={form.autoDeploy} onChange={set('autoDeploy')} /> auto-deploy
-					on new image
-				</label>
+			<Card className="panel">
+				<Field label="Git URL" htmlFor="f-gitUrl">
+					<Input id="f-gitUrl" value={form.gitUrl} onChange={set('gitUrl')} />
+				</Field>
+				<Field label="Branch" htmlFor="f-branch">
+					<Input id="f-branch" value={form.branch} onChange={set('branch')} />
+				</Field>
+				<Field label="Watched images (comma-separated)" htmlFor="f-images">
+					<Input id="f-images" value={form.images} onChange={set('images')} placeholder="ghcr.io/user/image:latest" />
+				</Field>
+				<Field label="Compose project name (optional, defaults to project name)" htmlFor="f-projectName">
+					<Input id="f-projectName" value={form.projectName} onChange={set('projectName')} placeholder={project.name} />
+				</Field>
+				<Field label="Compose files (comma-separated, optional)" htmlFor="f-composeFiles">
+					<Input id="f-composeFiles" value={form.composeFiles} onChange={set('composeFiles')} placeholder="docker-compose.yml" />
+				</Field>
+				<Field label="Compose profiles (comma-separated, optional)" htmlFor="f-profiles">
+					<Input id="f-profiles" value={form.profiles} onChange={set('profiles')} placeholder="tls,discord" />
+				</Field>
+				<Checkbox
+						checked={form.autoDeploy}
+						onChange={set('autoDeploy')}
+						label="auto-deploy on new image"
+					/>
 				<div className="row" style={{ marginTop: '0.75rem' }}>
-					<button onClick={() => save.mutate()} disabled={save.isPending}>
+					<Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending}>
 						Save
-					</button>
-					<button onClick={() => (window.location.hash = `#/projects/${project.name}`)}>Cancel</button>
+					</Button>
+					<Button onClick={() => (window.location.hash = `#/projects/${project.name}`)}>Cancel</Button>
 					{save.isError && <span className="error">{(save.error as Error).message}</span>}
 				</div>
-			</div>
+			</Card>
 
 			<div className="row" style={{ marginTop: '2.5rem' }}>
-				<button
-					className="danger"
+				<Button
+					variant="danger"
 					onClick={() => {
 						if (window.confirm(`Remove project "${project.name}" from the registry?`)) remove.mutate();
 					}}
 					disabled={remove.isPending}
 				>
 					Remove project
-				</button>
+				</Button>
 				{remove.isError && <span className="error">{(remove.error as Error).message}</span>}
 			</div>
 		</>
@@ -108,8 +116,8 @@ export function ProjectEditPage({ name }: { name: string }): React.JSX.Element {
 		queryFn: () => api<{ project: Project }>(`/api/projects/${name}`),
 	});
 
-	if (project.isLoading) return <p className="muted">Loading…</p>;
-	if (project.error) return <p className="error">{(project.error as Error).message}</p>;
+	if (project.isLoading) return <Spinner />;
+	if (project.error) return <Alert variant="danger">{(project.error as Error).message}</Alert>;
 
 	return (
 		<>

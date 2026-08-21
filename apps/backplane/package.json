@@ -19,6 +19,8 @@
   "dependencies": {
     "@hono/node-server": "^2.0.5",
     "@modelcontextprotocol/server": "^2.0.0",
+    "@nazuraki/styles": "^0.2.1",
+    "@nazuraki/ui-react": "^0.2.1",
     "dockerode": "^4.0.5",
     "hono": "^4.7.0"
   },

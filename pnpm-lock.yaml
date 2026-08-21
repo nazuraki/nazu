@@ -22,6 +22,12 @@ importers:
       '@modelcontextprotocol/server':
         specifier: ^2.0.0
         version: 2.0.0
+      '@nazuraki/styles':
+        specifier: ^0.2.1
+        version: 0.2.1
+      '@nazuraki/ui-react':
+        specifier: ^0.2.1
+        version: 0.2.1(react@19.2.8)
       dockerode:
         specifier: ^4.0.5
         version: 4.0.12
@@ -1463,6 +1469,14 @@ packages:
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+
+  '@nazuraki/styles@0.2.1':
+    resolution: {integrity: sha512-x/qhJbW+W+fze/3WYj+VPbM7PY+Ix1SzviYv3lxUxWP3kg9FosZptz7GZElrOr3L6pDIbJ6Xn0SjmJlqbONP7g==}
+
+  '@nazuraki/ui-react@0.2.1':
+    resolution: {integrity: sha512-A3gLD6Dwak18a09jz3jlpqS3Wm6cmh/WpoW4ouUXQDUjkMzxRybnzNNs/L7nfmV5yTYjKdkQFvbsbc4q+MnrLw==}
+    peerDependencies:
+      react: '>=18'
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -5161,6 +5175,12 @@ snapshots:
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
+
+  '@nazuraki/styles@0.2.1': {}
+
+  '@nazuraki/ui-react@0.2.1(react@19.2.8)':
+    dependencies:
+      react: 19.2.8
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:

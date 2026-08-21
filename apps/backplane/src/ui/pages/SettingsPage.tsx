@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert, Button, Card, Field, Input } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
 import { clearAccount, getApiKey, saveAccount, setApiKey, type AuthStatus } from '../api';
@@ -39,7 +40,7 @@ export function SettingsPage({ status }: { status: AuthStatus }): React.JSX.Elem
 		<>
 			<h1>Settings</h1>
 
-			<div className="panel">
+			<Card className="panel">
 				<h2>Local admin account</h2>
 				<p className="muted">
 					{status.localAuth
@@ -54,38 +55,42 @@ export function SettingsPage({ status }: { status: AuthStatus }): React.JSX.Elem
 						save.mutate();
 					}}
 				>
-					<div className="row">
-						<input
-							placeholder="Username"
-							value={username}
-							onChange={(e) => setUsername(e.target.value)}
-						/>
-					</div>
-					<div className="row">
-						<input
+					<Field label="Username" htmlFor="acct-user">
+						<Input id="acct-user" value={username} onChange={(e) => setUsername(e.target.value)} />
+					</Field>
+					<Field label="New password (min 8 chars)" htmlFor="acct-pass">
+						<Input
+							id="acct-pass"
 							type="password"
-							placeholder="New password (min 8 chars)"
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
 						/>
-						<input
+					</Field>
+					<Field label="Confirm password" htmlFor="acct-confirm">
+						<Input
+							id="acct-confirm"
 							type="password"
-							placeholder="Confirm password"
 							value={confirm}
+							aria-invalid={mismatch || undefined}
 							onChange={(e) => setConfirm(e.target.value)}
 						/>
-					</div>
-					{mismatch && <p className="error">Passwords do not match.</p>}
-					{save.isError && <p className="error">{(save.error as Error).message}</p>}
-					{saved && !save.isError && <p className="muted">Saved. Other sessions were signed out.</p>}
+					</Field>
+					{mismatch && <Alert variant="danger">Passwords do not match.</Alert>}
+					{save.isError && <Alert variant="danger">{(save.error as Error).message}</Alert>}
+					{saved && !save.isError && (
+						<Alert variant="success">Saved. Other sessions were signed out.</Alert>
+					)}
 					<div className="row">
-						<button disabled={save.isPending || !username.trim() || password.length < 8 || mismatch}>
+						<Button
+							variant="primary"
+							disabled={save.isPending || !username.trim() || password.length < 8 || mismatch}
+						>
 							{status.localAuth ? 'Change account' : 'Enable local auth'}
-						</button>
+						</Button>
 						{status.localAuth && (
-							<button
+							<Button
 								type="button"
-								className="danger"
+								variant="danger"
 								disabled={disable.isPending}
 								onClick={() => {
 									if (window.confirm('Disable local auth? The API returns to key-only or open mode.')) {
@@ -94,30 +99,30 @@ export function SettingsPage({ status }: { status: AuthStatus }): React.JSX.Elem
 								}}
 							>
 								Disable local auth
-							</button>
+							</Button>
 						)}
 					</div>
 				</form>
-			</div>
+			</Card>
 
 			{status.apiKeyAuth && (
-				<div className="panel">
+				<Card className="panel">
 					<h2>API key (this browser)</h2>
 					<p className="muted">
 						Bearer key for the server&apos;s <code>BACKPLANE_API_KEY</code>; stored in localStorage.
 					</p>
-					<div className="row">
-						<input
+					<Field label="API key" htmlFor="api-key">
+						<Input
+							id="api-key"
 							type="password"
-							placeholder="API key"
 							value={key}
 							onChange={(e) => {
 								setKey(e.target.value);
 								setApiKey(e.target.value);
 							}}
 						/>
-					</div>
-				</div>
+					</Field>
+				</Card>
 			)}
 		</>
 	);

@@ -14,7 +14,22 @@ interface ChartProps {
 	formatY?: (v: number | null) => string;
 }
 
-const COLORS = ['#d2bbff', '#39ff14', '#ffb784', '#ffb4ab', '#bcc7de', '#39c5cf'];
+/** Resolve a design-system token at render time so charts follow the theme. */
+function token(name: string, fallback: string): string {
+	const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+	return v || fallback;
+}
+
+function seriesColors(): string[] {
+	return [
+		token('--nb-primary', '#d2bbff'),
+		token('--nb-accent', '#39ff14'),
+		token('--nb-warning', '#ffd23f'),
+		token('--nb-danger', '#ff2d78'),
+		token('--nb-info', '#4dc9ff'),
+		token('--nb-faint', '#958da1'),
+	];
+}
 
 /** Minimal uPlot wrapper: aligns all series onto the union of timestamps. */
 export function Chart({ title, series, formatY }: ChartProps): React.JSX.Element {
@@ -37,6 +52,8 @@ export function Chart({ title, series, formatY }: ChartProps): React.JSX.Element
 			}),
 		];
 
+		const colors = seriesColors();
+		const axis = { stroke: token('--nb-faint', '#958da1'), grid: { stroke: token('--nb-border', 'rgba(255,255,255,0.1)') } };
 		const opts: uPlot.Options = {
 			title,
 			width: el.current.clientWidth || 480,
@@ -45,16 +62,15 @@ export function Chart({ title, series, formatY }: ChartProps): React.JSX.Element
 				{},
 				...series.map((s, i) => ({
 					label: s.label,
-					stroke: COLORS[i % COLORS.length],
+					stroke: colors[i % colors.length],
 					width: 1.5,
 					value: formatY ? (_u: uPlot, v: number | null): string => formatY(v) : undefined,
 				})),
 			],
 			axes: [
-				{ stroke: '#958da1', grid: { stroke: 'rgba(255,255,255,0.06)' } },
+				axis,
 				{
-					stroke: '#958da1',
-					grid: { stroke: 'rgba(255,255,255,0.06)' },
+					...axis,
 					values: formatY
 						? (_u: uPlot, vals: number[]): string[] => vals.map((v) => formatY(v))
 						: undefined,
