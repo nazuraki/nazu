@@ -110,7 +110,9 @@ Repo layout:
   compose files resolve for the host daemon ([ADR 0005](docs/adr/0005-host-visible-backplane-workdirs.md)).
   The switchboard Caddy (shared edge) serves request metrics on its
   plain-HTTP `:2020` listener, scraped by the backplane's Prometheus over the
-  shared `edge` network.
+  shared `edge` network. Browser auth is usr SSO (`nz_id` cookie verified
+  against usr's JWKS, `BACKPLANE_USR_URL`); the bearer key serves agents/MCP;
+  no local accounts ([ADR 0007](docs/adr/0007-backplane-usr-sso.md)).
 - **Data model:** `tasks`, `kb_index`, `documents`, `document_chunks`,
   `graph_episodes`, `app_settings`, `service_config` (+ `schema_migrations`).
   `document_chunks` holds passage-sized slices of a document body (one FTS

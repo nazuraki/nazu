@@ -105,16 +105,14 @@ export class Registry {
 				key TEXT PRIMARY KEY,
 				value TEXT NOT NULL
 			);
-			CREATE TABLE IF NOT EXISTS sessions (
-				token_hash TEXT PRIMARY KEY,
-				username TEXT NOT NULL,
-				created_at TEXT NOT NULL,
-				expires_at TEXT NOT NULL
-			);
+			-- Browser sessions moved to usr SSO; drop the local table and its
+			-- orphaned auth.* settings from earlier installs.
+			DROP TABLE IF EXISTS sessions;
+			DELETE FROM settings WHERE key IN ('auth.localUser', 'auth.localPassword');
 		`);
 	}
 
-	// ── Settings (generic key/value; used for local auth credentials) ─────────
+	// ── Settings (generic key/value) ──────────────────────────────────────────
 
 	getSetting(key: string): string | undefined {
 		const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
@@ -136,32 +134,7 @@ export class Registry {
 		this.db.prepare('DELETE FROM settings WHERE key = ?').run(key);
 	}
 
-	// ── Sessions (browser login cookies; token stored hashed) ─────────────────
-
-	insertSession(tokenHash: string, username: string, expiresAt: string): void {
-		this.db
-			.prepare('INSERT INTO sessions (token_hash, username, created_at, expires_at) VALUES (?, ?, ?, ?)')
-			.run(tokenHash, username, new Date().toISOString(), expiresAt);
-	}
-
-	getSession(tokenHash: string): { username: string; expiresAt: string } | undefined {
-		const row = this.db
-			.prepare('SELECT username, expires_at FROM sessions WHERE token_hash = ?')
-			.get(tokenHash) as { username: string; expires_at: string } | undefined;
-		return row ? { username: row.username, expiresAt: row.expires_at } : undefined;
-	}
-
-	deleteSession(tokenHash: string): void {
-		this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
-	}
-
-	deleteAllSessions(): void {
-		this.db.prepare('DELETE FROM sessions').run();
-	}
-
-	deleteExpiredSessions(): void {
-		this.db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(new Date().toISOString());
-	}
+	// ── Projects ──────────────────────────────────────────────────────────────
 
 	listProjects(): Project[] {
 		const rows = this.db.prepare('SELECT * FROM projects ORDER BY name').all() as unknown as ProjectRow[];

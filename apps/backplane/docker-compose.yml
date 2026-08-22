@@ -20,9 +20,15 @@ services:
     ports:
       - "127.0.0.1:8430:8430"
     environment:
-      # Static bearer key for agents/MCP. The API is open only when this is
-      # empty AND no local admin account is set in the UI (Settings).
+      # Static bearer key for agents/MCP (and the break-glass path when usr is
+      # down). The API is open only when this AND BACKPLANE_USR_URL are empty.
       BACKPLANE_API_KEY: ${BACKPLANE_API_KEY:-}
+      # Public base URL of usr (e.g. https://usr.<parent domain>). Set it and
+      # browsers authenticate with usr's cross-app SSO cookie (`nz_id`, verified
+      # against usr's JWKS); access requires a role in the `backplane` app
+      # (override the app key with BACKPLANE_USR_APP). Empty = no browser auth.
+      BACKPLANE_USR_URL: ${BACKPLANE_USR_URL:-}
+      BACKPLANE_USR_APP: ${BACKPLANE_USR_APP:-}
       # Image digest poll interval in seconds; 0 disables the poller.
       BACKPLANE_POLL_INTERVAL: ${BACKPLANE_POLL_INTERVAL:-300}
       # Optional GitHub PAT (repo read + read:packages) enabling private git
