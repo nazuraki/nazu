@@ -39,6 +39,21 @@ GitHub/Google or local login) → Basic (local admin) → zero-conf open mode
 until first-run setup. OAuth credentials are DB-backed and edited in
 Settings; callback URLs are `/api/auth/oauth/<provider>/callback`.
 
+## Cross-app SSO
+
+Opt-in: set `USR_SSO_COOKIE_DOMAIN` (e.g. `.example.internal`) and every
+login also sets a short-lived **identity JWT** cookie `nz_id` on that domain
+(`HttpOnly; Secure; SameSite=Lax`, TTL `USR_SSO_TOKEN_TTL`, default `30m`).
+Sibling apps under the same parent domain verify it offline against
+`GET /.well-known/jwks.json` (ES256) and authorize from its `grants` claim —
+no login of their own, no per-request call to usr. The opaque `usr_session`
+cookie (30 days, DB-backed) stays the source of truth: when `nz_id` is
+missing or expired an app redirects to
+`/api/auth/sso/refresh?return=<url>`, which re-mints from current roles (or
+bounces to the login screen, which carries `return` through). Role edits
+propagate at TTL latency; the REST hot path below remains the strongly
+consistent check. Verifier recipe: [docs/sso-verifier.md](docs/sso-verifier.md).
+
 ## The hot path
 
 ```
