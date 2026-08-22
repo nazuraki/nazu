@@ -5,6 +5,7 @@ import { AuthService } from './lib/auth.js';
 import { Deployer } from './lib/deployer.js';
 import { Registry } from './lib/registry.js';
 import { SelfUpdateInProgressError, SelfUpdateUnavailableError } from './lib/self-update.js';
+import { SsoVerifier } from './lib/sso.js';
 import type { DeployTarget } from './lib/targets/compose.js';
 
 function makeDeps(overrides: Partial<AppDeps> = {}, apiKey?: string): AppDeps {
@@ -51,17 +52,9 @@ function makeDeps(overrides: Partial<AppDeps> = {}, apiKey?: string): AppDeps {
 			query: vi.fn(async () => ({ status: 200, body: { status: 'success' } })),
 		},
 		checkProjectUpdates: vi.fn(async () => []),
-		auth: new AuthService(registry, apiKey),
+		auth: new AuthService(apiKey),
 		...overrides,
 	};
-}
-
-/** Extract the session token from a login response's Set-Cookie header. */
-function sessionCookie(res: Response): string {
-	const setCookie = res.headers.get('set-cookie') ?? '';
-	const match = setCookie.match(/backplane_session=([^;]+)/);
-	if (!match) throw new Error(`no session cookie in: ${setCookie}`);
-	return `backplane_session=${match[1]}`;
 }
 
 const PROJECT = {
@@ -91,105 +84,55 @@ describe('auth', () => {
 
 		const open = createApp(makeDeps());
 		expect((await open.request('/api/projects')).status).toBe(200);
+		const status = (await (await open.request('/api/auth/status')).json()) as Record<string, unknown>;
+		expect(status).toMatchObject({ authenticated: true, method: 'open', sso: null, identity: null });
 	});
 
-	it('gates the API once local credentials are set, via login cookie or Basic', async () => {
-		const deps = makeDeps();
-		deps.auth.setAccount('admin', 'hunter2hunter2');
-		const app = createApp(deps);
+	it('gates the API on the usr SSO cookie and reports identity/refresh in status', async () => {
+		const sso = new SsoVerifier({ usrUrl: 'https://usr.example.test', app: 'backplane' });
+		const verify = vi.spyOn(sso, 'verify').mockImplementation(async (token) => {
+			if (token === 'granted') return { email: 'p@example.test', roles: ['admin'], permissions: [] };
+			if (token === 'denied') return { email: 'p@example.test', roles: [], permissions: [] };
+			return null;
+		});
+		const app = createApp(makeDeps({ auth: new AuthService(undefined, sso) }));
 
 		expect((await app.request('/api/projects')).status).toBe(401);
 		expect((await app.request('/api/health')).status).toBe(200);
+		expect((await app.request('/api/projects', { headers: { cookie: 'nz_id=garbage' } })).status).toBe(401);
+		expect((await app.request('/api/projects', { headers: { cookie: 'nz_id=denied' } })).status).toBe(401);
+		expect((await app.request('/api/projects', { headers: { cookie: 'nz_id=granted' } })).status).toBe(200);
+		expect(verify).toHaveBeenCalled();
 
-		// Bad then good login.
-		const bad = await app.request('/api/auth/login', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ username: 'admin', password: 'wrong' }),
-		});
-		expect(bad.status).toBe(401);
-
-		const login = await app.request('/api/auth/login', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ username: 'admin', password: 'hunter2hunter2' }),
-		});
-		expect(login.status).toBe(200);
-		const cookie = sessionCookie(login);
-
-		expect((await app.request('/api/projects', { headers: { cookie } })).status).toBe(200);
-
-		// Basic header works too (curl over HTTPS).
-		const basic = `Basic ${Buffer.from('admin:hunter2hunter2').toString('base64')}`;
-		expect((await app.request('/api/projects', { headers: { Authorization: basic } })).status).toBe(
-			200,
+		// Status: no cookie → points at usr's refresh with the return URL.
+		const anon = (await (
+			await app.request('/api/auth/status?return=https%3A%2F%2Fbp.example.test%2F%23%2Fprojects')
+		).json()) as { authenticated: boolean; identity: unknown; sso: { refreshUrl: string } };
+		expect(anon.authenticated).toBe(false);
+		expect(anon.identity).toBeNull();
+		expect(anon.sso.refreshUrl).toBe(
+			'https://usr.example.test/api/auth/sso/refresh?return=https%3A%2F%2Fbp.example.test%2F%23%2Fprojects',
 		);
 
-		// Logout revokes the session.
-		await app.request('/api/auth/logout', { method: 'POST', headers: { cookie } });
-		expect((await app.request('/api/projects', { headers: { cookie } })).status).toBe(401);
-	});
-
-	it('reports status and manages the account over the API', async () => {
-		const app = createApp(makeDeps());
-
-		let status = (await (await app.request('/api/auth/status')).json()) as {
-			localAuth: boolean;
-			authenticated: boolean;
-			method: string | null;
-		};
-		expect(status).toMatchObject({ localAuth: false, authenticated: true, method: 'open' });
-
-		// Set the account while open (bootstrap), which returns a session cookie.
-		const put = await app.request('/api/auth/account', {
-			method: 'PUT',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ username: 'admin', password: 'hunter2hunter2' }),
+		// Status: valid cookie without a grant → identity shown, not authenticated.
+		const denied = (await (
+			await app.request('/api/auth/status', { headers: { cookie: 'nz_id=denied' } })
+		).json()) as Record<string, unknown>;
+		expect(denied).toMatchObject({
+			authenticated: false,
+			method: null,
+			identity: { email: 'p@example.test', roles: [] },
 		});
-		expect(put.status).toBe(200);
-		const cookie = sessionCookie(put);
 
-		// Now gated: anonymous requests fail, the fresh cookie works.
-		expect((await app.request('/api/projects')).status).toBe(401);
-		status = (await (
-			await app.request('/api/auth/status', { headers: { cookie } })
-		).json()) as typeof status;
-		expect(status).toMatchObject({ localAuth: true, authenticated: true, method: 'session' });
-
-		// Weak password rejected; unauthenticated account change rejected.
-		const weak = await app.request('/api/auth/account', {
-			method: 'PUT',
-			headers: { 'content-type': 'application/json', cookie },
-			body: JSON.stringify({ username: 'admin', password: 'short' }),
+		const granted = (await (
+			await app.request('/api/auth/status', { headers: { cookie: 'nz_id=granted' } })
+		).json()) as Record<string, unknown>;
+		expect(granted).toMatchObject({
+			authenticated: true,
+			method: 'sso',
+			username: 'p@example.test',
+			identity: { roles: ['admin'] },
 		});
-		expect(weak.status).toBe(400);
-		expect(
-			(
-				await app.request('/api/auth/account', {
-					method: 'PUT',
-					headers: { 'content-type': 'application/json' },
-					body: JSON.stringify({ username: 'evil', password: 'evilevilevil' }),
-				})
-			).status,
-		).toBe(401);
-
-		// Changing credentials revokes older sessions but keeps the caller's new one.
-		const rotate = await app.request('/api/auth/account', {
-			method: 'PUT',
-			headers: { 'content-type': 'application/json', cookie },
-			body: JSON.stringify({ username: 'admin', password: 'correct-horse-battery' }),
-		});
-		const newCookie = sessionCookie(rotate);
-		expect((await app.request('/api/projects', { headers: { cookie } })).status).toBe(401);
-		expect((await app.request('/api/projects', { headers: { cookie: newCookie } })).status).toBe(200);
-
-		// Clearing the account returns to open mode.
-		expect(
-			(
-				await app.request('/api/auth/account', { method: 'DELETE', headers: { cookie: newCookie } })
-			).status,
-		).toBe(200);
-		expect((await app.request('/api/projects')).status).toBe(200);
 	});
 });
 

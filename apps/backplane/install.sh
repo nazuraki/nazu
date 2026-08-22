@@ -119,8 +119,9 @@ echo "  UI/API:      http://localhost:$PORT"
 echo "  Grafana:     http://localhost:3001  (admin/admin)"
 echo "  Prometheus:  http://localhost:9090"
 echo
-echo "  The API is open (no auth) by default. To require a bearer key, set"
-echo "  BACKPLANE_API_KEY in $DIR/.env and re-run this installer."
+echo "  The API is open (no auth) by default. To gate it, set BACKPLANE_USR_URL"
+echo "  (usr SSO for browsers) and/or BACKPLANE_API_KEY (bearer key for agents)"
+echo "  in $DIR/.env and re-run this installer."
 echo
 echo "  To deploy private GitHub repos / GHCR images, set BACKPLANE_GITHUB_TOKEN"
 echo "  (PAT with repo read + read:packages) in $DIR/.env and re-run."

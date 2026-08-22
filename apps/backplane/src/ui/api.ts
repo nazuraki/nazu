@@ -22,6 +22,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 		headers: { ...authHeaders(), ...(init.headers ?? {}) },
 	});
 	if (!res.ok) {
+		// Expired/missing SSO cookie mid-session: let the app re-check auth and
+		// bounce to usr rather than surfacing raw 401s on every panel.
+		if (res.status === 401) window.dispatchEvent(new Event('backplane:unauthorized'));
 		const body = await res.text();
 		let message = `HTTP ${res.status}`;
 		try {
@@ -34,42 +37,27 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 	return res.json() as Promise<T>;
 }
 
+export interface Identity {
+	email: string;
+	roles: string[];
+	permissions: string[];
+}
+
 export interface AuthStatus {
-	localAuth: boolean;
 	apiKeyAuth: boolean;
+	/** Present when the server is configured for usr SSO. */
+	sso: { usrUrl: string; app: string; refreshUrl: string | null } | null;
 	authenticated: boolean;
-	method: 'api-key' | 'session' | 'basic' | 'open' | null;
+	method: 'api-key' | 'sso' | 'open' | null;
 	username: string | null;
+	/** Verified usr identity from the `nz_id` cookie, even when it grants no access. */
+	identity: Identity | null;
 }
 
-const JSON_HEADERS = { 'content-type': 'application/json' };
-
+/** Auth status for this request; `return` lets the server build the SSO refresh URL. */
 export async function fetchAuthStatus(): Promise<AuthStatus> {
-	return api<AuthStatus>('/api/auth/status');
-}
-
-export async function login(username: string, password: string): Promise<void> {
-	await api('/api/auth/login', {
-		method: 'POST',
-		headers: JSON_HEADERS,
-		body: JSON.stringify({ username, password }),
-	});
-}
-
-export async function logout(): Promise<void> {
-	await api('/api/auth/logout', { method: 'POST' });
-}
-
-export async function saveAccount(username: string, password: string): Promise<void> {
-	await api('/api/auth/account', {
-		method: 'PUT',
-		headers: JSON_HEADERS,
-		body: JSON.stringify({ username, password }),
-	});
-}
-
-export async function clearAccount(): Promise<void> {
-	await api('/api/auth/account', { method: 'DELETE' });
+	const params = new URLSearchParams({ return: window.location.href });
+	return api<AuthStatus>(`/api/auth/status?${params}`);
 }
 
 export interface Project {

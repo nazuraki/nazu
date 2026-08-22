@@ -11,6 +11,7 @@ import * as docker from './lib/docker.js';
 import { createPromClient } from './lib/prometheus.js';
 import { Registry } from './lib/registry.js';
 import { SelfUpdater } from './lib/self-update.js';
+import { ssoConfig, SsoVerifier } from './lib/sso.js';
 import { ComposeTarget } from './lib/targets/compose.js';
 import { checkImages } from './lib/updates.js';
 
@@ -22,7 +23,8 @@ const POLL_INTERVAL_MS = Number(process.env.BACKPLANE_POLL_INTERVAL ?? 300) * 10
 const GITHUB_TOKEN = process.env.BACKPLANE_GITHUB_TOKEN?.trim() || undefined;
 
 const registry = new Registry(join(DATA_DIR, 'backplane.db'));
-const auth = new AuthService(registry, API_KEY);
+const SSO = ssoConfig();
+const auth = new AuthService(API_KEY, SSO ? new SsoVerifier(SSO) : undefined);
 const registryAuth = (host: string): string | undefined => registryAuthHeader(host, GITHUB_TOKEN);
 // Must be a path the HOST daemon can also see (mirrored bind mount in
 // docker-compose.yml) so relative bind mounts in managed compose files resolve.
@@ -72,6 +74,6 @@ if (POLL_INTERVAL_MS > 0) {
 }
 
 serve({ fetch: app.fetch, port: PORT }, (info) => {
-	const modes = [API_KEY && 'api-key', auth.localConfigured() && 'local'].filter(Boolean);
+	const modes = [API_KEY && 'api-key', SSO && `sso(${SSO.usrUrl})`].filter(Boolean);
 	console.log(`backplane listening on :${info.port} (auth: ${modes.join('+') || 'open'})`);
 });

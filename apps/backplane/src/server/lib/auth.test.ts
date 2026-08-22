@@ -1,88 +1,60 @@
-import { createHash } from 'node:crypto';
+import { describe, expect, it, vi } from 'vitest';
 
-import { describe, expect, it } from 'vitest';
+import { AuthService } from './auth.js';
+import { SsoVerifier } from './sso.js';
 
-import { AuthService, hashPassword, verifyPassword } from './auth.js';
-import { Registry } from './registry.js';
-
-describe('password hashing', () => {
-	it('verifies a correct password and rejects wrong/garbage input', () => {
-		const stored = hashPassword('s3cret-pass');
-		expect(stored.startsWith('scrypt$')).toBe(true);
-		expect(verifyPassword('s3cret-pass', stored)).toBe(true);
-		expect(verifyPassword('wrong', stored)).toBe(false);
-		expect(verifyPassword('s3cret-pass', 'not-a-hash')).toBe(false);
-		expect(verifyPassword('s3cret-pass', 'md5$aa$bb')).toBe(false);
-	});
-
-	it('salts: same password hashes differently', () => {
-		expect(hashPassword('x')).not.toBe(hashPassword('x'));
-	});
-});
+/** An SsoVerifier whose verify() is stubbed — the real one is covered in sso.test.ts. */
+function fakeSso(result: { email: string; roles: string[]; permissions: string[] } | null): SsoVerifier {
+	const sso = new SsoVerifier({ usrUrl: 'https://usr.example.test', app: 'backplane' });
+	vi.spyOn(sso, 'verify').mockResolvedValue(result);
+	return sso;
+}
 
 describe('AuthService', () => {
-	it('is open when nothing is configured, gated once credentials exist', () => {
-		const auth = new AuthService(new Registry(':memory:'));
-		expect(auth.required()).toBe(false);
-		expect(auth.authenticate(undefined, undefined)).toMatchObject({ method: 'open' });
+	it('is open when nothing is configured, gated once either method is', async () => {
+		const open = new AuthService();
+		expect(open.required()).toBe(false);
+		expect(await open.authenticate(undefined, undefined)).toMatchObject({ method: 'open' });
 
-		auth.setAccount('admin', 'pw12345678');
-		expect(auth.required()).toBe(true);
-		expect(auth.authenticate(undefined, undefined)).toBeNull();
-
-		auth.clearAccount();
-		expect(auth.authenticate(undefined, undefined)).toMatchObject({ method: 'open' });
+		expect(new AuthService('key').required()).toBe(true);
+		expect(new AuthService(undefined, fakeSso(null)).required()).toBe(true);
+		expect(await new AuthService('key').authenticate(undefined, undefined)).toBeNull();
 	});
 
-	it('resolves the ladder: bearer, session, basic', () => {
-		const auth = new AuthService(new Registry(':memory:'), 'key123');
-		auth.setAccount('admin', 'pw12345678');
-
-		expect(auth.authenticate('Bearer key123', undefined)).toMatchObject({ method: 'api-key' });
-		expect(auth.authenticate('Bearer nope', undefined)).toBeNull();
-
-		const { token } = auth.createSession('admin');
-		expect(auth.authenticate(undefined, token)).toMatchObject({
-			method: 'session',
-			username: 'admin',
-		});
-		expect(auth.authenticate(undefined, 'forged-token')).toBeNull();
-
-		const basic = `Basic ${Buffer.from('admin:pw12345678').toString('base64')}`;
-		expect(auth.authenticate(basic, undefined)).toMatchObject({ method: 'basic' });
-		expect(
-			auth.authenticate(`Basic ${Buffer.from('admin:wrong').toString('base64')}`, undefined),
-		).toBeNull();
+	it('accepts the bearer key exactly and rejects near-misses', async () => {
+		const auth = new AuthService('key123');
+		expect(await auth.authenticate('Bearer key123', undefined)).toMatchObject({ method: 'api-key' });
+		expect(await auth.authenticate('Bearer key12', undefined)).toBeNull();
+		expect(await auth.authenticate('Bearer key1234', undefined)).toBeNull();
+		expect(await auth.authenticate('key123', undefined)).toBeNull();
+		expect(await auth.authenticate(`Basic ${Buffer.from('a:b').toString('base64')}`, undefined)).toBeNull();
 	});
 
-	it('revokes sessions on logout and on credential change', () => {
-		const auth = new AuthService(new Registry(':memory:'));
-		auth.setAccount('admin', 'pw12345678');
-
-		const { token } = auth.createSession('admin');
-		expect(auth.validateSessionToken(token)).toBe('admin');
-
-		auth.revokeSession(token);
-		expect(auth.validateSessionToken(token)).toBeNull();
-
-		const { token: token2 } = auth.createSession('admin');
-		auth.setAccount('admin', 'new-password-99');
-		expect(auth.validateSessionToken(token2)).toBeNull();
-	});
-
-	it('expires sessions past their TTL', () => {
-		const registry = new Registry(':memory:');
-		const auth = new AuthService(registry);
-		auth.setAccount('admin', 'pw12345678');
-		const { token } = auth.createSession('admin');
-
-		// Backdate the stored expiry rather than waiting 30 days.
-		registry.deleteAllSessions();
-		registry.insertSession(
-			createHash('sha256').update(token).digest('hex'),
-			'admin',
-			new Date(Date.now() - 1000).toISOString(),
+	it('accepts an SSO identity with a backplane grant, rejects one without', async () => {
+		const granted = new AuthService(
+			undefined,
+			fakeSso({ email: 'p@example.test', roles: ['admin'], permissions: [] }),
 		);
-		expect(auth.validateSessionToken(token)).toBeNull();
+		expect(await granted.authenticate(undefined, 'tok')).toMatchObject({
+			method: 'sso',
+			username: 'p@example.test',
+			identity: { roles: ['admin'] },
+		});
+
+		const denied = new AuthService(undefined, fakeSso({ email: 'p@example.test', roles: [], permissions: [] }));
+		expect(await denied.authenticate(undefined, 'tok')).toBeNull();
+
+		const invalid = new AuthService(undefined, fakeSso(null));
+		expect(await invalid.authenticate(undefined, 'tok')).toBeNull();
+		// No cookie at all never consults the verifier.
+		const untouched = new AuthService(undefined, fakeSso(null));
+		expect(await untouched.authenticate(undefined, undefined)).toBeNull();
+		expect(untouched.sso!.verify).not.toHaveBeenCalled();
+	});
+
+	it('lets the bearer key bypass SSO when both are configured', async () => {
+		const auth = new AuthService('key', fakeSso(null));
+		expect(await auth.authenticate('Bearer key', undefined)).toMatchObject({ method: 'api-key' });
+		expect(await auth.authenticate(undefined, 'tok')).toBeNull();
 	});
 });

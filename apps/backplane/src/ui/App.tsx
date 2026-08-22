@@ -1,11 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert } from '@nazuraki/ui-react';
 import { useEffect, useState } from 'react';
 
-import { fetchAuthStatus, logout } from './api';
+import { fetchAuthStatus } from './api';
 import { SelfUpdate } from './components/SelfUpdate';
 import { ContainersPage } from './pages/ContainersPage';
-import { LoginPage } from './pages/LoginPage';
+import { BOUNCE_KEY, LoginPage } from './pages/LoginPage';
 import { ProjectEditPage } from './pages/ProjectEditPage';
 import { ProjectPage } from './pages/ProjectPage';
 import { ProjectsPage } from './pages/ProjectsPage';
@@ -29,10 +29,18 @@ export function App(): React.JSX.Element {
 	const editMatch = route.match(/^\/projects\/([^/]+)\/edit$/);
 
 	const auth = useQuery({ queryKey: ['auth'], queryFn: fetchAuthStatus });
-	const doLogout = useMutation({
-		mutationFn: logout,
-		onSuccess: () => void qc.invalidateQueries(),
-	});
+
+	// A 401 from any call (e.g. the SSO cookie expired) re-checks auth, which
+	// drops into LoginPage and bounces to usr for a fresh cookie.
+	useEffect(() => {
+		const onUnauthorized = (): void => void qc.invalidateQueries({ queryKey: ['auth'] });
+		window.addEventListener('backplane:unauthorized', onUnauthorized);
+		return () => window.removeEventListener('backplane:unauthorized', onUnauthorized);
+	}, [qc]);
+	// Back from usr with a working session: forget the loop guard.
+	useEffect(() => {
+		if (auth.data?.authenticated) sessionStorage.removeItem(BOUNCE_KEY);
+	}, [auth.data?.authenticated]);
 
 	if (auth.isPending) return <main />;
 	if (auth.isError) {
@@ -70,15 +78,14 @@ export function App(): React.JSX.Element {
 					>
 						<span className="material-symbols-outlined">settings</span>
 					</a>
-					{auth.data.method === 'session' && (
-						<button
+					{auth.data.method === 'sso' && auth.data.sso && (
+						<a
+							href={auth.data.sso.usrUrl}
 							className="icon-btn"
-							title="Sign out"
-							onClick={() => doLogout.mutate()}
-							disabled={doLogout.isPending}
+							title={`${auth.data.username} — account & sign-out in usr`}
 						>
-							<span className="material-symbols-outlined">logout</span>
-						</button>
+							<span className="material-symbols-outlined">account_circle</span>
+						</a>
 					)}
 				</header>
 				<main>

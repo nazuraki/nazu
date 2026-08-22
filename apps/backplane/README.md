@@ -41,7 +41,7 @@ install directory (Enter accepts `~/nazu-backplane`); non-interactive runs take
 the default — seed it with `BACKPLANE_HOME`. Re-running updates to the latest
 images — this **is** the self-update path on a machine installed this way. The
 installer overwrites the downloaded files on each run — put customizations in
-`docker-compose.override.yml`; `.env` (`BACKPLANE_API_KEY`, poll interval) is
+`docker-compose.override.yml`; `.env` (`BACKPLANE_API_KEY`, `BACKPLANE_USR_URL`, poll interval) is
 never overwritten.
 
 ### From a checkout (local dev)
@@ -55,6 +55,7 @@ at `:3001` (deep-dive/ad-hoc; inline UI charts come straight from Prometheus's
 `query_range` through the API).
 
 Env (all optional): `BACKPLANE_API_KEY` (static bearer key for agents/MCP),
+`BACKPLANE_USR_URL` / `BACKPLANE_USR_APP` (usr SSO for browsers — see "Auth"),
 `BACKPLANE_POLL_INTERVAL` (digest poll seconds, default 300, `0` = off),
 `BACKPLANE_GITHUB_TOKEN` (GitHub PAT for private repos/images — see
 "Private repos and images"), `BACKPLANE_WORKDIRS` (host root for deploy
@@ -65,18 +66,25 @@ dir>/workdirs`, and from a checkout it defaults to `${PWD}/workdirs`),
 ### Auth
 
 Zero-conf open by default. Two independent gates; configuring either one
-locks down every `/api/*` route (except health and the login endpoints):
+locks down every `/api/*` route (except `/api/health` and `/api/auth/status`):
 
-- **Local admin account** — set in the UI under **Settings** (stored
-  scrypt-hashed in the registry DB). Browsers log in via a session cookie
-  (HttpOnly/Secure, 30 days, survives restarts); scripts can send an HTTP
-  `Basic` header over HTTPS. Changing or clearing the account revokes all
-  sessions.
+- **usr SSO (`BACKPLANE_USR_URL`)** — browsers authenticate with the
+  cross-app `nz_id` cookie that [usr](../usr/README.md#cross-app-sso) sets on
+  the shared parent domain. The backplane verifies it offline against usr's
+  JWKS (cached 5 min, refetched on key rotation) and admits identities holding
+  any role in the `backplane` app (`BACKPLANE_USR_APP` to rename). With no or
+  an expired cookie the SPA bounces to usr's `/api/auth/sso/refresh`, which
+  re-mints from the live usr session (or shows usr's login) and returns.
+  A valid cookie without a backplane role shows "no access" instead of
+  looping. The backplane keeps **no accounts of its own** — users, roles and
+  sign-out live in usr. Requires both apps under one parent domain with usr's
+  `USR_SSO_COOKIE_DOMAIN` set.
 - **`BACKPLANE_API_KEY`** — static bearer key for non-interactive clients
-  (MCP, curl); the UI can also store it in localStorage.
+  (MCP, curl, CI webhooks); the UI can also store it in localStorage. This is
+  also the break-glass path if usr is unreachable.
 
-Use behind the shared edge (HTTPS) — cookies are `Secure`-flagged and
-Basic/bearer credentials shouldn't travel over plain LAN HTTP.
+Use behind the shared edge (HTTPS) — the SSO cookie is `Secure`-flagged and
+the bearer key shouldn't travel over plain LAN HTTP.
 
 ### HTTPS (shared edge)
 
@@ -149,9 +157,7 @@ the host remains equivalent.
 | Route | What |
 |---|---|
 | `GET /api/health` | liveness (unauthenticated) |
-| `GET /api/auth/status` | auth modes + whether this request authenticates (unauthenticated) |
-| `POST /api/auth/login` / `logout` | session cookie mint / revoke (unauthenticated) |
-| `PUT`/`DELETE /api/auth/account` | set/replace or remove the local admin account |
+| `GET /api/auth/status` | auth modes, whether this request authenticates, the usr identity, and the SSO refresh URL for `?return=` (unauthenticated) |
 | `GET`/`POST /api/projects`, `GET`/`DELETE /api/projects/:name` | registry CRUD (POST upserts) |
 | `GET /api/projects/:name/status` | compose services state |
 | `GET /api/projects/:name/updates` | remote vs running image digests |
