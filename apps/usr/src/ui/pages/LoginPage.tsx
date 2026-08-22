@@ -14,11 +14,23 @@ export function LoginPage({ status }: { status: AuthStatus }): React.JSX.Element
 	const qc = useQueryClient();
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
-	const loginError = LOGIN_ERRORS[new URLSearchParams(window.location.search).get('login_error') ?? ''];
+	const params = new URLSearchParams(window.location.search);
+	const loginError = LOGIN_ERRORS[params.get('login_error') ?? ''];
+	// SSO bounce: a sibling app sent the browser here; go back once signed in.
+	// The server allow-lists the target — a foreign URL is simply ignored.
+	const returnTo = params.get('return');
+	const oauthHref = (p: string): string =>
+		`/api/auth/oauth/${p}${returnTo ? `?return=${encodeURIComponent(returnTo)}` : ''}`;
 
 	const doLogin = useMutation({
 		mutationFn: () => login(username, password),
-		onSuccess: () => void qc.invalidateQueries({ queryKey: ['auth'] }),
+		onSuccess: () => {
+			if (returnTo && status.sso) {
+				window.location.assign(`/api/auth/sso/refresh?return=${encodeURIComponent(returnTo)}`);
+				return;
+			}
+			void qc.invalidateQueries({ queryKey: ['auth'] });
+		},
 	});
 
 	return (
@@ -29,7 +41,7 @@ export function LoginPage({ status }: { status: AuthStatus }): React.JSX.Element
 				{status.oauthProviders.length > 0 && (
 					<div className="providers">
 						{status.oauthProviders.map((p) => (
-							<a key={p} className="nb-btn nb-btn--primary" href={`/api/auth/oauth/${p}`}>
+							<a key={p} className="nb-btn nb-btn--primary" href={oauthHref(p)}>
 								Sign in with {p}
 							</a>
 						))}

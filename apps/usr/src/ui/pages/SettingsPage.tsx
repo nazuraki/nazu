@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Card, Field, Input, Spinner } from '@nazuraki/ui-react';
 import { useState } from 'react';
 
-import { fetchOAuthSettings, saveLocalAdmin, saveOAuthSettings } from '../api';
+import { fetchAuthStatus, fetchOAuthSettings, saveLocalAdmin, saveOAuthSettings } from '../api';
 
 export function SettingsPage(): React.JSX.Element {
 	const qc = useQueryClient();
 	const oauth = useQuery({ queryKey: ['settings', 'oauth'], queryFn: fetchOAuthSettings });
+	const auth = useQuery({ queryKey: ['auth'], queryFn: fetchAuthStatus });
 
 	const [githubId, setGithubId] = useState<string | null>(null);
 	const [githubSecret, setGithubSecret] = useState('');
@@ -137,6 +138,22 @@ export function SettingsPage(): React.JSX.Element {
 						Save admin account
 					</Button>
 				</form>
+			</Card>
+
+			<h2>Cross-app SSO</h2>
+			<Card className="panel">
+				{auth.data?.sso ? (
+					<p className="muted">
+						Enabled — identity cookie <code>nz_id</code> on <code>.{auth.data.sso.cookieDomain}</code>.
+						Public keys: <code>/.well-known/jwks.json</code>. Configured by deployment env
+						(<code>USR_SSO_COOKIE_DOMAIN</code>, <code>USR_SSO_TOKEN_TTL</code>).
+					</p>
+				) : (
+					<p className="muted">
+						Disabled — set <code>USR_SSO_COOKIE_DOMAIN</code> in the deployment env to issue a
+						zone-wide <code>nz_id</code> identity cookie for sibling apps.
+					</p>
+				)}
 			</Card>
 		</>
 	);

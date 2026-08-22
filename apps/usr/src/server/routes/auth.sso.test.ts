@@ -62,10 +62,10 @@ describe('SSO routes', () => {
 
 	it('status reports the sso cookie domain only when configured', async () => {
 		let res = await build(null).request('/api/auth/status');
-		expect((await res.json()).sso).toEqual({ cookieDomain: 'example.internal' });
+		expect(((await res.json()) as { sso: unknown }).sso).toEqual({ cookieDomain: 'example.internal' });
 		delete process.env.USR_SSO_COOKIE_DOMAIN;
 		res = await build(null).request('/api/auth/status');
-		expect((await res.json()).sso).toBeNull();
+		expect(((await res.json()) as { sso: unknown }).sso).toBeNull();
 	});
 
 	it('refresh with a live session re-mints nz_id and redirects to the allow-listed return', async () => {
