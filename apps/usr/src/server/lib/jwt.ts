@@ -80,16 +80,15 @@ export function verifyJwt(
 	if (!key) return null;
 	const verifier = createVerify('SHA256');
 	verifier.update(`${h}.${p}`);
-	let ok = false;
 	try {
-		ok = verifier.verify(
+		const ok = verifier.verify(
 			{ key: key.publicKey, dsaEncoding: 'ieee-p1363' },
 			Buffer.from(s, 'base64url'),
 		);
+		if (!ok) return null;
 	} catch {
 		return null;
 	}
-	if (!ok) return null;
 	if (typeof claims.exp === 'number' && claims.exp * 1000 <= now) return null;
 	return claims;
 }

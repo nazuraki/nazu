@@ -109,5 +109,5 @@ export async function mintIdentityToken(
 ): Promise<string> {
 	const { apps } = await resolvePermissions(email);
 	const claims = buildIdentityClaims(email, sessionId(sessionToken), apps, cfg.ttlSeconds);
-	return signJwt(claims, await getSigningKey());
+	return signJwt({ ...claims }, await getSigningKey());
 }
