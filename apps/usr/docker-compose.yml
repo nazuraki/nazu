@@ -13,8 +13,12 @@ services:
     # docker-compose.edge.yml.
     ports:
       - "127.0.0.1:8432:8432"
-    # No app env: API keys are DB-backed and role-mapped, created in the Keys
-    # UI. Open mode lasts only until first-run setup creates the admin.
+    # API keys and OAuth are DB-backed (Keys / Settings UI); open mode lasts
+    # only until first-run setup creates the admin. The only env is the
+    # optional cross-app SSO switch — unset keeps SSO off (see README).
+    environment:
+      USR_SSO_COOKIE_DOMAIN: ${USR_SSO_COOKIE_DOMAIN:-}
+      USR_SSO_TOKEN_TTL: ${USR_SSO_TOKEN_TTL:-}
     restart: unless-stopped
     depends_on:
       postgres:

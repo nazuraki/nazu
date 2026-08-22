@@ -12,6 +12,7 @@ import {
 	type AuthUser,
 } from './lib/auth.js';
 import { can } from './lib/permissions.js';
+import { jwks } from './lib/jwt.js';
 import { authRoutes, SESSION_COOKIE } from './routes/auth.js';
 import { keysRoutes } from './routes/keys.js';
 import { permissionsRoutes } from './routes/permissions.js';
@@ -83,6 +84,12 @@ export function createApp(): Hono<AppEnv> {
 	const app = new Hono<AppEnv>();
 
 	app.get('/api/health', (c) => c.json({ ok: true }));
+
+	// Public signing keys so sibling apps verify `nz_id` (and #97 tokens) offline.
+	app.get('/.well-known/jwks.json', async (c) => {
+		c.header('Cache-Control', 'public, max-age=300');
+		return c.json(await jwks());
+	});
 
 	app.use('/api/*', async (c, next) => {
 		const user = await authenticate(

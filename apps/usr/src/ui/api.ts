@@ -28,6 +28,8 @@ export interface AuthStatus {
 	setupRequired: boolean;
 	localAuth: boolean;
 	oauthProviders: string[];
+	/** Cross-app SSO (`nz_id` cookie) — null when USR_SSO_COOKIE_DOMAIN is unset. */
+	sso: { cookieDomain: string } | null;
 }
 
 export const fetchAuthStatus = (): Promise<AuthStatus> => api('/api/auth/status');
